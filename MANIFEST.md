@@ -21,7 +21,7 @@
 |---|---|
 | Guest | Not logged in. Can browse public trees only. |
 | User | Registered account. Creates and manages their own trees. |
-| Admin | **[TBD]** Moderation of public content. |
+| Admin | Moderates public content. Has no access to private trees. |
 
 | Action | Guest | User | Admin |
 |---|---|---|---|
@@ -29,7 +29,7 @@
 | Sign up / log in | ✅ | — | — |
 | Create / edit / delete own trees & nodes | ❌ | ✅ (own only) | ✅ |
 | Manage own categories | ❌ | ✅ | ✅ |
-| View others' private trees | ❌ | ❌ | **[TBD]** |
+| View others' private trees | ❌ | ❌ | ❌ |
 | Remove inappropriate public content | ❌ | ❌ | ✅ |
 
 ## 3. Functional Requirements（機能要件）
@@ -39,20 +39,20 @@ Sign up, log in, log out. Each user has a public profile (username, display name
 
 ### 3.2 Idea Trees (Boards)
 - Create a tree with a title and a **root (center) idea**.
-- Each tree has a **visibility**: `PRIVATE` (default) or `PUBLIC`. **[TBD]** `UNLISTED` (link-only).
+- Each tree has a **visibility**: `PRIVATE` (default) or `PUBLIC`. Only `PUBLIC` trees appear in Explore.
 - Edit / delete own trees.
 
 ### 3.3 Idea Nodes
 - Add child nodes branching from any node (rule: every node except the root has exactly one parent).
-- Node types: `TEXT` (raw thought), `LINK` (website), `VIDEO` (e.g. YouTube URL, embedded).
-  **[TBD]** `IMAGE` upload.
-- For `LINK`, show a preview (title/thumbnail). **[TBD]** whether previews are fetched server-side.
+- Node types: `TEXT` (raw thought), `LINK` (website), `VIDEO` (e.g. YouTube URL, embedded), `IMAGE` (uploaded image).
+- For `LINK`, the **backend fetches a preview** (page title + thumbnail) when the URL is saved, and stores it on the node.
+- `IMAGE` uploads are stored on local disk (`backend/uploads/`) in development; cloud storage (S3) later. **[TBD]** max file size and allowed formats.
 - Drag nodes to reposition; node positions are saved.
 - Deleting a node deletes its subtree (with confirmation).
 
 ### 3.4 Categories
 - Users create their own categories (name + color) and assign them to trees.
-- **[TBD]** One category per tree vs. multiple (tags).
+- A tree can have **multiple categories** (tag-style).
 
 ### 3.5 Explore
 - Browse a feed of public trees from all users, filter by category / search by title.
@@ -79,14 +79,16 @@ Main entities:
 
 - **User** 1—N **Tree**
 - **User** 1—N **Category**
-- **Tree** N—1 **Category** (nullable) — **[TBD]** N—N if multiple tags
+- **Tree** N—N **Category** (via join table `TreeCategory`)
 - **Tree** 1—N **Node**
 - **Node** 1—N **Node** (self-relation via `parentId`; root has `parentId = null`)
 
 Key decisions:
-- Primary keys: `cuid` strings (**[TBD]** confirm).
+- Primary keys: `cuid` strings.
+- `User.role`: enum `USER | ADMIN`.
 - `Tree.visibility`: enum `PRIVATE | PUBLIC`.
-- `Node.type`: enum `TEXT | LINK | VIDEO`.
+- `Node.type`: enum `TEXT | LINK | VIDEO | IMAGE`.
+- `LINK` nodes store fetched preview fields (title, thumbnail URL); `IMAGE` nodes store the uploaded file path/URL.
 - `Node.positionX / positionY`: float, stored for the canvas layout.
 
 > Full schema TBD (DB design phase)
@@ -95,18 +97,21 @@ Key decisions:
 
 Policies:
 - REST, JSON, base path `/api`.
-- Auth: JWT (access token) via `Authorization: Bearer` header. **[TBD]** httpOnly cookie instead.
+- Auth: JWT stored in an **httpOnly cookie** (`Secure`, `SameSite`), set on login and cleared on logout.
 - Common response shape: `{ "data": ... }` on success, `{ "error": { "code", "message" } }` on failure.
 - Request validation with Zod; shared types between frontend and backend.
 
 | Resource | Main endpoints |
 |---|---|
-| Auth | `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me` |
+| Auth | `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | Users | `GET /api/users/:username`, `PATCH /api/users/me` |
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` |
 | Nodes | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `DELETE /api/nodes/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`) |
+| Uploads | `POST /api/uploads` (image upload, multipart) |
+| Link preview | `POST /api/link-preview` (fetch title/thumbnail for a URL) |
+| Admin | `DELETE /api/admin/trees/:id` (remove a public tree) |
 
 > Request/response details TBD (API design phase)
 
@@ -116,14 +121,15 @@ Policies:
 |---|---|
 | Language | TypeScript (frontend & backend) |
 | Frontend | React + Vite, React Router |
-| Canvas / tree visualization | React Flow (`@xyflow/react`) — **[TBD]** confirm |
+| Canvas / tree visualization | Custom SVG + D3 (`d3-hierarchy` for layout, `d3-zoom` for pan/zoom) |
 | Frontend data fetching | TanStack Query |
-| Styling | **[TBD]** (Tailwind CSS / CSS Modules) |
+| Styling | Tailwind CSS |
 | Backend | Node.js + Express |
 | Validation | Zod |
 | ORM | Prisma |
 | Database | PostgreSQL |
-| Auth | JWT + bcrypt |
+| Auth | JWT (httpOnly cookie) + bcrypt |
+| File uploads | Multer → local disk (`backend/uploads/`) in dev; S3 later |
 | Dev environment | Docker Compose (PostgreSQL) |
 | Testing | Vitest (unit), Playwright (E2E) |
 
@@ -155,6 +161,7 @@ highdea_tree_app/
     │   └── lib/
     ├── prisma/
     │   └── schema.prisma
+    ├── uploads/           # dev image storage (gitignored)
     └── package.json
 ```
 
@@ -173,7 +180,8 @@ Candidates — confirm or remove:
 - Likes / bookmarks / "fork" someone else's tree
 - Comments on public trees
 - Real-time collaborative editing
-- Image / file uploads on nodes
+- Cloud storage (S3) for uploaded images
+- `UNLISTED` (link-only) tree visibility
 - Cross-links between nodes (graph, not just tree)
 - AI suggestions for branching ideas
 - Export tree as image / PDF

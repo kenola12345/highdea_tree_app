@@ -14,15 +14,16 @@ Planning stage. Only `MANIFEST.md` and `CLAUDE.md` exist — no code yet. Don't 
 
 - Monorepo: `frontend/` and `backend/`
 - TypeScript everywhere (`strict: true`)
-- Frontend: React + Vite, React Router, TanStack Query, React Flow for the tree canvas
-- Backend: Node.js + Express, Zod, Prisma, PostgreSQL (Docker Compose), JWT auth
+- Frontend: React + Vite, React Router, TanStack Query, Tailwind CSS, custom SVG + D3 for the tree canvas
+- Backend: Node.js + Express, Zod, Prisma, PostgreSQL (Docker Compose), JWT in httpOnly cookie, Multer for image uploads (local disk in dev)
+- IDs: `cuid` strings
 
 ## Conventions
 
 - No `any`; prefer explicit types for API request/response shapes.
 - Validate all request input with Zod on the backend.
 - API responses: `{ data }` on success, `{ error: { code, message } }` on failure.
-- Authorization: users may only modify their own trees, nodes, and categories. Private trees are visible only to their owner.
+- Authorization: users may only modify their own trees, nodes, and categories. Private trees are visible only to their owner — not even to admins. Admins can only remove public trees.
 - Keep business logic in `services/`, not in route handlers.
 - Never commit `.env` files or secrets.
 
