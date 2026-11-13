@@ -48,7 +48,7 @@ Sign up, log in, log out. Each user has a public profile (username, display name
 - Node types: `TEXT` (raw thought), `LINK` (website), `VIDEO` (e.g. YouTube URL, embedded), `IMAGE` (uploaded image).
 - For `LINK`, the **backend fetches a preview** (page title + thumbnail) when the URL is saved, and stores it on the node.
 - `IMAGE` uploads are stored on local disk (`backend/uploads/`) in development; cloud storage (S3) later. Allowed: PNG, JPEG, WebP, GIF, up to 5 MB.
-- Drag nodes to reposition; node positions are saved.
+- Drag nodes to reposition, or drop a node onto another node to move it there (re-parent); node positions are saved. Works with mouse on desktop and with touch on phones and tablets (long-press to pick up a node).
 - A tree can have at most **2,000 nodes**.
 - **Canvas loading (lazy, like lazy-loaded images):**
   1. The whole tree's skeleton (each node's id, parent, type, title and position) loads in one request, so the layout and connecting lines can be drawn at once.
@@ -66,17 +66,148 @@ Sign up, log in, log out. Each user has a public profile (username, display name
 
 ## 4. Screens & Navigation（画面遷移・構成）
 
-| Screen | Path | Purpose |
+A React SPA (React Router). Every page shares a header with the logo, Explore, and either "Log in / Sign up" (guests) or My Trees, Trash, Settings and Log out (logged-in users). The main screen is the **Tree Editor**.
+
+Access values below: **Anyone** (guests and logged-in users), **Not logged in** (guests only; logged-in users are redirected to `/me`), `USER` / `ADMIN` (logged-in roles from §2), and **Owner** (the logged-in user who owns the tree).
+
+### 4.1 Page List（ページ一覧）
+
+| ID | Screen | URL | Summary | Access |
+|---|---|---|---|---|
+| P-01 | Landing | `/` | What Highdea Tree is, sample tree image, buttons to Explore and Sign up. Logged-in users see a "Go to My Trees" button instead | Anyone |
+| P-02 | Sign up | `/signup` | Email, username, display name, password. On success, logged in and sent to `/me`. Field errors shown under each field (`details`) | Not logged in |
+| P-03 | Log in | `/login` | Email and password. On success, sent to `?next=` or `/me` | Not logged in |
+| P-04 | My Trees (Dashboard) | `/me` | Grid of own trees (private and public): title, description, category chips, visibility badge, node count, last updated. Category filter, paging, "+ New tree". Removed trees show a "Removed by admin" badge | `USER`, `ADMIN` |
+| P-05 | Tree Editor | `/trees/:id/edit` | The canvas: add, edit, move, re-parent and delete idea nodes; pan and zoom; lazy loading. Tree settings in a modal | Owner (`USER`, `ADMIN`) |
+| P-06 | Tree Viewer | `/trees/:id` | Read-only canvas of a tree, with owner name, categories and description. Owners see an "Edit" button; admins see "Remove" on public trees | Anyone (public trees); Owner (own private or removed trees) |
+| P-07 | Explore | `/explore` | Feed of public trees from all users: search box, popular category chips, paging. Each card links to the Tree Viewer and the owner's profile | Anyone |
+| P-08 | User Profile | `/u/:username` | Avatar, display name, username, join date, and the user's public trees with paging | Anyone |
+| P-09 | Trash | `/trash` | Own deleted trees with "X days left" before permanent deletion, and a Restore button on each | `USER`, `ADMIN` |
+| P-10 | Settings | `/settings` | Two tabs: **Profile** (display name, avatar URL) and **Categories** (list with color, tree count, create, edit, delete) | `USER`, `ADMIN` |
+| P-11 | Not Found | any unknown URL, and any `404` from the API for a page's main resource | "This page doesn't exist or isn't public." Links to Explore and Home. Also shown for private trees and deactivated users, so their existence isn't revealed | Anyone |
+
+Routing rules:
+- A guest opening a `USER`/`ADMIN` page is sent to `/login?next=<url>`.
+- A logged-in user opening `/signup` or `/login` is sent to `/me` (the API rejects both with `403 ALREADY_AUTHENTICATED`).
+- `/trees/:id/edit` for someone who isn't the owner redirects to `/trees/:id` (decided from `isOwner` in `GET /api/trees/:id`).
+- There's no separate admin page; admins act from the Tree Viewer (M-09).
+
+### 4.2 Modal List（モーダル一覧）
+
+| ID | Modal | Trigger | Main functions |
+|---|---|---|---|
+| M-01 | New Tree | "+ New tree" button on My Trees (P-04) | Title, description, center idea text (defaults to title), visibility, category picker (up to 10, with "+ New category" opening M-07). Creates the tree and opens the Editor (`POST /api/trees`) |
+| M-02 | Tree Settings | Gear button in the Editor toolbar (P-05); "Edit details" in a tree card's menu on My Trees (P-04) | Edit title, description, visibility and categories (`PATCH /api/trees/:id`). For a removed tree, shows the admin's reason and the visibility switch is disabled with "Removed by an admin; can't be made public". Has the "Move to Trash" button (opens M-03) |
+| M-03 | Move Tree to Trash | "Move to Trash" in M-02; "Delete" in a tree card's menu on My Trees (P-04) | Confirm: "This tree will be in Trash for 10 days, then deleted permanently." (`DELETE /api/trees/:id`). From the Editor, then goes to `/me` |
+| M-04 | Node Editor | Double-click a node, or "Edit" in the node's toolbar (P-05). Also opens right after adding a node | Type tabs (Text / Link / Video / Image), title, note, URL with live preview card (`POST /api/link-preview`), image upload with progress (`POST /api/uploads`). Switching type keeps title and note. Saves with `PATCH /api/nodes/:id` |
+| M-05 | Add Branch | "+" button on a selected node's toolbar, or the `Tab` key on a selected node (P-05) | Pick a type and enter a title; creates the child node next to its parent (`POST /api/trees/:id/nodes`), then opens M-04 for the details. Disabled with "This tree is full (2,000 ideas)" at the limit |
+| M-06 | Delete Node | "Delete" in the node toolbar, or the `Delete` key on a selected node (P-05). Not shown for the center idea | Confirm: "Delete this idea and N ideas under it? This can't be undone." N is counted from the loaded skeleton (`DELETE /api/nodes/:id`) |
+| M-07 | Category Form | "+ New category" or "Edit" on the Settings Categories tab (P-10); "+ New category" inside the category picker of M-01 / M-02 | Name and color picker (`POST /api/categories`, `PATCH /api/categories/:id`). Duplicate names (ignoring upper/lower case) show the error under the name field |
+| M-08 | Delete Category | "Delete" on a category row in Settings (P-10) | Confirm: "Remove this category from N trees? The trees themselves stay." (`DELETE /api/categories/:id`) |
+| M-09 | Remove Tree (Admin) | "Remove" button in the Tree Viewer (P-06), shown only to `ADMIN` on public trees | Required reason (shown to the owner). "Removes the tree from public view and makes it private." (`POST /api/admin/trees/:id/remove`). After success, the viewer shows P-11 because the tree is no longer public |
+| M-10 | Media Viewer | Click an image node or a video node at readable zoom, in the Editor (P-05) or Viewer (P-06) | Full-size image, or the embedded YouTube/Vimeo player. Close with `Esc` or the backdrop |
+
+### 4.3 UI/UX Design Principles（UI/UX設計方針）
+
+#### Main Screen Layout (Tree Editor, P-05)
+
+```
++------------------------------------------------------------------------------+
+| [AppHeader]  Highdea Tree   Explore   My Trees   Trash   Settings   (avatar) |
++------------------------------------------------------------------------------+
+| [EditorToolbar]                                                              |
+|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [👁] |
++------------------------------------------------------------------------------+
+| [TreeCanvas]  (SVG, pan = drag background, zoom = wheel / pinch)             |
+|                                                                              |
+|                       [NodeCard: LINK]                                       |
+|                      /  ┌───────────────┐                                    |
+|   [NodeCard: TEXT]--+   │ thumb │ title │                                    |
+|   ┌────────────┐    |   └───────────────┘                                    |
+|   │ "Pricing"  │    |                                                        |
+|   └────────────┘    |      ╔═══════════════╗      [NodeCard: IMAGE]           |
+|          \__________+------║  CENTER IDEA  ║------ ┌──────────┐              |
+|                            ╚═══════════════╝       │  (img)   │              |
+|                                   |                └──────────┘              |
+|                                   |                                          |
+|                     [NodeToolbar] [+ Add] [Edit] [Delete]   <- on selection  |
+|                            [NodeCard: VIDEO] ▶                               |
+|                                                                              |
+|   · · ·  (far nodes drawn as dots when zoomed out)                           |
+|                                                                              |
+| [MiniMap]                                            [ZoomControls]          |
+| ┌────────┐                                           [ - ] 80% [ + ] [Fit]   |
+| │ ▢  ·:· │                                           [NodeCounter] 142/2000  |
+| └────────┘                                                                   |
++------------------------------------------------------------------------------+
+```
+
+- **AppHeader:** shared navigation on every page.
+- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "View as visitor" (👁, opens the Tree Viewer).
+- **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy`, and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
+- **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
+- **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
+- **NodeToolbar:** appears above the selected node: "+ Add" (M-05), "Edit" (M-04), "Delete" (M-06). Delete is hidden on the root.
+- **MiniMap:** a whole-tree overview showing the current viewport. Click it to jump there.
+- **ZoomControls / NodeCounter:** zoom out, zoom level, zoom in, fit to screen, and "142 / 2000" ideas used.
+
+#### Tree Lifecycle（ツリーのライフサイクル）
+
+```mermaid
+stateDiagram-v2
+  [*] --> Private : Owner creates tree (POST /api/trees, visibility PRIVATE — default)
+  [*] --> Public : Owner creates tree (visibility PUBLIC)
+
+  Private --> Public : Owner sets PUBLIC (PATCH /api/trees/:id)
+  Public --> Private : Owner sets PRIVATE (PATCH /api/trees/:id)
+
+  Public --> Removed : ADMIN removes with reason (POST /api/admin/trees/:id/remove)\nvisibility set to PRIVATE, hidden from public
+  Removed --> Removed : Owner edits privately; setting PUBLIC is refused (409 TREE_REMOVED)
+
+  Private --> InTrash : Owner moves to Trash (DELETE /api/trees/:id)
+  Public --> InTrash : Owner moves to Trash
+  Removed --> InTrash : Owner moves to Trash
+
+  InTrash --> Private : Owner restores (POST /api/trees/:id/restore), was Private
+  InTrash --> Public : Owner restores, was Public
+  InTrash --> Removed : Owner restores, was Removed (stays private)
+
+  InTrash --> Purged : System daily job, 10 days after deletion\n(nodes and category tags deleted; unused images cleaned up)
+  Purged --> [*]
+```
+
+| State | Who can see it | Shown where |
 |---|---|---|
-| Landing | `/` | Intro + links to Explore / Sign up |
-| Sign up / Log in | `/signup`, `/login` | Authentication |
-| My Trees (Dashboard) | `/me` | List own trees, filter by category |
-| Tree Editor (canvas) | `/trees/:id/edit` | Visual branching editor |
-| Tree Viewer | `/trees/:id` | Read-only view (public or own) |
-| Explore | `/explore` | Public trees feed |
-| User Profile | `/u/:username` | A user's public trees |
-| Trash | `/trash` | Deleted trees, days left before permanent deletion, restore |
-| Settings | `/settings` | Profile & category management |
+| Private | Owner only | My Trees, Editor, Viewer (owner) |
+| Public | Everyone | My Trees, Explore, User Profile, Viewer |
+| Removed | Owner only, with the admin's reason | My Trees (badge), Editor and M-02 (reason banner) |
+| InTrash | Owner only | Trash (days left, Restore) |
+| Purged | Nobody (gone) | — |
+
+#### SPA UI/UX Points（SPAとしてのUI/UX設計ポイント）
+
+- **Lazy-loaded canvas (§3.3):** the Editor and Viewer fetch the skeleton once (`GET /api/trees/:id`, TanStack Query key `['tree', id]`). As the viewport changes, the canvas collects visible node IDs whose details aren't cached (or whose `updatedAt` changed) and fetches them in batches of up to 100 (`GET /api/trees/:id/nodes?ids=`), at most a few requests per second while panning. Details are cached per node ID. Images also use `loading="lazy"`.
+- **Drag moves save once, on drop:** while dragging a node or branch, positions update only in local state, so the drag stays smooth. On drop, one `PATCH /api/trees/:id/nodes/positions` request saves every moved node. Dropping onto another node re-parents it instead, with `PATCH /api/nodes/:id` (`parentId` plus the new position); a drop that would put a node under its own branch is refused in the UI before any request, matching `409 INVALID_MOVE`. If it fails, the nodes snap back and a toast says "Couldn't save the move".
+- **Optimistic node edits with rollback:** adding a branch (M-05) shows the new node immediately with a temporary ID, then swaps in the real one. On `409 NODE_LIMIT_REACHED` the temporary node is removed and a "tree is full" message appears. Edits and deletes update the canvas first and roll back on error. The "Saving… / Saved ✓" indicator in the toolbar reflects pending requests.
+- **Link preview while typing (M-04):** the URL field waits 500 ms after the user stops typing before calling `POST /api/link-preview`, which keeps normal use far under the 30-per-minute limit. `422 PREVIEW_UNAVAILABLE` shows "No preview available" without blocking the save, and `400 URL_NOT_ALLOWED` shows an error under the URL field.
+- **Image uploads (M-04):** the upload shows progress, then the node is saved with the returned `imageUploadId`. If saving returns `404 UPLOAD_NOT_FOUND` (the cleanup job removed the image in between), the form keeps everything else and asks the user to upload the image again. `413` and `415` show "Max 5 MB" or "PNG, JPEG, WebP or GIF only" under the file field.
+- **Field-level errors:** every form (P-02, P-03, P-10, M-01, M-02, M-04, M-05, M-07, M-09) uses the same Zod schemas as the backend for instant checks, and maps the API's `details` (`{ field, message }`) to the matching field when the server rejects a request.
+- **Session handling:** on app load, `GET /api/auth/me` decides guest or logged in (`401` = guest, not an error). Any `401` during use (e.g. the 7-day token expired) clears the cached user and sends the user to `/login?next=<current url>`, keeping their place. `role` from `/me` controls admin-only buttons; the API still checks the role on every request.
+- **Cache invalidation after changes:** creating, editing, trashing or restoring a tree invalidates `['trees']` (My Trees), `['trash']`, `['categories']` (tree counts) and, for public trees, `['explore']` and the owner's profile. Category edits also invalidate every cached tree that shows that category.
+- **Business rules visible in the UI:** the center idea has no Delete action; "+ Add" is disabled at 2,000 ideas; a removed tree's visibility switch is disabled with the admin's reason shown; the Trash shows "X days left" from `purgeAt`; delete confirmations state how many ideas (M-06) or trees (M-08) are affected.
+- **Not-found instead of forbidden:** any `404` for a page's main resource (tree, user profile) shows P-11 with the same message, whether the item doesn't exist, is private, removed or deleted, so the UI doesn't reveal private content either.
+- **Full editing on phones, including drag:** every page works on phones, and the Editor supports the same editing as on desktop: adding, editing, dragging and re-parenting nodes. The canvas uses Pointer Events (one code path for mouse, touch and pen) with `touch-action: none`, so the browser doesn't scroll or zoom the page while the user works on the canvas. Touch gestures are kept from clashing like this:
+
+  | Gesture | Desktop | Phone / tablet |
+  |---|---|---|
+  | Pan the canvas | Drag the background | One-finger drag on the background, or two-finger drag anywhere |
+  | Zoom | Mouse wheel, `+`/`-` buttons | Pinch, `+`/`-` buttons |
+  | Select a node | Click | Tap |
+  | Edit a node (M-04) | Double-click | Double-tap |
+  | Drag a node (with its branch) | Press and drag the node | **Long-press the node (about 300 ms) until it lifts**, then drag. The phone vibrates briefly where supported. A quick swipe that starts on a node still pans, so panning never grabs a node by accident |
+  | Re-parent a node | Drop it onto another node (the target highlights) | Same: drop it onto another node |
+
+  While dragging near the screen edge, the canvas scrolls automatically so a node can be carried across a large tree. Moves still save once, on drop (see the drag point above). On phones, the node toolbar buttons are at least 44 × 44 px, and modals open as full-screen sheets.
 
 > Details TBD (screen design phase)
 
