@@ -132,20 +132,20 @@
 - Screens: the shared canvas for P-05 and P-06, M-10
 - APIs: `GET /api/trees/:id`, `GET /api/trees/:id/nodes?ids=`
 
-- [ ] 7-1 Implement `frontend/src/api/tree.ts`: `useTree(id)` (`['tree', id]`, returns tree, owner, `isOwner`, skeleton nodes); `404` exposed as `notFound`
-- [ ] 7-2 Implement `features/canvas/layout.ts`: build the hierarchy from the flat skeleton with `d3-hierarchy` (siblings by `sortOrder`), compute default positions, let saved positions override; return nodes and parent links. Pure function
-- [ ] 7-3 Implement `features/canvas/useZoom.ts`: `d3-zoom` on the SVG for wheel, pinch and background drag; expose the transform plus `zoomIn`, `zoomOut`, `fitToScreen`, `centerOn(point)`; set `touch-action: none` on the canvas
-- [ ] 7-4 Implement `features/canvas/viewport.ts` + `useVisibleNodes.ts`: nodes inside the visible area plus a margin, and the level of detail from the zoom (dot / short title / full card)
-- [ ] 7-5 Implement `features/canvas/NodeLink.tsx`: the line from a node to its parent
-- [ ] 7-6 Implement `features/canvas/NodeCard.tsx` part 1: the TEXT and LINK cards (title, first line of the note; thumbnail, page title, domain), a placeholder until details load, the larger highlighted center idea
-- [ ] 7-7 `NodeCard.tsx` part 2: VIDEO (thumbnail with ▶) and IMAGE (`loading="lazy"`), dot and short-title forms when zoomed out, selected state, `data-testid="node-card"`
-- [ ] 7-8 Implement `frontend/src/api/nodeDetails.ts` + `features/canvas/useNodeDetails.ts`: collect visible node IDs at readable zoom whose details aren't cached or whose `updatedAt` changed; fetch in batches of up to 100, throttled to a few requests per second while panning; cache per node ID (`['nodeDetails', treeId, id]`)
-- [ ] 7-9 Implement `features/canvas/TreeCanvas.tsx`: SVG with the zoom transform, draws visible links and cards, emits `onNodeSelect`, `onNodeOpen` (double-click / double-tap) and pointer events for nodes and background, so the Editor can add dragging without editing this file
-- [ ] 7-10 Implement `features/canvas/ZoomControls.tsx` (−, zoom %, +, Fit) and `NodeCounter.tsx` ("142 / 2000")
-- [ ] 7-11 Implement `features/canvas/MiniMap.tsx`: whole-tree overview with the current viewport rectangle; click to jump there
-- [ ] 7-12 Implement `features/nodes/MediaViewerModal.tsx` (M-10): full-size image or the YouTube/Vimeo embed from `videoEmbed`; close with `Esc` or the backdrop
-- [ ] 7-13 Performance check: render a fake 2,000-node skeleton; panning and zooming stay smooth and only visible nodes are in the DOM
-- [ ] 7-14 Unit tests: `layout` (one root, sibling order, saved positions win), `useVisibleNodes` culling, `useNodeDetails` batches at most 100 IDs and skips cached ones
+- [x] 7-1 Implement `frontend/src/api/tree.ts`: `useTree(id)` (`['tree', id]`, returns tree, owner, `isOwner`, skeleton nodes); `404` exposed as `notFound`
+- [x] 7-2 Implement `features/canvas/layout.ts`: build the hierarchy from the flat skeleton with `d3-hierarchy` (siblings by `sortOrder`), compute default positions, let saved positions override; return nodes and parent links. Pure function
+- [x] 7-3 Implement `features/canvas/useZoom.ts`: `d3-zoom` on the SVG for wheel, pinch and background drag; expose the transform plus `zoomIn`, `zoomOut`, `fitToScreen`, `centerOn(point)`; set `touch-action: none` on the canvas
+- [x] 7-4 Implement `features/canvas/viewport.ts` + `useVisibleNodes.ts`: nodes inside the visible area plus a margin, and the level of detail from the zoom (dot / short title / full card)
+- [x] 7-5 Implement `features/canvas/NodeLink.tsx`: the line from a node to its parent
+- [x] 7-6 Implement `features/canvas/NodeCard.tsx` part 1: the TEXT and LINK cards (title, first line of the note; thumbnail, page title, domain), a placeholder until details load, the larger highlighted center idea
+- [x] 7-7 `NodeCard.tsx` part 2: VIDEO (thumbnail with ▶) and IMAGE (`loading="lazy"`), dot and short-title forms when zoomed out, selected state, `data-testid="node-card"`
+- [x] 7-8 Implement `frontend/src/api/nodeDetails.ts` + `features/canvas/useNodeDetails.ts`: collect visible node IDs at readable zoom whose details aren't cached or whose `updatedAt` changed; fetch in batches of up to 100, throttled to a few requests per second while panning; cache per node ID (`['nodeDetails', treeId, id]`)
+- [x] 7-9 Implement `features/canvas/TreeCanvas.tsx`: SVG with the zoom transform, draws visible links and cards, emits `onNodeSelect`, `onNodeOpen` (double-click / double-tap) and pointer events for nodes and background, so the Editor can add dragging without editing this file
+- [x] 7-10 Implement `features/canvas/ZoomControls.tsx` (−, zoom %, +, Fit) and `NodeCounter.tsx` ("142 / 2000")
+- [x] 7-11 Implement `features/canvas/MiniMap.tsx`: whole-tree overview with the current viewport rectangle; click to jump there
+- [x] 7-12 Implement `features/nodes/MediaViewerModal.tsx` (M-10): full-size image or the YouTube/Vimeo embed from `videoEmbed`; close with `Esc` or the backdrop
+- [x] 7-13 Performance check: render a fake 2,000-node skeleton; panning and zooming stay smooth and only visible nodes are in the DOM
+- [x] 7-14 Unit tests: `layout` (one root, sibling order, saved positions win), `useVisibleNodes` culling, `useNodeDetails` batches at most 100 IDs and skips cached ones
 
 ---
 
