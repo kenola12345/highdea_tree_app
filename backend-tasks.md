@@ -172,22 +172,22 @@
 - Main files: `shared/src/schemas/nodes.ts`, `shared/src/types/node.ts`, `backend/src/services/node.service.ts`, `backend/src/controllers/nodes.controller.ts`, `backend/src/routes/nodes.routes.ts`, `backend/tests/nodes.api.test.ts`, `backend/tests/nodes-positions.api.test.ts` (no overlap with other Phases)
 - Endpoints: `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`
 
-- [ ] 8-1 Fill `shared/src/schemas/nodes.ts` part 1: `videoUrlSchema` (YouTube or Vimeo only), `createNodeSchema` as a discriminated union on `type` (`TEXT` / `LINK` / `VIDEO` / `IMAGE`, required and forbidden fields per type, preview fields rejected)
-- [ ] 8-2 `nodes.ts` part 2: `updateNodeSchema` (at least one field; `positionX`/`positionY`/`sortOrder` only with `parentId`), `positionsSchema` (1–2,000 unique IDs), `nodeDetailsQuerySchema` (`ids` comma-separated, 1–100)
-- [ ] 8-3 Fill `shared/src/types/node.ts` (`NodeSkeleton`, `NodeDetails`, `NodeResponse` with skeleton + detail fields + `imageUrl`) and add `toNodeResponse()` in `node.service.ts`
-- [ ] 8-4 `NodeService.getDetails(viewer, treeId, ids)`: tree visible as in `GET /api/trees/:id`, else `404 TREE_NOT_FOUND`; return details only for IDs in that tree
-- [ ] 8-5 Add the helpers `lockOwnedActiveTree(tx, userId, treeId)` (`SELECT ... FOR UPDATE`, not in the Trash → else `TREE_NOT_FOUND`) and `findOwnedNode(tx, userId, nodeId)` (tree owned and not in the Trash → else `NODE_NOT_FOUND`) (`standards/database.md` §4.5)
-- [ ] 8-6 `NodeService.create` part 1: transaction: lock the tree, count ≥ 2,000 → `409 NODE_LIMIT_REACHED`, parent in the same tree (else `404 PARENT_NOT_FOUND`), `IMAGE` upload owned by the user (else `404 UPLOAD_NOT_FOUND`), default `sortOrder` after the last sibling, insert, bump the tree's `updatedAt`
-- [ ] 8-7 `NodeService.create` part 2: for `LINK`, fetch the preview **before** the transaction with `tryGetPreview` (failure → empty fields, node still created); return `201`
-- [ ] 8-8 `NodeService.update` part 1: content and type changes: keep `title`/`body`; clear fields that don't apply to the new type (`url` + preview fields, `imageUploadId`); require the new type's fields; refetch the preview when a `LINK` URL changes
-- [ ] 8-9 `NodeService.update` part 2: re-parenting: the root can't move; walk up from the new parent and refuse if it reaches the node → `409 INVALID_MOVE`; new parent in another tree → `PARENT_NOT_FOUND`; save the position fields sent with `parentId`; bump `updatedAt` in the same transaction
-- [ ] 8-10 `NodeService.savePositions(userId, treeId, nodes)`: one transaction; any ID not in the tree → `404 NODE_NOT_FOUND` and nothing saved; bump `updatedAt`; return `id`, positions, `sortOrder`, `updatedAt`
-- [ ] 8-11 `NodeService.remove(userId, nodeId)`: root → `409 CANNOT_DELETE_ROOT`; collect the subtree IDs, delete (CASCADE) and bump `updatedAt` in one transaction; return the deleted IDs
-- [ ] 8-12 `backend/src/controllers/nodes.controller.ts` + `nodes.routes.ts`: `GET /trees/:id/nodes` (`optionalAuth`), `POST /trees/:id/nodes` (`201`), `PATCH /trees/:id/nodes/positions`, `PATCH /nodes/:id`, `DELETE /nodes/:id` (`requireAuth`)
-- [ ] 8-13 Tests: create (each type `201`, `400` wrong fields per type and preview fields sent, `PARENT_NOT_FOUND`, `UPLOAD_NOT_FOUND` for another user's upload, Trash tree `404`, removed tree still editable by the owner, `NODE_LIMIT_REACHED` at 2,000, LINK created with empty preview when the fetch fails)
-- [ ] 8-14 Test: two simultaneous creates on a tree with 1,999 nodes leave exactly 2,000 nodes (the row lock works)
-- [ ] 8-15 Tests: update (type change keeps title/body and clears the old fields, `INVALID_MOVE` for root / self / descendant, re-parent with position, other user `404`)
-- [ ] 8-16 Tests: positions (`200`, a foreign ID saves nothing, duplicate IDs `400`) and delete (subtree removed, `CANNOT_DELETE_ROOT`, Trash tree `404`), details (`200` for public trees as a guest, `404` for private, more than 100 IDs `400`)
+- [x] 8-1 Fill `shared/src/schemas/nodes.ts` part 1: `videoUrlSchema` (YouTube or Vimeo only), `createNodeSchema` as a discriminated union on `type` (`TEXT` / `LINK` / `VIDEO` / `IMAGE`, required and forbidden fields per type, preview fields rejected)
+- [x] 8-2 `nodes.ts` part 2: `updateNodeSchema` (at least one field; `positionX`/`positionY`/`sortOrder` only with `parentId`), `positionsSchema` (1–2,000 unique IDs), `nodeDetailsQuerySchema` (`ids` comma-separated, 1–100)
+- [x] 8-3 Fill `shared/src/types/node.ts` (`NodeSkeleton`, `NodeDetails`, `NodeResponse` with skeleton + detail fields + `imageUrl`) and add `toNodeResponse()` in `node.service.ts`
+- [x] 8-4 `NodeService.getDetails(viewer, treeId, ids)`: tree visible as in `GET /api/trees/:id`, else `404 TREE_NOT_FOUND`; return details only for IDs in that tree
+- [x] 8-5 Add the helpers `lockOwnedActiveTree(tx, userId, treeId)` (`SELECT ... FOR UPDATE`, not in the Trash → else `TREE_NOT_FOUND`) and `findOwnedNode(tx, userId, nodeId)` (tree owned and not in the Trash → else `NODE_NOT_FOUND`) (`standards/database.md` §4.5)
+- [x] 8-6 `NodeService.create` part 1: transaction: lock the tree, count ≥ 2,000 → `409 NODE_LIMIT_REACHED`, parent in the same tree (else `404 PARENT_NOT_FOUND`), `IMAGE` upload owned by the user (else `404 UPLOAD_NOT_FOUND`), default `sortOrder` after the last sibling, insert, bump the tree's `updatedAt`
+- [x] 8-7 `NodeService.create` part 2: for `LINK`, fetch the preview **before** the transaction with `tryGetPreview` (failure → empty fields, node still created); return `201`
+- [x] 8-8 `NodeService.update` part 1: content and type changes: keep `title`/`body`; clear fields that don't apply to the new type (`url` + preview fields, `imageUploadId`); require the new type's fields; refetch the preview when a `LINK` URL changes
+- [x] 8-9 `NodeService.update` part 2: re-parenting: the root can't move; walk up from the new parent and refuse if it reaches the node → `409 INVALID_MOVE`; new parent in another tree → `PARENT_NOT_FOUND`; save the position fields sent with `parentId`; bump `updatedAt` in the same transaction
+- [x] 8-10 `NodeService.savePositions(userId, treeId, nodes)`: one transaction; any ID not in the tree → `404 NODE_NOT_FOUND` and nothing saved; bump `updatedAt`; return `id`, positions, `sortOrder`, `updatedAt`
+- [x] 8-11 `NodeService.remove(userId, nodeId)`: root → `409 CANNOT_DELETE_ROOT`; collect the subtree IDs, delete (CASCADE) and bump `updatedAt` in one transaction; return the deleted IDs
+- [x] 8-12 `backend/src/controllers/nodes.controller.ts` + `nodes.routes.ts`: `GET /trees/:id/nodes` (`optionalAuth`), `POST /trees/:id/nodes` (`201`), `PATCH /trees/:id/nodes/positions`, `PATCH /nodes/:id`, `DELETE /nodes/:id` (`requireAuth`)
+- [x] 8-13 Tests: create (each type `201`, `400` wrong fields per type and preview fields sent, `PARENT_NOT_FOUND`, `UPLOAD_NOT_FOUND` for another user's upload, Trash tree `404`, removed tree still editable by the owner, `NODE_LIMIT_REACHED` at 2,000, LINK created with empty preview when the fetch fails)
+- [x] 8-14 Test: two simultaneous creates on a tree with 1,999 nodes leave exactly 2,000 nodes (the row lock works)
+- [x] 8-15 Tests: update (type change keeps title/body and clears the old fields, `INVALID_MOVE` for root / self / descendant, re-parent with position, other user `404`)
+- [x] 8-16 Tests: positions (`200`, a foreign ID saves nothing, duplicate IDs `400`) and delete (subtree removed, `CANNOT_DELETE_ROOT`, Trash tree `404`), details (`200` for public trees as a guest, `404` for private, more than 100 IDs `400`)
 
 ---
 
