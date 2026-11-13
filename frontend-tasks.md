@@ -201,10 +201,10 @@
 - Screens: P-06, M-09 (opens M-10)
 - APIs: `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/admin/trees/:id/remove`
 
-- [ ] 10-1 Implement `ViewerHeader.tsx`: title, owner (link to `/u/:username`), categories, description; "Edit" button for owners (`isOwner`); "Remove" button only for `ADMIN` on public trees
-- [ ] 10-2 Implement `TreeViewerPage` (P-06): `useTree`; `404` → `<NotFound />`; read-only `TreeCanvas` with zoom, MiniMap and lazy details; image/video nodes open M-10; no editing gestures
-- [ ] 10-3 Implement `frontend/src/api/admin.ts` (`useRemoveTree`, invalidates `['explore']`, the owner's profile and `['tree', id]`) and `RemoveTreeModal.tsx` (M-09): required reason (1–500), "Removes the tree from public view and makes it private."; `TREE_ALREADY_REMOVED` → toast; after success the viewer shows P-11
-- [ ] 10-4 Unit tests: buttons per role (guest, owner, admin), M-09 requires a reason
+- [x] 10-1 Implement `ViewerHeader.tsx`: title, owner (link to `/u/:username`), categories, description; "Edit" button for owners (`isOwner`); "Remove" button only for `ADMIN` on public trees
+- [x] 10-2 Implement `TreeViewerPage` (P-06): `useTree`; `404` → `<NotFound />`; read-only `TreeCanvas` with zoom, MiniMap and lazy details; image/video nodes open M-10; no editing gestures
+- [x] 10-3 Implement `frontend/src/api/admin.ts` (`useRemoveTree`, invalidates `['explore']`, the owner's profile and `['tree', id]`) and `RemoveTreeModal.tsx` (M-09): required reason (1–500), "Removes the tree from public view and makes it private."; `TREE_ALREADY_REMOVED` → toast; after success the viewer shows P-11
+- [x] 10-4 Unit tests: buttons per role (guest, owner, admin), M-09 requires a reason
 
 ---
 
