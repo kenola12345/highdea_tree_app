@@ -110,19 +110,19 @@
 - Screens: P-04, P-09, M-01, M-02, M-03
 - APIs: `GET /api/trees`, `POST /api/trees`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id`, `GET /api/trash`, `POST /api/trees/:id/restore`, `GET /api/categories`
 
-- [ ] 6-1 Implement `frontend/src/api/trees.ts` (list and mutations): `useMyTrees({ page, categoryId })`, `useCreateTree`, `useUpdateTree` (also updates `['tree', id]`), `useMoveTreeToTrash`, all invalidating with `invalidateAfterTreeChange`
-- [ ] 6-2 Implement `frontend/src/api/trash.ts`: `useTrash(page)`, `useRestoreTree`
-- [ ] 6-3 Implement `MyTreesFilter.tsx`: category filter from the user's categories, kept in `?category=`; `CATEGORY_NOT_FOUND` resets the filter
-- [ ] 6-4 Implement `MyTreesPage` (P-04) part 1: grid of `TreeCard`s (responsive columns), paging, loading / empty ("Create your first tree") / error states
-- [ ] 6-5 `MyTreesPage` part 2: "+ New tree" button, "Removed by admin" badge on removed trees, card click → `/trees/:id/edit`
-- [ ] 6-6 Implement `TreeCardMenu.tsx`: "Edit details" (M-02) and "Delete" (M-03)
-- [ ] 6-7 Implement `NewTreeModal.tsx` (M-01): title, description, center idea text (defaults to the title), visibility, `CategoryPicker`; on success navigate to `/trees/:id/edit`
-- [ ] 6-8 Implement `TreeSettingsModal.tsx` (M-02) part 1: edit title, description, visibility, categories; saved toast
-- [ ] 6-9 `TreeSettingsModal` part 2: for a removed tree, show the admin's reason and disable the visibility switch with "Removed by an admin; can't be made public"; handle `409 TREE_REMOVED`; "Move to Trash" button opens M-03
-- [ ] 6-10 Implement `MoveToTrashModal.tsx` (M-03): "This tree will be in Trash for 10 days, then deleted permanently."; from the Editor, go to `/me` afterwards (an `onDone` prop)
-- [ ] 6-11 Implement `TrashItem.tsx` and `TrashList.tsx`: title, deleted date, "X days left" from `purgeAt`, Restore button with pending state; `TREE_NOT_IN_TRASH` / `TREE_NOT_FOUND` → toast and refresh
-- [ ] 6-12 Implement `TrashPage` (P-09): list, paging, empty state ("Trash is empty"), note about the 10-day window
-- [ ] 6-13 Unit tests: M-01 defaults the center idea to the title, M-02 disables visibility for removed trees, Trash shows the right days left, restore invalidates `['trees']` and `['trash']`
+- [x] 6-1 Implement `frontend/src/api/trees.ts` (list and mutations): `useMyTrees({ page, categoryId })`, `useCreateTree`, `useUpdateTree` (also updates `['tree', id]`), `useMoveTreeToTrash`, all invalidating with `invalidateAfterTreeChange`
+- [x] 6-2 Implement `frontend/src/api/trash.ts`: `useTrash(page)`, `useRestoreTree`
+- [x] 6-3 Implement `MyTreesFilter.tsx`: category filter from the user's categories, kept in `?category=`; `CATEGORY_NOT_FOUND` resets the filter
+- [x] 6-4 Implement `MyTreesPage` (P-04) part 1: grid of `TreeCard`s (responsive columns), paging, loading / empty ("Create your first tree") / error states
+- [x] 6-5 `MyTreesPage` part 2: "+ New tree" button, "Removed by admin" badge on removed trees, card click → `/trees/:id/edit`
+- [x] 6-6 Implement `TreeCardMenu.tsx`: "Edit details" (M-02) and "Delete" (M-03)
+- [x] 6-7 Implement `NewTreeModal.tsx` (M-01): title, description, center idea text (defaults to the title), visibility, `CategoryPicker`; on success navigate to `/trees/:id/edit`
+- [x] 6-8 Implement `TreeSettingsModal.tsx` (M-02) part 1: edit title, description, visibility, categories; saved toast
+- [x] 6-9 `TreeSettingsModal` part 2: for a removed tree, show the admin's reason and disable the visibility switch with "Removed by an admin; can't be made public"; handle `409 TREE_REMOVED`; "Move to Trash" button opens M-03
+- [x] 6-10 Implement `MoveToTrashModal.tsx` (M-03): "This tree will be in Trash for 10 days, then deleted permanently."; from the Editor, go to `/me` afterwards (an `onDone` prop)
+- [x] 6-11 Implement `TrashItem.tsx` and `TrashList.tsx`: title, deleted date, "X days left" from `purgeAt`, Restore button with pending state; `TREE_NOT_IN_TRASH` / `TREE_NOT_FOUND` → toast and refresh
+- [x] 6-12 Implement `TrashPage` (P-09): list, paging, empty state ("Trash is empty"), note about the 10-day window
+- [x] 6-13 Unit tests: M-01 defaults the center idea to the title, M-02 disables visibility for removed trees, Trash shows the right days left, restore invalidates `['trees']` and `['trash']`
 
 ---
 

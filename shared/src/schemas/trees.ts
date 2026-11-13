@@ -9,13 +9,17 @@ import {
 } from "../constants.js";
 import { paginationQueryShape } from "./common.js";
 
-const treeTitleSchema = z.string().trim().min(1).max(TREE_TITLE_MAX);
+const treeTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a title")
+  .max(TREE_TITLE_MAX, `Use ${String(TREE_TITLE_MAX)} characters or fewer`);
 
 /** 説明文。空文字は「説明なし」として null に揃える */
 const treeDescriptionSchema = z
   .string()
   .trim()
-  .max(TREE_DESCRIPTION_MAX)
+  .max(TREE_DESCRIPTION_MAX, `Use ${String(TREE_DESCRIPTION_MAX)} characters or fewer`)
   .transform((value) => (value === "" ? null : value))
   .nullable();
 
@@ -25,7 +29,11 @@ export const treeVisibilitySchema = z.enum(["PRIVATE", "PUBLIC"]);
 const categoryIdsSchema = z
   .array(z.string().min(1))
   .transform((ids) => [...new Set(ids)])
-  .pipe(z.array(z.string()).max(MAX_CATEGORIES_PER_TREE));
+  .pipe(
+    z
+      .array(z.string())
+      .max(MAX_CATEGORIES_PER_TREE, `Pick up to ${String(MAX_CATEGORIES_PER_TREE)} categories`),
+  );
 
 export const listTreesQuerySchema = z.strictObject({
   ...paginationQueryShape,
@@ -40,7 +48,12 @@ export const createTreeSchema = z
     description: treeDescriptionSchema.optional(),
     visibility: treeVisibilitySchema.default("PRIVATE"),
     categoryIds: categoryIdsSchema.default([]),
-    rootTitle: z.string().trim().min(1).max(NODE_TITLE_MAX).optional(),
+    rootTitle: z
+      .string()
+      .trim()
+      .min(1, "Enter the center idea")
+      .max(NODE_TITLE_MAX, `Use ${String(NODE_TITLE_MAX)} characters or fewer`)
+      .optional(),
   })
   .transform((body) => ({ ...body, rootTitle: body.rootTitle ?? body.title }));
 export type CreateTreeBody = z.infer<typeof createTreeSchema>;
