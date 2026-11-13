@@ -187,7 +187,7 @@ erDiagram
 - Only the owner can edit or delete a tree, or change its nodes and categories. Enforced in the **app layer** (TreeService checks `owner_id = current user`).
 - A `PRIVATE` tree can only be seen by its owner, and admins can't see it either. Enforced in the **app layer**: TreeService returns 404 (not 403) to anyone else, so the tree's existence isn't revealed.
 - Explore and public profiles show only trees where `visibility = 'PUBLIC'`, `removed_at` and `deleted_at` are NULL, and the owner isn't deactivated. Enforced in the **app layer** (ExploreService and UserService).
-- Admins can remove only `PUBLIC` trees. Enforced in the **app layer** (AdminService rejects removal of `PRIVATE` trees).
+- Admins can remove only `PUBLIC` trees, and removal also sets `visibility` to `PRIVATE` in the same update. Enforced in the **app layer** (AdminService returns 404 for `PRIVATE` trees).
 - A removed tree can't be made `PUBLIC` again by its owner. The owner can still view and edit it privately. Enforced in the **app layer** (TreeService). **[To confirm]**
 - Creating a tree also creates its root node, in the same transaction. Enforced in the **app layer** (TreeService uses `prisma.$transaction`).
 - Editing a node bumps the tree's `updated_at`. Enforced in the **app layer** (NodeService updates the tree in the same transaction).
@@ -275,7 +275,7 @@ erDiagram
 
 **Business rules and constraints**
 - Only image MIME types are accepted, up to a size limit. Enforced in the **app layer** (Multer limits plus a content check). Allowed formats: PNG, JPEG, WebP, GIF. Maximum size: 5 MB.
-- The server generates `storage_key` (a cuid plus the file extension). The client's file name is never used as a path. Enforced in the **app layer** (UploadService).
+- The server generates `storage_key` from a cryptographically random value (`crypto.randomUUID()`) plus the file extension, because upload URLs are public and must not be guessable (cuid v1 is partly predictable). The client's file name is never used as a path. Enforced in the **app layer** (UploadService).
 - An upload can't be deleted while a node still uses it. Enforced in the **DB** (FK `ON DELETE RESTRICT`).
 - Uploads not used by any node are deleted by a daily cleanup job, with no grace period: any upload with no node pointing to it is deleted, however new it is. Enforced in the **app layer** (a scheduled job, run at a low-traffic time). If the job deletes an image between upload and node save, the node save fails with `404 UPLOAD_NOT_FOUND` and the editor asks the user to upload it again.
 
@@ -285,7 +285,7 @@ erDiagram
 |---|---|---|---|---|
 | User | Deactivate (soft delete) | `users.deleted_at` | Trees, categories and uploads are kept but hidden from everyone | No account-deletion screen yet. **[To confirm]** |
 | Tree (owner deletes) | Soft delete → Trash, then hard delete after 10 days | `trees.deleted_at`, then a daily purge job | In the Trash: nodes and tags kept, so restore brings everything back. On purge: nodes and tags deleted (CASCADE); uploaded images become unused and are removed by the uploads cleanup job | Restore with `POST /api/trees/:id/restore` |
-| Tree (admin removes) | Hide from public | `trees.removed_at`, `removed_by_id`, `removal_reason` | Owner keeps private access | Kept separate from `deleted_at`, so moderation actions stay auditable |
+| Tree (admin removes) | Hide from public | `trees.removed_at`, `removed_by_id`, `removal_reason`; `visibility` set to `PRIVATE` | Owner keeps private access | Kept separate from `deleted_at`, so moderation actions stay auditable |
 | Node | Hard delete | `DELETE` | Whole subtree deleted (DB CASCADE). The image file stays until cleanup | Nodes have no history, so a soft delete isn't needed |
 | Category | Hard delete | `DELETE` | Its `tree_categories` rows are deleted (CASCADE). Trees stay | |
 | Tree–category tag | Hard delete | `DELETE` | — | Changing a tree's categories replaces all its tag rows |
@@ -451,7 +451,8 @@ model Upload {
 Policies:
 - REST, JSON, base path `/api`.
 - Auth: JWT stored in an **httpOnly cookie** (`Secure`, `SameSite`), set on login and cleared on logout.
-- Common response shape: `{ "data": ... }` on success, `{ "error": { "code", "message" } }` on failure.
+- Common response shape: `{ "data": ... }` on success, `{ "error": { "code", "message", "details"? } }` on failure. For `VALIDATION_ERROR`, `details` is an array of `{ "field": "username", "message": "..." }` generated from the Zod error, so forms can show each error next to its field. Other error codes leave `details` out.
+- Auth middleware: the JWT holds only `sub` (the user ID) and `exp`. On every request, the middleware loads the user from the DB; a missing or deactivated user gets `401 UNAUTHENTICATED`. `role` always comes from the DB, never from the token, so a role change or deactivation takes effect immediately even though tokens can't be revoked.
 - Request validation with Zod; shared types between frontend and backend.
 
 | Resource | Main endpoints |
@@ -460,12 +461,12 @@ Policies:
 | Users | `GET /api/users/:username`, `PATCH /api/users/me` |
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
 | Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore` |
-| Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (move many nodes at once), `DELETE /api/nodes/:id` |
+| Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (all drag moves), `DELETE /api/nodes/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
-| Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`) |
+| Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`), `GET /api/explore/categories` (category names for the filter) |
 | Uploads | `POST /api/uploads` (image upload, multipart) |
 | Link preview | `POST /api/link-preview` (fetch title/thumbnail for a URL) |
-| Admin | `DELETE /api/admin/trees/:id` (remove a public tree) |
+| Admin | `POST /api/admin/trees/:id/remove` (remove a public tree) |
 
 > Request/response details TBD (API design phase)
 
@@ -771,7 +772,7 @@ No parameters and no body. The user is identified by the `access_token` cookie.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or isn't owned by the caller.
   - `404` `CATEGORY_NOT_FOUND` — One of `categoryIds` doesn't exist or belongs to another user. Nothing is changed.
-  - `409` `TREE_REMOVED` — The request sets `visibility` to `PUBLIC` but an admin removed this tree. The owner can still edit it and keep it private.
+  - `409` `TREE_REMOVED` — The request sets `visibility` to `PUBLIC` but an admin removed this tree (removal already set it to `PRIVATE`). The owner can still edit it and keep it private.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -779,7 +780,7 @@ No parameters and no body. The user is identified by the `access_token` cookie.
 ##### **DELETE /api/trees/:id**
 
 - **Summary（機能概要）:** Deletes a tree. It's a soft delete: `deletedAt` is set, and the tree and its nodes stay in the database but disappear from every screen and API. The frontend asks for confirmation first.
-- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). Admins remove public trees with `DELETE /api/admin/trees/:id` instead. Anyone else gets `404`, so the response doesn't reveal that a private tree exists.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). Admins remove public trees with `POST /api/admin/trees/:id/remove` instead. Anyone else gets `404`, so the response doesn't reveal that a private tree exists.
 
 **Request（リクエスト）**
 
@@ -851,7 +852,7 @@ No body.
 
 - **Success: `200 OK`**
   Follows the common format `{ "data": {...} }`. `data.tree` is the restored tree, with the same fields as `GET /api/trees`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `nodeCount`, `removedAt`, `removalReason`, `createdAt`, `updatedAt`.
-  The tree keeps the visibility it had when it was deleted, so a public tree is public again right away. A tree an admin removed stays removed (still hidden from the public).
+  The tree keeps the visibility it had when it was deleted, so a public tree is public again right away. A tree an admin removed stays removed and private (admin removal sets `visibility` to `PRIVATE`).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
@@ -977,7 +978,7 @@ No body.
 - When `parentId` changes, the server walks up from the new parent to the root. If it meets the node being moved, the move would put the node under itself, so it's refused.
 - The update and the bump of the tree's `updatedAt` run in one transaction.
 - A new `LINK` URL is fetched the same way as in `POST /api/trees/:id/nodes`: 5-second timeout, public hosts only (SSRF protection), and the update still succeeds with empty preview fields if the fetch fails.
-- Moving a whole branch on the canvas changes many positions at once; the editor uses `PATCH /api/trees/:id/nodes/positions` for that instead of one request per node.
+- **Which endpoint saves positions:** drag moves (one node or a whole branch) use `PATCH /api/trees/:id/nodes/positions`. This endpoint is for content, type and parent; its `positionX`, `positionY` and `sortOrder` fields are only used together with a `parentId` change, so re-parenting and the node's new position are saved in one request.
 
 **Response（レスポンス）**
 
@@ -997,7 +998,7 @@ No body.
 ---
 ##### **PATCH /api/trees/:id/nodes/positions**
 
-- **Summary（機能概要）:** Saves the positions (and optionally sibling order) of many nodes in one request. The Tree Editor calls it when a whole branch is dragged, or after an auto-layout, instead of sending one request per node.
+- **Summary（機能概要）:** Saves the positions (and optionally sibling order) of one or more nodes in one request. The Tree Editor uses it for every drag move (one node or a whole branch) and after an auto-layout. `PATCH /api/nodes/:id` sets positions only when re-parenting a node.
 - **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). The owner can still do this in a tree an admin removed. Anyone else gets `404`. Trees in the Trash can't be edited.
 
 **Request（リクエスト）**
@@ -1197,7 +1198,7 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `q` | `String` | | Search text, 1–100 characters after trimming. Matches trees whose title or description contains it, ignoring upper/lower case |
-| `category` | `String` | | Category **name**, 1–50 characters. Matches trees tagged with any user's category of that name, ignoring upper/lower case (compared with `categories.name_key`) |
+| `category` | `String` | | Category **key** from `GET /api/explore/categories` (or any category name), 1–50 characters. Lowercased, then matched against `categories.name_key`, so it finds trees tagged with any user's category of that name, ignoring upper/lower case |
 | `page` | `Int` | | Page number, starting at 1. Default `1` |
 | `limit` | `Int` | | Trees per page, 1–50. Default `20` |
 
@@ -1214,6 +1215,31 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `q` or `category` is too long or empty after trimming, `page` or `limit` isn't a positive integer, or `limit` is over 50.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **GET /api/explore/categories**
+
+- **Summary（機能概要）:** Returns the category names used on public trees, most used first, for the Explore screen's category filter. Categories belong to each user, so this groups them by name across all users.
+- **Authorization（認可）:** Anyone (Guest, `USER`, `ADMIN`). Login is optional. Only categories on publicly visible trees are counted.
+
+**Request（リクエスト）**
+
+- **Query Parameters**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `q` | `String` | | Only names starting with this text, ignoring upper/lower case. 1–50 characters after trimming |
+| `limit` | `Int` | | 1–50. Default `20` |
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.categories`: one entry per distinct `name_key`, each with `key` (the lowercased name, passed to `GET /api/explore?category=`), `name` (the most common spelling, for display) and `treeCount` (public trees that aren't removed or deleted and whose owner is active). Sorted by `treeCount`, highest first. Categories used only on private, removed or deleted trees aren't listed.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `q` is empty after trimming or too long, or `limit` isn't an integer from 1 to 50.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -1236,8 +1262,8 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
 **Processing（処理）**
 
 - The file type is checked from the file's actual content (its first bytes), not only from the file name or the `Content-Type` the browser sent. SVG isn't allowed, because an SVG file can contain scripts.
-- The server generates the stored file name, `storage_key` (a new cuid plus the extension of the detected type, e.g. `clx123….png`). The original file name is saved only as data and never used as a path.
-- Uploaded files are served at `/uploads/:storageKey` with the detected `Content-Type` and `X-Content-Type-Options: nosniff`.
+- The server generates the stored file name, `storage_key`: a cryptographically random value (`crypto.randomUUID()`, 122 random bits) plus the extension of the detected type, e.g. `3f2b…-….png`. A cuid isn't used here because cuid v1 is partly predictable. The original file name is saved only as data and never used as a path.
+- Uploaded files are served at `/uploads/:storageKey` with the detected `Content-Type` and `X-Content-Type-Options: nosniff`. These URLs are public: anyone who has an image's URL can view it, including images in private trees. The random `storage_key` makes the URLs impossible to guess. An access-checked route (e.g. `GET /api/uploads/:id/file`) can be added when storage moves to S3.
 - An upload that no node uses is removed by the daily uploads cleanup job, with no grace period. If that happens between uploading and saving the node, the node save returns `404 UPLOAD_NOT_FOUND` and the editor asks the user to upload the image again.
 
 **Response（レスポンス）**
@@ -1250,6 +1276,7 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `413` `FILE_TOO_LARGE` — The file is larger than 5 MB.
   - `415` `UNSUPPORTED_FILE_TYPE` — The file isn't a PNG, JPEG, WebP or GIF image (checked from its content).
+  - `429` `RATE_LIMITED` — More than 60 uploads from the same user within 1 hour. Stops one user from filling the server's disk before the daily cleanup job runs.
   - `500` `INTERNAL_ERROR` — Unexpected server error. If the file was written but saving the record failed, the file is deleted.
 ---
 
@@ -1293,9 +1320,9 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
 #### Admin
 
 ---
-##### **DELETE /api/admin/trees/:id**
+##### **POST /api/admin/trees/:id/remove**
 
-- **Summary（機能概要）:** Lets an admin take down an inappropriate public tree. It isn't a real delete: the tree gets `removedAt`, `removedById` and `removalReason`, disappears from Explore, profiles and public viewing, and stays with its owner, who can still see and edit it privately and sees the reason. The owner can't make it public again.
+- **Summary（機能概要）:** Lets an admin take down an inappropriate public tree. It isn't a real delete: the tree gets `removedAt`, `removedById` and `removalReason`, and its `visibility` is set to `PRIVATE` in the same update, so the tree's data matches what the public sees. It disappears from Explore, profiles and public viewing, and stays with its owner, who can still see and edit it privately and sees the reason. The owner can't make it public again.
 - **Authorization（認可）:** `ADMIN` only. Admins can act only on trees they're allowed to see, meaning public ones; a private tree returns `404`, the same as for anyone else.
 
 **Request（リクエスト）**
@@ -1312,12 +1339,10 @@ No parameters. All categories are returned without paging. **[To confirm]** a ma
 |---|---|---|---|
 | `reason` | `String` | ✅ | Why the tree was removed, shown to the owner. Trimmed. 1–500 characters |
 
-A `DELETE` request with a body is valid HTTP, but some tools and proxies drop it. **[To confirm]** if that's a problem, use `POST /api/admin/trees/:id/remove` instead.
-
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.tree`: `id`, `title`, `visibility`, `removedAt`, `removalReason`.
+  Follows the common format `{ "data": {...} }`. `data.tree`: `id`, `title`, `visibility` (now `"PRIVATE"`), `removedAt`, `removalReason`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `reason` is missing, empty after trimming, or longer than 500 characters.
@@ -1385,6 +1410,7 @@ highdea_tree_app/
 2. `docker compose up -d` — start PostgreSQL.
 3. `backend/`: copy `.env.example` → `.env`, `npm install`, `npx prisma migrate dev`, `npm run dev`.
 4. `frontend/`: `npm install`, `npm run dev`.
+5. Admins: there is no API for granting the `ADMIN` role. Admins are created with a seed or CLI script (e.g. `npm run make-admin -- <email>`), which sets `users.role` to `ADMIN`.
 
 > Details TBD (Phase 1 setup).
 
