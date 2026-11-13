@@ -64,23 +64,23 @@
 - Endpoints: `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - Why serial: every later Phase uses the auth middleware, rate limiters and test helpers
 
-- [ ] 3-1 Implement `backend/src/lib/password.ts`: `hashPassword` (bcrypt, cost 12) and `verifyPassword`
-- [ ] 3-2 Implement `backend/src/lib/jwt.ts`: `signToken(userId)` (HS256, `sub` + `exp` only, 7 days), `verifyToken`, `setAuthCookie(res, userId)` and `clearAuthCookie(res)` (`access_token`, `httpOnly`, `SameSite=Lax`, `Secure` in production, `path=/`) (`standards/security.md` §9.1)
-- [ ] 3-3 Implement `backend/src/middleware/auth.ts`: `requireAuth` (verify cookie → load the user from the DB → missing or deactivated → clear cookie + `401 UNAUTHENTICATED` → `req.user = { id, role }`), `optionalAuth` (invalid cookie = guest) and `guestOnly` (valid cookie of an active user → `403 ALREADY_AUTHENTICATED`)
-- [ ] 3-4 Implement `backend/src/middleware/requireAdmin.ts`: `req.user.role !== "ADMIN"` → `403 FORBIDDEN` (role read from the DB by `requireAuth`)
-- [ ] 3-5 Implement the IP limiters in `backend/src/middleware/rateLimits.ts`: `signupLimiter` (5 per 15 min per IP) and `loginLimiter` (5 **failed** per 15 min per IP, `skipSuccessfulRequests`), both answering `429 RATE_LIMITED` in the common error shape
-- [ ] 3-6 Add the per-user limiters to `rateLimits.ts`: `passwordCheckLimiter` (5 **wrong passwords** per user per 15 min, shared by the account, password and deactivate endpoints, counting only `403 WRONG_PASSWORD` responses), `linkPreviewLimiter` (30 per user per min) and `uploadLimiter` (60 per user per hour)
-- [ ] 3-7 Fill `shared/src/schemas/auth.ts`: `usernameSchema`, `passwordSchema` (8–72), `signupSchema`, `loginSchema` (password 1–72), all `z.strictObject` (`standards/backend.md` §3.5)
-- [ ] 3-8 Fill `shared/src/types/user.ts`: `MeResponse` (`id`, `email`, `username`, `displayName`, `avatarUrl`, `role`, `createdAt`) and `PublicUserResponse` (`id`, `username`, `displayName`, `avatarUrl`, `createdAt`); add `toMeResponse()` in `backend/src/services/common/userMapper.ts`
-- [ ] 3-9 `AuthService.signup`: reserved username → `400 USERNAME_RESERVED`; email or username taken (including deactivated accounts) → `409 EMAIL_TAKEN` / `USERNAME_TAKEN` (also map the `P2002` unique violation); hash the password; create the user
-- [ ] 3-10 `AuthService.login`: unknown email, wrong password or deactivated account → the same `401 INVALID_CREDENTIALS`; compare a dummy hash when the email is unknown so timing doesn't reveal accounts
-- [ ] 3-11 `AuthService.me`: load the active user by ID and return `MeResponse`
-- [ ] 3-12 `backend/src/controllers/auth.controller.ts` + `auth.routes.ts`: `POST /signup` (`guestOnly`, `signupLimiter`, `validate`, set cookie, `201`), `POST /login` (`guestOnly`, `loginLimiter`, set cookie, `200`), `POST /logout` (no auth needed, clear cookie, `200`), `GET /me` (`requireAuth`, `200`)
-- [ ] 3-13 Create `backend/tests/helpers/db.ts`: truncate all tables (`TRUNCATE ... CASCADE`) before each test file; refuse to run unless `DATABASE_URL` points to `highdea_test`
-- [ ] 3-14 Create `backend/tests/helpers/factories.ts`: `createUser`, `createLoggedInUser` (returns the user and a `Cookie` header), `createAdmin`, `createTree` (with its root node, optional visibility/removed/deleted state), `createCategory`, `createNodes(treeId, n)`, `createUpload`
-- [ ] 3-15 Tests: signup (`201` + cookie, `400` with `details`, `USERNAME_RESERVED`, `EMAIL_TAKEN`, `USERNAME_TAKEN` including a deactivated account, `ALREADY_AUTHENTICATED`, `429` on the 6th attempt)
-- [ ] 3-16 Tests: login (`200` + cookie, `INVALID_CREDENTIALS` for wrong password / unknown email / deactivated, `ALREADY_AUTHENTICATED`, `429` after 5 failures), logout (clears the cookie with and without a valid cookie), me (`200`, `401` for guests, `401` + cookie cleared for a deactivated user)
-- [ ] 3-17 Tests: `requireAdmin` returns `403 FORBIDDEN` for a `USER`, and a role changed in the DB takes effect on the next request with the same token
+- [x] 3-1 Implement `backend/src/lib/password.ts`: `hashPassword` (bcrypt, cost 12) and `verifyPassword`
+- [x] 3-2 Implement `backend/src/lib/jwt.ts`: `signToken(userId)` (HS256, `sub` + `exp` only, 7 days), `verifyToken`, `setAuthCookie(res, userId)` and `clearAuthCookie(res)` (`access_token`, `httpOnly`, `SameSite=Lax`, `Secure` in production, `path=/`) (`standards/security.md` §9.1)
+- [x] 3-3 Implement `backend/src/middleware/auth.ts`: `requireAuth` (verify cookie → load the user from the DB → missing or deactivated → clear cookie + `401 UNAUTHENTICATED` → `req.user = { id, role }`), `optionalAuth` (invalid cookie = guest) and `guestOnly` (valid cookie of an active user → `403 ALREADY_AUTHENTICATED`)
+- [x] 3-4 Implement `backend/src/middleware/requireAdmin.ts`: `req.user.role !== "ADMIN"` → `403 FORBIDDEN` (role read from the DB by `requireAuth`)
+- [x] 3-5 Implement the IP limiters in `backend/src/middleware/rateLimits.ts`: `signupLimiter` (5 per 15 min per IP) and `loginLimiter` (5 **failed** per 15 min per IP, `skipSuccessfulRequests`), both answering `429 RATE_LIMITED` in the common error shape
+- [x] 3-6 Add the per-user limiters to `rateLimits.ts`: `passwordCheckLimiter` (5 **wrong passwords** per user per 15 min, shared by the account, password and deactivate endpoints, counting only `403 WRONG_PASSWORD` responses), `linkPreviewLimiter` (30 per user per min) and `uploadLimiter` (60 per user per hour)
+- [x] 3-7 Fill `shared/src/schemas/auth.ts`: `usernameSchema`, `passwordSchema` (8–72), `signupSchema`, `loginSchema` (password 1–72), all `z.strictObject` (`standards/backend.md` §3.5)
+- [x] 3-8 Fill `shared/src/types/user.ts`: `MeResponse` (`id`, `email`, `username`, `displayName`, `avatarUrl`, `role`, `createdAt`) and `PublicUserResponse` (`id`, `username`, `displayName`, `avatarUrl`, `createdAt`); add `toMeResponse()` in `backend/src/services/common/userMapper.ts`
+- [x] 3-9 `AuthService.signup`: reserved username → `400 USERNAME_RESERVED`; email or username taken (including deactivated accounts) → `409 EMAIL_TAKEN` / `USERNAME_TAKEN` (also map the `P2002` unique violation); hash the password; create the user
+- [x] 3-10 `AuthService.login`: unknown email, wrong password or deactivated account → the same `401 INVALID_CREDENTIALS`; compare a dummy hash when the email is unknown so timing doesn't reveal accounts
+- [x] 3-11 `AuthService.me`: load the active user by ID and return `MeResponse`
+- [x] 3-12 `backend/src/controllers/auth.controller.ts` + `auth.routes.ts`: `POST /signup` (`guestOnly`, `signupLimiter`, `validate`, set cookie, `201`), `POST /login` (`guestOnly`, `loginLimiter`, set cookie, `200`), `POST /logout` (no auth needed, clear cookie, `200`), `GET /me` (`requireAuth`, `200`)
+- [x] 3-13 Create `backend/tests/helpers/db.ts`: truncate all tables (`TRUNCATE ... CASCADE`) before each test file; refuse to run unless `DATABASE_URL` points to `highdea_test`
+- [x] 3-14 Create `backend/tests/helpers/factories.ts`: `createUser`, `createLoggedInUser` (returns the user and a `Cookie` header), `createAdmin`, `createTree` (with its root node, optional visibility/removed/deleted state), `createCategory`, `createNodes(treeId, n)`, `createUpload`
+- [x] 3-15 Tests: signup (`201` + cookie, `400` with `details`, `USERNAME_RESERVED`, `EMAIL_TAKEN`, `USERNAME_TAKEN` including a deactivated account, `ALREADY_AUTHENTICATED`, `429` on the 6th attempt)
+- [x] 3-16 Tests: login (`200` + cookie, `INVALID_CREDENTIALS` for wrong password / unknown email / deactivated, `ALREADY_AUTHENTICATED`, `429` after 5 failures), logout (clears the cookie with and without a valid cookie), me (`200`, `401` for guests, `401` + cookie cleared for a deactivated user)
+- [x] 3-17 Tests: `requireAdmin` returns `403 FORBIDDEN` for a `USER`, and a role changed in the DB takes effect on the next request with the same token
 
 ---
 
