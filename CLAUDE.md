@@ -26,6 +26,10 @@ manifests/
 
 **Reading rule:** always read `manifests/index.md` + `manifests/common.md`, then the domain file(s) for the task. When editing a manifest file, re-check the files listed for it in the "Related Files" table of `index.md`.
 
+## Coding standards
+
+Split by topic in `standards/` (general, frontend, backend, database, api, testing, git, environment, security, review-checklist). Path-scoped rules in `.claude/rules/` point to the right file. Read `standards/index.md` to pick the file(s) for a task; don't read them all. `CODING_STANDARDS.md` at the root is only a pointer.
+
 ## Status
 
 Design finished (manifest v1.0, 2026-11-13). No code yet. Don't scaffold or implement features unless asked.
