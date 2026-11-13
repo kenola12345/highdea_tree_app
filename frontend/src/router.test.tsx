@@ -66,9 +66,9 @@ describe("route guards", () => {
   });
 
   it("lets anyone open public pages", async () => {
-    renderAt("/explore", null);
+    renderAt("/", null);
 
-    expect(await screen.findByRole("heading", { name: "Explore" })).toBeInTheDocument();
+    expect(await screen.findByTestId("landing-signup")).toBeInTheDocument();
   });
 
   it("shows Not Found for an unknown URL", async () => {
@@ -78,7 +78,7 @@ describe("route guards", () => {
   });
 
   it("shows the logged-in navigation in the header", async () => {
-    renderAt("/explore", alice);
+    renderAt("/", alice);
 
     expect(await screen.findAllByRole("link", { name: "My Trees" })).not.toHaveLength(0);
     expect(screen.getByTestId("logout-button")).toBeInTheDocument();

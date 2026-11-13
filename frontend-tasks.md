@@ -185,13 +185,13 @@
 - Screens: P-07, P-08
 - APIs: `GET /api/explore`, `GET /api/explore/categories`, `GET /api/users/:username`
 
-- [ ] 9-1 Implement `frontend/src/api/explore.ts`: `useExplore({ q, category, page })` and `useExploreCategories({ q, limit })`
-- [ ] 9-2 Implement `ExploreSearch.tsx`: search box synced to `?q=` (trimmed, 1–100, submit on Enter or after typing stops), clear button
-- [ ] 9-3 Implement `CategoryChips.tsx`: popular categories (`key`, `name`, `treeCount`), selected chip in `?category=`, horizontal scroll on phones
-- [ ] 9-4 Implement `ExploreFeed.tsx` + `ExplorePage` (P-07): `TreeCard`s linking to `/trees/:id` and the owner's `/u/:username`, paging, loading / empty ("No public trees match") / error states
-- [ ] 9-5 Implement `frontend/src/api/profile.ts` (`useUserProfile(username, page)`; `404` → `notFound`) and `ProfileHeader.tsx` (avatar with a fallback, display name, `@username`, join date)
-- [ ] 9-6 Implement `UserProfilePage` (P-08): header, the user's public trees with paging, empty state; `404` → `<NotFound />`
-- [ ] 9-7 Unit tests: search and chip state round-trip through the URL, profile `404` renders P-11
+- [x] 9-1 Implement `frontend/src/api/explore.ts`: `useExplore({ q, category, page })` and `useExploreCategories({ q, limit })`
+- [x] 9-2 Implement `ExploreSearch.tsx`: search box synced to `?q=` (trimmed, 1–100, submit on Enter or after typing stops), clear button
+- [x] 9-3 Implement `CategoryChips.tsx`: popular categories (`key`, `name`, `treeCount`), selected chip in `?category=`, horizontal scroll on phones
+- [x] 9-4 Implement `ExploreFeed.tsx` + `ExplorePage` (P-07): `TreeCard`s linking to `/trees/:id` and the owner's `/u/:username`, paging, loading / empty ("No public trees match") / error states
+- [x] 9-5 Implement `frontend/src/api/profile.ts` (`useUserProfile(username, page)`; `404` → `notFound`) and `ProfileHeader.tsx` (avatar with a fallback, display name, `@username`, join date)
+- [x] 9-6 Implement `UserProfilePage` (P-08): header, the user's public trees with paging, empty state; `404` → `<NotFound />`
+- [x] 9-7 Unit tests: search and chip state round-trip through the URL, profile `404` renders P-11
 
 ---
 
