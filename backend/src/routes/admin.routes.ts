@@ -1,4 +1,17 @@
+import { idParamSchema, removeTreeSchema } from "@highdea/shared";
 import { Router } from "express";
 
-// admin のルート。エンドポイントは backend-tasks.md の該当 Phase で追加する（app.ts で /api 配下にマウント済み）。
+import * as admin from "../controllers/admin.controller.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
+import { validate } from "../middleware/validate.js";
+
 export const adminRouter = Router();
+
+adminRouter.post(
+  "/admin/trees/:id/remove",
+  requireAuth,
+  requireAdmin,
+  validate({ params: idParamSchema, body: removeTreeSchema }),
+  admin.removeTree,
+);
