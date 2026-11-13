@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* デザイントークン。複数箇所で使う色・フォントはここで定義する（standards/frontend.md §2.4） */
+@theme {
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-canvas: #f8fafc;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  @apply bg-white font-sans text-slate-900 antialiased;
+}

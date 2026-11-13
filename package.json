@@ -8,9 +8,9 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm run dev -w backend",
+    "dev": "concurrently --names backend,frontend --prefix-colors blue,green --kill-others-on-fail \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "test": "npm test --workspaces --if-present",
-    "test:e2e": "echo \"E2E tests are added with the frontend (frontend-tasks.md)\"",
+    "test:e2e": "npm run test:e2e -w frontend",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "npm run typecheck --workspaces --if-present"
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.7",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",

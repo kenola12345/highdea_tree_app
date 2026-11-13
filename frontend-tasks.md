@@ -14,16 +14,16 @@
 - Depends on: none (the root `highdea_tree_app/`, root `package.json`, `tsconfig.base.json`, ESLint and Prettier from backend Phase 1 exist). Doesn't touch `backend/`
 - Main files: `frontend/package.json`, `frontend/index.html`, `frontend/vite.config.ts`, `frontend/tsconfig.json`, `frontend/src/{main.tsx,index.css}`, `frontend/vitest.config.ts`, `frontend/playwright.config.ts`, root `package.json` (scripts only)
 
-- [ ] 1-1 Create `frontend/` with Vite's React + TypeScript template, then delete the template's demo files and assets. Check: `frontend/` is listed in the root workspaces and `npm install` succeeds from the root
-- [ ] 1-2 Set the dependencies in `frontend/package.json`: `react@19.3`, `react-dom@19.3`, `react-router@8.5`, `@tanstack/react-query@5.107`, `d3-hierarchy@3.1`, `d3-zoom@3.0`, `d3-selection@3.0`, `clsx`, `@highdea/shared` (workspace); dev: `vite@8.3`, `@vitejs/plugin-react`, `tailwindcss@4.3`, `@tailwindcss/vite`, `@types/d3-hierarchy`, `@types/d3-zoom`, `@types/d3-selection`, `vitest@5.1`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`, `@playwright/test@1.65`
-- [ ] 1-3 Create `frontend/tsconfig.json` from `standards/general.md` §1.1. Check: `npm run typecheck -w frontend` passes
-- [ ] 1-4 Write `frontend/vite.config.ts`: React and Tailwind plugins, dev server on port `5173`, proxy `/api` and `/uploads` to `http://localhost:3000` (same origin, so the auth cookie is sent; manifest §9)
-- [ ] 1-5 Write `frontend/src/index.css` with `@import "tailwindcss";` and the `@theme` tokens (brand colors, canvas background, font) from `standards/frontend.md` §2.4, and import it in `main.tsx`
-- [ ] 1-6 Write `frontend/index.html` (viewport meta, `lang="en"`, title "Highdea Tree") and a minimal `main.tsx` rendering "Highdea Tree". Check: `npm run dev -w frontend` shows the text with Tailwind styles applied
-- [ ] 1-7 Add frontend scripts: `dev`, `build`, `preview`, `typecheck`, `test` (Vitest), `test:e2e` (Playwright)
-- [ ] 1-8 Create `frontend/vitest.config.ts` (jsdom, `@testing-library/jest-dom` setup file) and one sample test. Check: `npm test -w frontend` passes
-- [ ] 1-9 Create `frontend/playwright.config.ts`: test dir `tests/e2e`, projects for Desktop Chrome and a phone (e.g. Pixel 7, touch enabled), `webServer` entries that start the backend and frontend when they aren't running
-- [ ] 1-10 Update the root `package.json` scripts: `dev` runs the backend and frontend together (add `concurrently`), `test` runs every workspace, `test:e2e` runs `npm run test:e2e -w frontend`. Check: `npm run dev` starts both, and `http://localhost:5173/api/health` returns `200` through the proxy
+- [x] 1-1 Create `frontend/` with Vite's React + TypeScript template, then delete the template's demo files and assets. Check: `frontend/` is listed in the root workspaces and `npm install` succeeds from the root
+- [x] 1-2 Set the dependencies in `frontend/package.json`: `react@19.3`, `react-dom@19.3`, `react-router@8.5`, `@tanstack/react-query@5.107`, `d3-hierarchy@3.1`, `d3-zoom@3.0`, `d3-selection@3.0`, `clsx`, `@highdea/shared` (workspace); dev: `vite@8.3`, `@vitejs/plugin-react`, `tailwindcss@4.3`, `@tailwindcss/vite`, `@types/d3-hierarchy`, `@types/d3-zoom`, `@types/d3-selection`, `vitest@5.1`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`, `@playwright/test@1.65`
+- [x] 1-3 Create `frontend/tsconfig.json` from `standards/general.md` §1.1. Check: `npm run typecheck -w frontend` passes
+- [x] 1-4 Write `frontend/vite.config.ts`: React and Tailwind plugins, dev server on port `5173`, proxy `/api` and `/uploads` to `http://localhost:3000` (same origin, so the auth cookie is sent; manifest §9)
+- [x] 1-5 Write `frontend/src/index.css` with `@import "tailwindcss";` and the `@theme` tokens (brand colors, canvas background, font) from `standards/frontend.md` §2.4, and import it in `main.tsx`
+- [x] 1-6 Write `frontend/index.html` (viewport meta, `lang="en"`, title "Highdea Tree") and a minimal `main.tsx` rendering "Highdea Tree". Check: `npm run dev -w frontend` shows the text with Tailwind styles applied
+- [x] 1-7 Add frontend scripts: `dev`, `build`, `preview`, `typecheck`, `test` (Vitest), `test:e2e` (Playwright)
+- [x] 1-8 Create `frontend/vitest.config.ts` (jsdom, `@testing-library/jest-dom` setup file) and one sample test. Check: `npm test -w frontend` passes
+- [x] 1-9 Create `frontend/playwright.config.ts`: test dir `tests/e2e`, projects for Desktop Chrome and a phone (e.g. Pixel 7, touch enabled), `webServer` entries that start the backend and frontend when they aren't running
+- [x] 1-10 Update the root `package.json` scripts: `dev` runs the backend and frontend together (add `concurrently`), `test` runs every workspace, `test:e2e` runs `npm run test:e2e -w frontend`. Check: `npm run dev` starts both, and `http://localhost:5173/api/health` returns `200` through the proxy
 
 ---
 
