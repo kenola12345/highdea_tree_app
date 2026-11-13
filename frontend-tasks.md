@@ -93,14 +93,14 @@
 - Screens: P-10, M-11
 - APIs: `PATCH /api/users/me`, `PATCH /api/users/me/account`, `PATCH /api/users/me/password`, `POST /api/users/me/deactivate`
 
-- [ ] 5-1 Implement `frontend/src/api/users.ts` (settings part): `useUpdateProfile`, `useUpdateAccount`, `useChangePassword`, `useDeactivate` (update or clear `['me']`)
-- [ ] 5-2 Implement `SettingsPage` (P-10): tabs Profile / Account / Categories, the active tab kept in `?tab=`, accessible tab list
-- [ ] 5-3 Implement `ProfileTab.tsx`: display name and avatar URL (with preview), saved toast
-- [ ] 5-4 Implement `ChangeEmailUsernameForm.tsx`: new email and/or username plus current password; `WRONG_PASSWORD` under the password field; `EMAIL_TAKEN` / `USERNAME_TAKEN` / `USERNAME_RESERVED` under their fields; `429` message; note that the old username is released immediately
-- [ ] 5-5 Implement `ChangePasswordForm.tsx`: current and new password (8–72, must differ); `WRONG_PASSWORD`; success toast; clears the fields
-- [ ] 5-6 Implement `AccountTab.tsx` with both forms and the "Delete account" button
-- [ ] 5-7 Implement `DeleteAccountModal.tsx` (M-11): explains the effects (profile and public trees disappear, email and username stay taken, no undo), asks for the password, then clears the cache and goes to `/` as a guest
-- [ ] 5-8 Unit tests: wrong password shown under the field, M-11 calls deactivate and navigates to `/`, tab state follows `?tab=`
+- [x] 5-1 Implement `frontend/src/api/users.ts` (settings part): `useUpdateProfile`, `useUpdateAccount`, `useChangePassword`, `useDeactivate` (update or clear `['me']`)
+- [x] 5-2 Implement `SettingsPage` (P-10): tabs Profile / Account / Categories, the active tab kept in `?tab=`, accessible tab list
+- [x] 5-3 Implement `ProfileTab.tsx`: display name and avatar URL (with preview), saved toast
+- [x] 5-4 Implement `ChangeEmailUsernameForm.tsx`: new email and/or username plus current password; `WRONG_PASSWORD` under the password field; `EMAIL_TAKEN` / `USERNAME_TAKEN` / `USERNAME_RESERVED` under their fields; `429` message; note that the old username is released immediately
+- [x] 5-5 Implement `ChangePasswordForm.tsx`: current and new password (8–72, must differ); `WRONG_PASSWORD`; success toast; clears the fields
+- [x] 5-6 Implement `AccountTab.tsx` with both forms and the "Delete account" button
+- [x] 5-7 Implement `DeleteAccountModal.tsx` (M-11): explains the effects (profile and public trees disappear, email and username stay taken, no undo), asks for the password, then clears the cache and goes to `/` as a guest
+- [x] 5-8 Unit tests: wrong password shown under the field, M-11 calls deactivate and navigates to `/`, tab state follows `?tab=`
 
 ---
 

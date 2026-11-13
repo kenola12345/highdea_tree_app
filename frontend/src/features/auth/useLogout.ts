@@ -11,11 +11,12 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSettled: async () => {
+      // 先に公開ページへ移る（ログイン必須ページにいると、ガードが先に /login へ飛ばしてしまうため）
+      await navigate("/");
       // ログイン状態のクエリは画面が監視しているので消さずに null（ゲスト）にし、それ以外のデータはすべて捨てる。
       // clear() で消すと監視中の画面が古いユーザーのまま更新されないため
       queryClient.setQueryData(queryKeys.me, null);
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.me[0] });
-      await navigate("/");
     },
   });
 }

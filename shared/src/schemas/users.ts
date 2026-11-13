@@ -12,8 +12,8 @@ import {
 const avatarUrlSchema = z
   .string()
   .trim()
-  .max(2048)
-  .pipe(z.url({ protocol: /^https?$/ }));
+  .max(2048, "Use 2,048 characters or fewer")
+  .pipe(z.url({ protocol: /^https?$/, message: "Enter an http or https image URL" }));
 
 /**
  * プロフィール変更。変更する項目だけ送り、最低1つ必要。
