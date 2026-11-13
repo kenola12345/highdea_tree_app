@@ -62,12 +62,12 @@
 - Screens: P-01, P-02, P-03
 - APIs: `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me`
 
-- [ ] 3-1 Implement `frontend/src/api/authMutations.ts`: `useSignup` and `useLogin` (on success set `['me']` with the returned user)
-- [ ] 3-2 Implement `SignupForm.tsx`: email, username (hint "3–30: a-z, 0-9, _"), display name, password (8–72), shared `signupSchema`; server errors under fields (`EMAIL_TAKEN`, `USERNAME_TAKEN`, `USERNAME_RESERVED` → username/email field); `429` → form message
-- [ ] 3-3 Implement `SignupPage` (P-02): form in `PageContainer`, link to Log in; on success → `/me`
-- [ ] 3-4 Implement `LoginForm.tsx` + `LoginPage` (P-03): email, password; `INVALID_CREDENTIALS` → one form-level message; `429` → "Too many attempts, try again later"; on success → `?next=` (only same-site paths starting with `/`) or `/me`
-- [ ] 3-5 Implement `LandingPage` (P-01): what Highdea Tree is, a sample tree image, buttons to Explore and Sign up; logged-in users see "Go to My Trees" instead
-- [ ] 3-6 Unit tests: signup field errors from `details`, login redirect to `next`, `next` pointing to another site is ignored, landing buttons for guest vs. logged-in
+- [x] 3-1 Implement `frontend/src/api/authMutations.ts`: `useSignup` and `useLogin` (on success set `['me']` with the returned user)
+- [x] 3-2 Implement `SignupForm.tsx`: email, username (hint "3–30: a-z, 0-9, _"), display name, password (8–72), shared `signupSchema`; server errors under fields (`EMAIL_TAKEN`, `USERNAME_TAKEN`, `USERNAME_RESERVED` → username/email field); `429` → form message
+- [x] 3-3 Implement `SignupPage` (P-02): form in `PageContainer`, link to Log in; on success → `/me`
+- [x] 3-4 Implement `LoginForm.tsx` + `LoginPage` (P-03): email, password; `INVALID_CREDENTIALS` → one form-level message; `429` → "Too many attempts, try again later"; on success → `?next=` (only same-site paths starting with `/`) or `/me`
+- [x] 3-5 Implement `LandingPage` (P-01): what Highdea Tree is, a sample tree image, buttons to Explore and Sign up; logged-in users see "Go to My Trees" instead
+- [x] 3-6 Unit tests: signup field errors from `details`, login redirect to `next`, `next` pointing to another site is ignored, landing buttons for guest vs. logged-in
 
 ---
 
