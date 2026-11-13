@@ -1,12 +1,295 @@
 // P-05 Tree Editor
-import { PageContainer } from "../components/PageContainer";
+import type { NodeDetails } from "@highdea/shared";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Navigate, useNavigate, useParams } from "react-router";
 
-/** P-05 Tree Editor（中身は frontend-tasks.md Phase 8 で実装する） */
+import { fetchNodeDetails } from "../api/nodeDetails";
+import {
+  TEMP_ID_PREFIX,
+  useCreateNode,
+  useDeleteNode,
+  useSavePositions,
+  useUpdateNode,
+} from "../api/nodes";
+import { queryKeys } from "../api/queryKeys";
+import { useTree } from "../api/tree";
+import { ErrorState } from "../components/ErrorState";
+import { Spinner } from "../components/Spinner";
+import { useToast } from "../components/Toast";
+import { canReparent } from "../features/canvas/dropTarget";
+import { EditorToolbar } from "../features/canvas/EditorToolbar";
+import { layoutTree } from "../features/canvas/layout";
+import { NodeToolbar } from "../features/canvas/NodeToolbar";
+import { type CanvasApi, TreeCanvas } from "../features/canvas/TreeCanvas";
+import { countDescendants, newChildPosition } from "../features/canvas/treeOps";
+import { useEditorKeys } from "../features/canvas/useEditorKeys";
+import { type DropResult, useNodeDrag } from "../features/canvas/useNodeDrag";
+import { AddBranchModal } from "../features/nodes/AddBranchModal";
+import { DeleteNodeModal } from "../features/nodes/DeleteNodeModal";
+import { type MediaNode, MediaViewerModal } from "../features/nodes/MediaViewerModal";
+import { NodeEditorModal } from "../features/nodes/NodeEditorModal";
+import type { NodeType } from "../features/nodes/nodeForm";
+import { MoveToTrashModal } from "../features/trees/MoveToTrashModal";
+import { TreeSettingsModal } from "../features/trees/TreeSettingsModal";
+import { NotFound } from "./NotFoundPage";
+
+/**
+ * ツリーエディタ（P-05）。キャンバス上でノードの追加・編集・移動・付け替え・削除を行う。
+ * 所有者以外は閲覧画面へ移す（isOwner で判断: manifests/common.md ルーティング）。
+ */
 export default function TreeEditorPage() {
+  const { id = "" } = useParams();
+  const { data, isPending, isError, notFound, refetch } = useTree(id);
+  if (notFound) return <NotFound />;
+  if (isPending) return <Spinner />;
+  if (isError)
+    return <ErrorState message="Couldn't load this tree." onRetry={() => void refetch()} />;
+  if (!data.isOwner) return <Navigate to={`/trees/${id}`} replace />;
+  return <Editor treeId={id} data={data} />;
+}
+
+function Editor({
+  treeId,
+  data,
+}: {
+  treeId: string;
+  data: NonNullable<ReturnType<typeof useTree>["data"]>;
+}) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const apiRef = useRef<CanvasApi | null>(null);
+  const canvasBoxRef = useRef<HTMLDivElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; initialType?: NodeType } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [trashing, setTrashing] = useState(false);
+  const [media, setMedia] = useState<MediaNode | null>(null);
+
+  const nodes = data.nodes;
+  const layout = useMemo(() => layoutTree(nodes), [nodes]);
+  const createNode = useCreateNode(treeId);
+  const updateNode = useUpdateNode(treeId);
+  const deleteNode = useDeleteNode(treeId);
+  const savePositions = useSavePositions(treeId);
+  const cachedDetails = (nodeId: string) =>
+    queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(treeId, nodeId));
+
+  /** ドロップ: ノードの上なら付け替え、空いている場所なら位置の保存（manifests/nodes.md SPA points） */
+  const onDrop = useCallback(
+    ({ dragged, moved, target, branch }: DropResult) => {
+      if (target && dragged.parentId !== target.id) {
+        if (!canReparent(dragged, target, branch)) {
+          // 中心のアイデアは他のノードの下へ移せない。リクエストを送らずに元へ戻す（409 INVALID_MOVE と同じ条件）
+          toast("The center idea can't be moved under another idea.", "error");
+          return;
+        }
+        const pos = newChildPosition(layout, target.id, branch);
+        const dx = pos.x - (layout.byId.get(dragged.id)?.x ?? 0);
+        const dy = pos.y - (layout.byId.get(dragged.id)?.y ?? 0);
+        updateNode.mutate({
+          id: dragged.id,
+          body: { parentId: target.id, positionX: pos.x, positionY: pos.y },
+        });
+        // 枝の子孫も同じだけ動かして、形を保ったまま新しい親の横へ移す
+        const rest = [...branch].filter((bid) => bid !== dragged.id);
+        if (rest.length > 0) {
+          savePositions.mutate(
+            rest.flatMap((bid) => {
+              const n = layout.byId.get(bid);
+              return n
+                ? [{ id: bid, positionX: Math.round(n.x + dx), positionY: Math.round(n.y + dy) }]
+                : [];
+            }),
+          );
+        }
+        return;
+      }
+      savePositions.mutate(moved.map((m) => ({ id: m.id, positionX: m.x, positionY: m.y })));
+    },
+    [layout, savePositions, toast, updateNode],
+  );
+
+  const drag = useNodeDrag({
+    nodes,
+    layout,
+    apiRef,
+    getCanvasRect: () => canvasBoxRef.current?.getBoundingClientRect(),
+    onDrop,
+  });
+
+  /** M-04 を開く。中身をまだ取得していなければ先に取得する（遠いズームでは中身を読み込まないため） */
+  const openEditor = useCallback(
+    async (nodeId: string, initialType?: NodeType) => {
+      if (nodeId.startsWith(TEMP_ID_PREFIX)) return;
+      if (!queryClient.getQueryData(queryKeys.nodeDetails(treeId, nodeId))) {
+        try {
+          const [details] = await fetchNodeDetails(treeId, [nodeId]);
+          if (details) queryClient.setQueryData(queryKeys.nodeDetails(treeId, nodeId), details);
+        } catch {
+          toast("Couldn't load this idea. Try again.", "error");
+          return;
+        }
+      }
+      setEditing({ id: nodeId, initialType });
+    },
+    [queryClient, toast, treeId],
+  );
+
+  /** M-10 画像・動画を大きく表示する */
+  async function openMedia(nodeId: string) {
+    const node = layout.byId.get(nodeId);
+    if (!node || (node.type !== "IMAGE" && node.type !== "VIDEO")) return;
+    let details = cachedDetails(nodeId);
+    if (!details) [details] = await fetchNodeDetails(treeId, [nodeId]).catch(() => []);
+    setMedia({
+      title: node.title,
+      type: node.type,
+      imageUrl: details?.imageUrl ?? null,
+      url: details?.url ?? null,
+    });
+  }
+
+  /** M-05 から: 子ノードを作り、そのノードを中央に寄せて M-04 で詳細を入れる */
+  function addBranch(parentId: string, { type, title }: { type: NodeType; title: string }) {
+    const pos = newChildPosition(layout, parentId);
+    setAddingTo(null);
+    apiRef.current?.centerOn(pos);
+    createNode.mutate(
+      { type: "TEXT", parentId, title, positionX: pos.x, positionY: pos.y },
+      {
+        onSuccess: ({ node }) => {
+          setSelectedId(node.id);
+          void openEditor(node.id, type === "TEXT" ? undefined : type);
+        },
+      },
+    );
+  }
+
+  const selected = selectedId ? layout.byId.get(selectedId) : undefined;
+  const modalOpen = Boolean(addingTo ?? editing ?? deletingId ?? media) || settingsOpen || trashing;
+  useEditorKeys({
+    enabled: Boolean(selected) && !modalOpen,
+    onAdd: () => {
+      if (selected && nodes.length < 2000) setAddingTo(selected.id);
+    },
+    onDelete: () => {
+      if (selected && !selected.isRoot) setDeletingId(selected.id);
+    },
+    onEdit: () => {
+      if (selected) void openEditor(selected.id);
+    },
+    onDeselect: () => {
+      setSelectedId(null);
+    },
+  });
+
+  const editingNode = editing ? (nodes.find((n) => n.id === editing.id) ?? null) : null;
+  const deletingNode = deletingId ? (layout.byId.get(deletingId) ?? null) : null;
+  const addingParent = addingTo ? layout.byId.get(addingTo) : undefined;
+
   return (
-    <PageContainer>
-      <h1 className="text-2xl font-bold">Tree Editor</h1>
-      <p className="mt-2 text-sm text-slate-500">This page is coming soon.</p>
-    </PageContainer>
+    <div className="flex h-[calc(100dvh-3.5rem)] w-full flex-col">
+      <EditorToolbar
+        treeId={treeId}
+        tree={data.tree}
+        onOpenSettings={() => {
+          setSettingsOpen(true);
+        }}
+      />
+      <div ref={canvasBoxRef} className="relative min-h-0 flex-1">
+        <TreeCanvas
+          treeId={treeId}
+          nodes={nodes}
+          apiRef={apiRef}
+          selectedId={selectedId}
+          blockPanOnNodes
+          showCounter
+          positionOverrides={drag.view?.overrides}
+          liftedIds={drag.view?.liftedIds}
+          highlightId={drag.view?.targetId ?? null}
+          onNodePointerDown={drag.onNodePointerDown}
+          onNodeSelect={(nodeId) => {
+            if (drag.consumeClick()) return;
+            setSelectedId(nodeId);
+          }}
+          onNodeOpen={(nodeId) => void openEditor(nodeId)}
+          renderSelectedOverlay={(node, rect) =>
+            drag.isDragging ? null : (
+              <NodeToolbar
+                node={node}
+                rect={rect}
+                nodeCount={nodes.length}
+                onAdd={() => {
+                  setAddingTo(node.id);
+                }}
+                onEdit={() => void openEditor(node.id)}
+                onDelete={() => {
+                  setDeletingId(node.id);
+                }}
+                onView={() => void openMedia(node.id)}
+              />
+            )
+          }
+        />
+      </div>
+
+      <AddBranchModal
+        open={Boolean(addingParent)}
+        parentTitle={addingParent?.title ?? ""}
+        onClose={() => {
+          setAddingTo(null);
+        }}
+        onSubmit={(values) => {
+          if (addingTo) addBranch(addingTo, values);
+        }}
+      />
+      <NodeEditorModal
+        treeId={treeId}
+        node={editingNode}
+        details={editing ? cachedDetails(editing.id) : undefined}
+        initialType={editing?.initialType}
+        onClose={() => {
+          setEditing(null);
+        }}
+      />
+      <DeleteNodeModal
+        node={deletingNode}
+        descendantCount={deletingId ? countDescendants(nodes, deletingId) : 0}
+        onClose={() => {
+          setDeletingId(null);
+        }}
+        onConfirm={(nodeId) => {
+          setSelectedId(null);
+          deleteNode.mutate(nodeId);
+        }}
+      />
+      <MediaViewerModal
+        node={media}
+        onClose={() => {
+          setMedia(null);
+        }}
+      />
+      <TreeSettingsModal
+        tree={settingsOpen ? data.tree : null}
+        onClose={() => {
+          setSettingsOpen(false);
+        }}
+        onMoveToTrash={() => {
+          setSettingsOpen(false);
+          setTrashing(true);
+        }}
+      />
+      <MoveToTrashModal
+        tree={trashing ? data.tree : null}
+        onClose={() => {
+          setTrashing(false);
+        }}
+        onDone={() => void navigate("/me")}
+      />
+    </div>
   );
 }

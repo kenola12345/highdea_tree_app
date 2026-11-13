@@ -13,6 +13,10 @@ type NodeCardProps = {
   node: LaidOutNode;
   level: DetailLevel;
   selected: boolean;
+  /** ドラッグ中のドロップ先（付け替え先）として強調する */
+  highlighted?: boolean;
+  /** ドラッグで持ち上げている枝 */
+  lifted?: boolean;
 };
 
 const TYPE_ICON: Record<LaidOutNode["type"], string> = {
@@ -28,7 +32,14 @@ const TYPE_ICON: Record<LaidOutNode["type"], string> = {
  * 中身は遅延取得なので、届くまでは題名だけの仮表示にする（manifests/nodes.md NodeCard）。
  * 要素に data-node-id を付け、キャンバスやエディタがポインター操作の対象ノードを判別できるようにする。
  */
-export const NodeCard = memo(function NodeCard({ treeId, node, level, selected }: NodeCardProps) {
+export const NodeCard = memo(function NodeCard({
+  treeId,
+  node,
+  level,
+  selected,
+  highlighted = false,
+  lifted = false,
+}: NodeCardProps) {
   const { width, height } = cardSize(node);
   const x = node.x - width / 2;
   const y = node.y - height / 2;
@@ -44,8 +55,9 @@ export const NodeCard = memo(function NodeCard({ treeId, node, level, selected }
         className={clsx(
           node.isRoot ? "fill-brand-600" : "fill-slate-400",
           selected && "stroke-brand-700",
+          highlighted && "stroke-amber-400",
         )}
-        strokeWidth={selected ? 8 : 0}
+        strokeWidth={selected || highlighted ? 8 : 0}
       />
     );
   }
@@ -70,6 +82,8 @@ export const NodeCard = memo(function NodeCard({ treeId, node, level, selected }
             : "border-slate-200 bg-white text-slate-900",
           selected &&
             (node.isRoot ? "ring-brand-300 ring-4" : "ring-brand-500 border-brand-500 ring-2"),
+          highlighted && "ring-4 ring-amber-400",
+          lifted && "opacity-90 shadow-xl",
         )}
       >
         {level === "title" ? (

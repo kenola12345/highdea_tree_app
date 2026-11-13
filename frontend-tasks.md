@@ -155,27 +155,27 @@
 - Screens: P-05, M-04, M-05, M-06 (opens M-02, M-03, M-10)
 - APIs: `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/uploads`, `POST /api/link-preview`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id`
 
-- [ ] 8-1 Implement `TreeEditorPage` (P-05) shell: load `useTree`; `404` → `<NotFound />`; `isOwner === false` → redirect to `/trees/:id`; lay out `EditorToolbar`, `TreeCanvas`, `MiniMap`, `ZoomControls`, `NodeCounter`
-- [ ] 8-2 Implement `features/canvas/SaveStatus.tsx` ("Saving…" / "Saved ✓" / "Couldn't save – retry") driven by pending node mutations
-- [ ] 8-3 Implement `features/canvas/EditorToolbar.tsx`: back to My Trees, title, visibility badge, category chips, `SaveStatus`, ⚙ (M-02, with "Move to Trash" → M-03 → `/me`), 👁 "View as visitor" → `/trees/:id`; removed trees show the admin's reason in a banner
-- [ ] 8-4 Implement `features/canvas/NodeToolbar.tsx` above the selected node: "+ Add" (disabled at 2,000 with "This tree is full (2,000 ideas)"), "Edit", "Delete" (hidden on the root); buttons at least 44 × 44 px on phones
-- [ ] 8-5 Implement `features/canvas/useEditorKeys.ts`: `Tab` → M-05, `Delete` → M-06 (not on the root), `Enter` → M-04, `Esc` → deselect; ignored while typing in an input
-- [ ] 8-6 Implement `frontend/src/api/nodes.ts` part 1: `useCreateNode` (optimistic node with a temporary ID in `['tree', id]`, swap in the real one; on `409 NODE_LIMIT_REACHED` remove it and show "tree is full")
-- [ ] 8-7 `api/nodes.ts` part 2: `useUpdateNode` and `useDeleteNode` (optimistic, rollback on error with a toast; delete removes the whole subtree from the skeleton), and `useSavePositions` (`standards/frontend.md` §2.5)
-- [ ] 8-8 Implement `features/nodes/AddBranchModal.tsx` (M-05): type and title; creates the child next to its parent, then opens M-04 for the new node
-- [ ] 8-9 Implement `features/nodes/DeleteNodeModal.tsx` (M-06): "Delete this idea and N ideas under it? This can't be undone." with N counted from the skeleton; `CANNOT_DELETE_ROOT` handled
-- [ ] 8-10 Implement `features/nodes/TypeTabs.tsx` + `NodeEditorModal.tsx` (M-04) part 1: Text / Link / Video / Image tabs, title (1–200) and note (≤ 10,000, counter); switching type keeps title and note; save with `PATCH /api/nodes/:id`
-- [ ] 8-11 Implement `frontend/src/api/linkPreview.ts` + `features/nodes/LinkPreviewCard.tsx`: URL field waits 500 ms after typing, then `POST /api/link-preview`; `422` → "No preview available" (save still allowed); `400 URL_NOT_ALLOWED` → error under the URL field; `429` → quiet retry later
-- [ ] 8-12 M-04 Video tab: URL accepted only for YouTube/Vimeo (shared schema), embed preview from `videoEmbed`
-- [ ] 8-13 Implement `frontend/src/api/uploads.ts` (upload with progress via `XMLHttpRequest`) + `features/nodes/ImageUploadField.tsx`: progress bar, `413` "Max 5 MB", `415` "PNG, JPEG, WebP or GIF only", `429` message; on save, `404 UPLOAD_NOT_FOUND` keeps the form and asks to upload again
-- [ ] 8-14 Wire node actions in `TreeEditorPage`: select (click/tap), open M-04 (double-click/double-tap), open M-10 on image/video nodes at readable zoom, focus a new node after M-05
-- [ ] 8-15 Implement `features/canvas/useLongPress.ts`: pointer down on a node starts a ~300 ms timer; moving first cancels it (so a quick swipe pans); on fire, lift the node and vibrate where supported. Mouse drags start immediately
-- [ ] 8-16 Implement `features/canvas/useNodeDrag.ts`: move the node and its whole branch in local state only while dragging (smooth), using Pointer Events with pointer capture
-- [ ] 8-17 Implement `features/canvas/useAutoScroll.ts`: pan the canvas while a dragged node is near the screen edge
-- [ ] 8-18 On drop onto empty space: one `PATCH /api/trees/:id/nodes/positions` for every moved node; snap back and toast "Couldn't save the move" on error
-- [ ] 8-19 Implement `features/canvas/dropTarget.ts` + re-parent on drop: highlight the node under the pointer; refuse the root as the dragged node and any target inside the dragged branch (no request, matches `409 INVALID_MOVE`); otherwise `PATCH /api/nodes/:id` with `parentId` and the new position; rollback on error
-- [ ] 8-20 Phone check: on a phone viewport, long-press drag, pinch zoom, two-finger pan, double-tap edit, toolbar sizes and full-screen modals all work, and the page itself never scrolls or zooms while using the canvas
-- [ ] 8-21 Unit tests: drop-target rules (own branch refused), optimistic create rollback on `NODE_LIMIT_REACHED`, M-04 type switch keeps title/note and clears the old type's fields, M-06 count, link preview debounce
+- [x] 8-1 Implement `TreeEditorPage` (P-05) shell: load `useTree`; `404` → `<NotFound />`; `isOwner === false` → redirect to `/trees/:id`; lay out `EditorToolbar`, `TreeCanvas`, `MiniMap`, `ZoomControls`, `NodeCounter`
+- [x] 8-2 Implement `features/canvas/SaveStatus.tsx` ("Saving…" / "Saved ✓" / "Couldn't save – retry") driven by pending node mutations
+- [x] 8-3 Implement `features/canvas/EditorToolbar.tsx`: back to My Trees, title, visibility badge, category chips, `SaveStatus`, ⚙ (M-02, with "Move to Trash" → M-03 → `/me`), 👁 "View as visitor" → `/trees/:id`; removed trees show the admin's reason in a banner
+- [x] 8-4 Implement `features/canvas/NodeToolbar.tsx` above the selected node: "+ Add" (disabled at 2,000 with "This tree is full (2,000 ideas)"), "Edit", "Delete" (hidden on the root); buttons at least 44 × 44 px on phones
+- [x] 8-5 Implement `features/canvas/useEditorKeys.ts`: `Tab` → M-05, `Delete` → M-06 (not on the root), `Enter` → M-04, `Esc` → deselect; ignored while typing in an input
+- [x] 8-6 Implement `frontend/src/api/nodes.ts` part 1: `useCreateNode` (optimistic node with a temporary ID in `['tree', id]`, swap in the real one; on `409 NODE_LIMIT_REACHED` remove it and show "tree is full")
+- [x] 8-7 `api/nodes.ts` part 2: `useUpdateNode` and `useDeleteNode` (optimistic, rollback on error with a toast; delete removes the whole subtree from the skeleton), and `useSavePositions` (`standards/frontend.md` §2.5)
+- [x] 8-8 Implement `features/nodes/AddBranchModal.tsx` (M-05): type and title; creates the child next to its parent, then opens M-04 for the new node
+- [x] 8-9 Implement `features/nodes/DeleteNodeModal.tsx` (M-06): "Delete this idea and N ideas under it? This can't be undone." with N counted from the skeleton; `CANNOT_DELETE_ROOT` handled
+- [x] 8-10 Implement `features/nodes/TypeTabs.tsx` + `NodeEditorModal.tsx` (M-04) part 1: Text / Link / Video / Image tabs, title (1–200) and note (≤ 10,000, counter); switching type keeps title and note; save with `PATCH /api/nodes/:id`
+- [x] 8-11 Implement `frontend/src/api/linkPreview.ts` + `features/nodes/LinkPreviewCard.tsx`: URL field waits 500 ms after typing, then `POST /api/link-preview`; `422` → "No preview available" (save still allowed); `400 URL_NOT_ALLOWED` → error under the URL field; `429` → quiet retry later
+- [x] 8-12 M-04 Video tab: URL accepted only for YouTube/Vimeo (shared schema), embed preview from `videoEmbed`
+- [x] 8-13 Implement `frontend/src/api/uploads.ts` (upload with progress via `XMLHttpRequest`) + `features/nodes/ImageUploadField.tsx`: progress bar, `413` "Max 5 MB", `415` "PNG, JPEG, WebP or GIF only", `429` message; on save, `404 UPLOAD_NOT_FOUND` keeps the form and asks to upload again
+- [x] 8-14 Wire node actions in `TreeEditorPage`: select (click/tap), open M-04 (double-click/double-tap), open M-10 on image/video nodes at readable zoom, focus a new node after M-05
+- [x] 8-15 Implement `features/canvas/useLongPress.ts`: pointer down on a node starts a ~300 ms timer; moving first cancels it (so a quick swipe pans); on fire, lift the node and vibrate where supported. Mouse drags start immediately
+- [x] 8-16 Implement `features/canvas/useNodeDrag.ts`: move the node and its whole branch in local state only while dragging (smooth), using Pointer Events with pointer capture
+- [x] 8-17 Implement `features/canvas/useAutoScroll.ts`: pan the canvas while a dragged node is near the screen edge
+- [x] 8-18 On drop onto empty space: one `PATCH /api/trees/:id/nodes/positions` for every moved node; snap back and toast "Couldn't save the move" on error
+- [x] 8-19 Implement `features/canvas/dropTarget.ts` + re-parent on drop: highlight the node under the pointer; refuse the root as the dragged node and any target inside the dragged branch (no request, matches `409 INVALID_MOVE`); otherwise `PATCH /api/nodes/:id` with `parentId` and the new position; rollback on error
+- [x] 8-20 Phone check: on a phone viewport, long-press drag, pinch zoom, two-finger pan, double-tap edit, toolbar sizes and full-screen modals all work, and the page itself never scrolls or zooms while using the canvas
+- [x] 8-21 Unit tests: drop-target rules (own branch refused), optimistic create rollback on `NODE_LIMIT_REACHED`, M-04 type switch keeps title/note and clears the old type's fields, M-06 count, link preview debounce
 
 ---
 

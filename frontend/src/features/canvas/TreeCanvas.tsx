@@ -53,6 +53,10 @@ type TreeCanvasProps = {
     rect: { x: number; y: number; width: number; height: number },
   ) => ReactNode;
   showCounter?: boolean;
+  /** ドラッグ中のドロップ先として強調するノード */
+  highlightId?: string | null;
+  /** ドラッグで持ち上げている枝のノード */
+  liftedIds?: ReadonlySet<string>;
   apiRef?: RefObject<CanvasApi | null>;
 };
 
@@ -76,6 +80,8 @@ export function TreeCanvas({
   blockPanOnNodes = false,
   renderSelectedOverlay,
   showCounter = false,
+  highlightId = null,
+  liftedIds,
   apiRef,
 }: TreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -195,10 +201,12 @@ export function TreeCanvas({
       })()
     : null;
 
+  // キャンバス上（ツールバーやズームボタンの上も含む）では、ブラウザのページ拡大・スクロールを起こさない
+  // （manifests/nodes.md「the browser doesn't scroll or zoom the page while the user works on the canvas」）
   return (
     <div
       ref={containerRef}
-      className="bg-canvas relative h-full w-full overflow-hidden"
+      className="bg-canvas relative h-full w-full touch-none overflow-hidden overscroll-none"
       data-testid="tree-canvas"
     >
       <svg
@@ -234,6 +242,8 @@ export function TreeCanvas({
                 node={n}
                 level={level}
                 selected={n.id === selectedId}
+                highlighted={n.id === highlightId}
+                lifted={liftedIds?.has(n.id) ?? false}
               />
             ))}
           </g>

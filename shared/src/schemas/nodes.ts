@@ -14,8 +14,15 @@ const VIDEO_HOST_PATTERN = /^(?:[a-z0-9-]+\.)*(?:youtube\.com|youtu\.be|vimeo\.c
 
 export const nodeTypeSchema = z.enum(["TEXT", "LINK", "VIDEO", "IMAGE"]);
 
-const nodeTitleSchema = z.string().trim().min(1).max(NODE_TITLE_MAX);
-const nodeBodySchema = z.string().max(NODE_BODY_MAX).nullable();
+const nodeTitleSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a title")
+  .max(NODE_TITLE_MAX, `Use ${String(NODE_TITLE_MAX)} characters or fewer`);
+const nodeBodySchema = z
+  .string()
+  .max(NODE_BODY_MAX, `Use ${NODE_BODY_MAX.toLocaleString("en")} characters or fewer`)
+  .nullable();
 const positionSchema = z.number();
 const sortOrderSchema = z.int32();
 
@@ -23,14 +30,14 @@ const sortOrderSchema = z.int32();
 export const nodeUrlSchema = z
   .string()
   .trim()
-  .max(NODE_URL_MAX)
+  .max(NODE_URL_MAX, "Use 2,048 characters or fewer")
   .pipe(z.url({ protocol: /^https?$/, message: "Enter an http or https URL" }));
 
 /** VIDEO の URL。埋め込みできるのは YouTube と Vimeo だけ */
 export const videoUrlSchema = z
   .string()
   .trim()
-  .max(NODE_URL_MAX)
+  .max(NODE_URL_MAX, "Use 2,048 characters or fewer")
   .pipe(
     z.url({
       protocol: /^https?$/,
