@@ -17,7 +17,7 @@ Always read **`index.md` + `common.md`**, then the domain file(s) for the task. 
 | [users.md](./users.md) | Sign up, log in, log out, session (`/api/auth/*`); profiles and account settings (`/api/users/*`); pages P-02, P-03, P-10; modal M-11; `users` table | Working on auth, the session, profiles, Settings (Profile/Account tabs) or account deletion |
 | [trees.md](./trees.md) | Trees (`/api/trees`, `/api/trees/:id`), Trash (`/api/trash`, restore), categories (`/api/categories`); pages P-04, P-09; modals M-01, M-02, M-03, M-07, M-08; tree lifecycle; `trees`, `categories`, `tree_categories` tables | Working on My Trees, creating/editing/deleting trees, the Trash, categories or the Settings Categories tab |
 | [nodes.md](./nodes.md) | Nodes (`/api/trees/:id/nodes`, `/api/nodes/*`, positions), uploads, link preview; page P-05 (Tree Editor); modals M-04, M-05, M-06, M-10; editor layout and canvas SPA points (lazy loading, drag, touch); `nodes`, `uploads` tables | Working on the editor canvas, nodes, drag and drop, mobile gestures, image upload or link previews |
-| [explore.md](./explore.md) | Explore feed and category filter (`/api/explore*`), admin removal (`/api/admin/*`); pages P-06, P-07, P-08; modal M-09 | Working on Explore, the read-only Tree Viewer, public profile pages or moderation |
+| [explore.md](./explore.md) | Explore feed and category filter (`/api/explore*`), admin removal (`/api/admin/*`); pages P-06, P-07, P-08; modals M-09, M-12 | Working on Explore, the read-only Tree Viewer, public profile pages or moderation |
 
 ## Old MANIFEST.md Section Mapping（旧MANIFEST.mdセクション対応表）
 
@@ -30,7 +30,7 @@ Always read **`index.md` + `common.md`**, then the domain file(s) for the task. 
 | 3. Functional Requirements（機能要件） | 3.1, 3.2 → users.md · 3.3, 3.4, 3.7 → trees.md · 3.5, 3.6 → nodes.md · 3.8, 3.9 → explore.md · intro, 3.10 → common.md |
 | 4. Screens & Navigation（画面遷移・構成）: intro, access legend, routing rules | common.md |
 | 4.1 Page List（ページ一覧） | P-01, P-11 → common.md · P-02, P-03, P-10 → users.md · P-04, P-09 → trees.md · P-05 → nodes.md · P-06, P-07, P-08 → explore.md |
-| 4.2 Modal List（モーダル一覧） | M-11 → users.md · M-01, M-02, M-03, M-07, M-08 → trees.md · M-04, M-05, M-06, M-10 → nodes.md · M-09 → explore.md |
+| 4.2 Modal List（モーダル一覧） | M-11 → users.md · M-01, M-02, M-03, M-07, M-08 → trees.md · M-04, M-05, M-06, M-10 → nodes.md · M-09, M-12 → explore.md |
 | 4.3 Main Screen Layout (Tree Editor) | nodes.md |
 | 4.3 Tree Lifecycle | trees.md |
 | 4.3 SPA UI/UX Points | Canvas and node points → nodes.md · cross-cutting points (errors, session, cache, business rules, not-found) → common.md |

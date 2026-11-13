@@ -27,6 +27,7 @@ const nodeSkeletonSelect = {
   positionX: true,
   positionY: true,
   sortOrder: true,
+  lineColor: true,
   updatedAt: true,
 } satisfies Prisma.NodeSelect;
 
@@ -133,6 +134,7 @@ export async function create(userId: string, body: CreateTreeBody): Promise<Crea
         ...root,
         parentId: null,
         type: "TEXT",
+        lineColor: null,
         createdAt: root.createdAt.toISOString(),
         updatedAt: root.updatedAt.toISOString(),
       },

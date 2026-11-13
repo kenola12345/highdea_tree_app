@@ -18,6 +18,7 @@ function node(
     positionX: 0,
     positionY: 0,
     sortOrder: 0,
+    lineColor: null,
     updatedAt: "2026-11-13T00:00:00Z",
     ...extra,
   };

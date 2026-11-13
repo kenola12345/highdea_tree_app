@@ -225,7 +225,25 @@
 - [x] 11-11 Accessibility pass: keyboard-only flow through header, forms and modals; focus returns after closing a modal; labels on every input; color contrast of category chips with white text
 - [x] 11-12 Coverage check: every page (P-01–P-11) and modal (M-01–M-11) in the manifest is reachable and matches its spec; list gaps here as new tasks
 - [x] 11-13 Review with `standards/review-checklist.md` (Frontend and Security sections)
-- [ ] 11-14 Gap found in 11-12: LINK nodes show the page title and domain but there's no way to open the URL (in the editor's node toolbar or in the viewer). The manifest doesn't say; decide whether to add an "Open link" action (new tab, `rel="noopener noreferrer"`, http/https only) and update `manifests/nodes.md` first
+- [x] 11-14 Gap found in 11-12: LINK nodes show the page title and domain but there's no way to open the URL (in the editor's node toolbar or in the viewer). The manifest doesn't say; decide whether to add an "Open link" action (new tab, `rel="noopener noreferrer"`, http/https only) and update `manifests/nodes.md` first
+
+---
+
+## Phase 12: Canvas Look, Line Colors, Links and View-mode Details（キャンバスの見た目・線の色・リンク・閲覧時の詳細） 【直列】
+- Depends on: Phases 7, 8, 10; backend `nodes.line_color` column (migration `add_node_line_color`)
+- Main files: `frontend/src/features/canvas/{NodeLink,GridBackground,layout,NodeCard,NodeToolbar,TreeCanvas}.tsx`, `frontend/src/features/nodes/{LineColorField,NodeDetailsPanel,NodeEditorModal,nodeForm}.ts(x)`, `frontend/src/components/OpenLink.tsx`, `frontend/src/pages/TreeViewerPage.tsx`
+- Screens: P-05, P-06, M-04, M-12 (new)
+- APIs: `GET /api/trees/:id` (skeleton now has `lineColor`), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` (accept `lineColor`)
+
+- [x] 12-1 Manifest first: per-branch line colors, line style, opening links, M-12 Node Details, `nodes.line_color` column and API fields (nodes.md, trees.md, explore.md, common.md §5.4, CLAUDE.md, index.md)
+- [x] 12-2 Backend: `line_color VARCHAR(7)` column and migration, `lineColor` in the shared schemas (`#RRGGBB` or `null`), skeleton and node responses, create/update; API tests
+- [x] 12-3 Layout resolves each node's `branchColor` (own color, else nearest ancestor, else gray)
+- [x] 12-4 Lines are dashed S-curves from the facing card sides with connection dots; straight center-to-center lines at dot zoom
+- [x] 12-5 Notebook grid background that pans and zooms with the canvas (minor lines hidden when zoomed far out)
+- [x] 12-6 M-04 line color field (palette + Inherit/Default), sent only when changed
+- [x] 12-7 Open links: ↗ on LINK cards, "Open link" in the editor toolbar and in M-12 (new tab, `noopener noreferrer`, http/https only)
+- [x] 12-8 M-12 Node Details in the viewer: click an idea to see its note, link preview, video or image (→ M-10); side panel on desktop, full-screen sheet on phones, `Esc` closes
+- [x] 12-9 Tests: unit (color inheritance, S-curve geometry, lineColor body, OpenLink safety, M-12 panel) and E2E (E2E-EDITOR-06 branch color, E2E-EXPLORE-04 details and link)
 
 ---
 
@@ -276,4 +294,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 11 Phases, 124 tasks.
+Totals: 12 Phases, 134 tasks.

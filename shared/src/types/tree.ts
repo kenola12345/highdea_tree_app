@@ -49,6 +49,7 @@ export type RootNodeItem = {
   positionX: number;
   positionY: number;
   sortOrder: number;
+  lineColor: null;
   createdAt: string;
   updatedAt: string;
 };
@@ -68,6 +69,8 @@ export type NodeSkeleton = {
   positionX: number;
   positionY: number;
   sortOrder: number;
+  /** 枝の線の色（#RRGGBB）。null は最も近い祖先の色を受け継ぐ */
+  lineColor: string | null;
   updatedAt: string;
 };
 

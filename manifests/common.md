@@ -260,6 +260,7 @@ model Node {
   positionX          Float     @default(0) @map("position_x")
   positionY          Float     @default(0) @map("position_y")
   sortOrder          Int       @default(0) @map("sort_order")
+  lineColor          String?   @map("line_color") @db.VarChar(7)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -498,7 +499,7 @@ highdea_tree_app/
     │   │   ├── auth/         # signup and login forms, session (useMe)
     │   │   ├── trees/        # tree cards, M-01 New Tree, M-02 Tree Settings, M-03 Move to Trash
     │   │   ├── canvas/       # TreeCanvas, NodeCard, NodeToolbar, MiniMap, ZoomControls, lazy details, gestures
-    │   │   ├── nodes/        # M-04 Node Editor, M-05 Add Branch, M-06 Delete Node, M-10 Media Viewer
+    │   │   ├── nodes/        # M-04 Node Editor, M-05 Add Branch, M-06 Delete Node, M-10 Media Viewer, M-12 Node Details
     │   │   ├── categories/   # category picker, M-07 Category Form, M-08 Delete Category
     │   │   ├── explore/      # feed, search, category chips
     │   │   ├── trash/        # trash list, restore

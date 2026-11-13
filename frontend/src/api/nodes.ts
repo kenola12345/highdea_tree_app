@@ -59,6 +59,7 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     positionX: node.positionX,
     positionY: node.positionY,
     sortOrder: node.sortOrder,
+    lineColor: node.lineColor,
     updatedAt: node.updatedAt,
   };
   const details: NodeDetails = {
@@ -129,6 +130,7 @@ export function useCreateNode(treeId: string) {
           positionX: body.positionX ?? 0,
           positionY: body.positionY ?? 0,
           sortOrder: body.sortOrder ?? Number.MAX_SAFE_INTEGER,
+          lineColor: body.lineColor ?? null,
           updatedAt: new Date().toISOString(),
         },
       ]);
@@ -177,6 +179,7 @@ export function useUpdateNode(treeId: string) {
                 ...(body.parentId !== undefined && { parentId: body.parentId }),
                 ...(body.positionX !== undefined && { positionX: body.positionX }),
                 ...(body.positionY !== undefined && { positionY: body.positionY }),
+                ...(body.lineColor !== undefined && { lineColor: body.lineColor }),
               }
             : n,
         ),

@@ -186,6 +186,7 @@ describe("POST /api/trees", () => {
       positionX: 0,
       positionY: 0,
       sortOrder: 0,
+      lineColor: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -311,6 +312,7 @@ describe("GET /api/trees/:id", () => {
       expect(Object.keys(node).sort()).toEqual(
         [
           "id",
+          "lineColor",
           "parentId",
           "positionX",
           "positionY",

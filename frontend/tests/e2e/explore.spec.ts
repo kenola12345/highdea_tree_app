@@ -45,3 +45,32 @@ test.describe("Explore, viewer and profiles (guest)", () => {
     await expect(page.getByText("This page doesn't exist or isn't public.")).toBeVisible();
   });
 });
+
+test.describe("viewer details and links (guest)", () => {
+  test("E2E-EXPLORE-04 clicking an idea opens its details; a link idea can be opened in a new tab", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/explore");
+    await page.getByRole("link", { name: "Startup ideas" }).click();
+    await page.getByTestId("node-card").filter({ hasText: "Pricing" }).first().click();
+    await expect(page.getByTestId("node-details")).toContainText(
+      "Free for personal use; team plan later.",
+    );
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("node-details")).toHaveCount(0);
+
+    await page.locator("[data-node-type=LINK]").first().click();
+    const open = page.getByTestId("node-details").getByTestId("open-link");
+    await expect(open).toHaveAttribute("target", "_blank");
+    await expect(open).toHaveAttribute("href", /^https:\/\//);
+    const href = await open.getAttribute("href");
+    await context.route("**/*", (route) =>
+      route.request().url().startsWith("https://")
+        ? route.fulfill({ body: "ok" })
+        : route.continue(),
+    );
+    const [popup] = await Promise.all([context.waitForEvent("page"), open.click()]);
+    expect(popup.url()).toBe(href);
+  });
+});

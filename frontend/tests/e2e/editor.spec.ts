@@ -92,3 +92,17 @@ test.describe("tree editor (desktop)", () => {
     await expect(page.getByTestId("delete-node-button")).toHaveCount(0);
   });
 });
+
+test("E2E-EDITOR-06 a branch line color colors that branch and is kept after reload", async ({
+  page,
+}) => {
+  await card(page, "Problem").dblclick();
+  await page.getByTestId("line-color-#EF4444").click();
+  await page.getByTestId("node-save").click();
+  await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
+  const nodes = await nodesByTitle(page.request, treeId);
+  expect(nodes.Problem).toBeDefined();
+});

@@ -1,31 +1,26 @@
 // P-06 Tree Viewer
-import type { NodeDetails } from "@highdea/shared";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useParams } from "react-router";
 
-import { fetchNodeDetails } from "../api/nodeDetails";
-import { queryKeys } from "../api/queryKeys";
 import { useTree } from "../api/tree";
 import { ErrorState } from "../components/ErrorState";
 import { Spinner } from "../components/Spinner";
 import { RemoveTreeModal } from "../features/admin/RemoveTreeModal";
 import { useMe } from "../features/auth/useMe";
 import { type CanvasApi, TreeCanvas } from "../features/canvas/TreeCanvas";
-import { CARD_FROM } from "../features/canvas/viewport";
 import { ViewerHeader } from "../features/explore/ViewerHeader";
 import { type MediaNode, MediaViewerModal } from "../features/nodes/MediaViewerModal";
+import { NodeDetailsPanel } from "../features/nodes/NodeDetailsPanel";
 import { NotFound } from "./NotFoundPage";
 
 /**
  * 読み取り専用のツリー表示（P-06）。公開ツリーは誰でも、非公開・非公開化されたツリーは所有者だけが見られる。
- * 編集の操作はなく、画像・動画のノードを押すと（読める倍率のとき）大きく表示する（M-10）。
+ * 編集の操作はなく、アイデアを押すと詳細（M-12）を開く。画像は詳細から原寸表示（M-10）できる。
  */
 export default function TreeViewerPage() {
   const { id = "" } = useParams();
   const { data, isPending, isError, notFound, refetch } = useTree(id);
   const { isAdmin } = useMe();
-  const queryClient = useQueryClient();
   const apiRef = useRef<CanvasApi | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [media, setMedia] = useState<MediaNode | null>(null);
@@ -36,21 +31,7 @@ export default function TreeViewerPage() {
   if (isError)
     return <ErrorState message="Couldn't load this tree." onRetry={() => void refetch()} />;
 
-  /** 画像・動画のノードを押したら原寸画像や動画を表示する。点や短い題名しか見えない倍率では選択だけにする */
-  async function onNodeClick(nodeId: string | null) {
-    setSelectedId(nodeId);
-    const node = nodeId ? data?.nodes.find((n) => n.id === nodeId) : undefined;
-    if (!nodeId || !node || (node.type !== "IMAGE" && node.type !== "VIDEO")) return;
-    if ((apiRef.current?.transform.k ?? 0) < CARD_FROM) return;
-    let details = queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(id, nodeId));
-    if (!details) [details] = await fetchNodeDetails(id, [nodeId]).catch(() => []);
-    setMedia({
-      title: node.title,
-      type: node.type,
-      imageUrl: details?.imageUrl ?? null,
-      url: details?.url ?? null,
-    });
-  }
+  const selectedNode = selectedId ? (data.nodes.find((n) => n.id === selectedId) ?? null) : null;
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] w-full flex-col">
@@ -67,7 +48,16 @@ export default function TreeViewerPage() {
           nodes={data.nodes}
           apiRef={apiRef}
           selectedId={selectedId}
-          onNodeSelect={(nodeId) => void onNodeClick(nodeId)}
+          onNodeSelect={setSelectedId}
+        />
+        {/* キャンバスの上に重ねる（PC では右側のパネル、スマホでは全画面） */}
+        <NodeDetailsPanel
+          treeId={id}
+          node={selectedNode}
+          onClose={() => {
+            setSelectedId(null);
+          }}
+          onOpenMedia={setMedia}
         />
       </div>
       <MediaViewerModal

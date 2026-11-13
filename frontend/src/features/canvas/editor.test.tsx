@@ -1,6 +1,6 @@
 import type { NodeSkeleton, TreeDetailResponse } from "@highdea/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,10 +8,12 @@ import { PREVIEW_DEBOUNCE_MS, useLinkPreview } from "../../api/linkPreview";
 import { useCreateNode } from "../../api/nodes";
 import { createQueryClient } from "../../api/queryClient";
 import { queryKeys } from "../../api/queryKeys";
+import { OpenLink } from "../../components/OpenLink";
 import { ToastProvider } from "../../components/Toast";
 import { buildUpdateBody } from "../nodes/nodeForm";
 import { canReparent, findDropTarget } from "./dropTarget";
-import { layoutTree } from "./layout";
+import { DEFAULT_LINE_COLOR, layoutTree } from "./layout";
+import { linkGeometry } from "./NodeLink";
 import { branchIds, countDescendants, newChildPosition } from "./treeOps";
 
 function node(id: string, parentId: string | null, x: number, y: number): NodeSkeleton {
@@ -23,6 +25,7 @@ function node(id: string, parentId: string | null, x: number, y: number): NodeSk
     positionX: x,
     positionY: y,
     sortOrder: 0,
+    lineColor: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }
@@ -80,17 +83,25 @@ describe("M-06 delete count", () => {
 });
 
 describe("M-04 type switch", () => {
-  const values = { title: "Pricing", body: "Free tier first", url: "", newUploadId: null };
+  const values = {
+    title: "Pricing",
+    body: "Free tier first",
+    url: "",
+    newUploadId: null,
+    lineColor: null,
+  };
 
   it("keeps title and note when switching to Link, and requires the URL", () => {
-    expect(buildUpdateBody({ type: "TEXT", url: null }, { ...values, type: "LINK" })).toEqual({
+    expect(
+      buildUpdateBody({ type: "TEXT", url: null, lineColor: null }, { ...values, type: "LINK" }),
+    ).toEqual({
       ok: false,
       field: "url",
       message: "Enter a URL",
     });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null },
+        { type: "TEXT", url: null, lineColor: null },
         { ...values, type: "LINK", url: "https://example.com" },
       ),
     ).toEqual({
@@ -101,7 +112,7 @@ describe("M-04 type switch", () => {
 
   it("doesn't send the old type's fields, so the server clears them", () => {
     const result = buildUpdateBody(
-      { type: "LINK", url: "https://example.com" },
+      { type: "LINK", url: "https://example.com", lineColor: null },
       { ...values, type: "TEXT", url: "https://example.com" },
     );
 
@@ -113,11 +124,11 @@ describe("M-04 type switch", () => {
 
   it("requires an uploaded image when switching to Image", () => {
     expect(
-      buildUpdateBody({ type: "TEXT", url: null }, { ...values, type: "IMAGE" }),
+      buildUpdateBody({ type: "TEXT", url: null, lineColor: null }, { ...values, type: "IMAGE" }),
     ).toMatchObject({ ok: false, field: "image" });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null },
+        { type: "TEXT", url: null, lineColor: null },
         { ...values, type: "IMAGE", newUploadId: "up1" },
       ),
     ).toMatchObject({
@@ -240,5 +251,63 @@ describe("new branch placement", () => {
     const crowded = layoutTree([...skeleton, node("blocker", "b", 600, 20)]);
 
     expect(newChildPosition(crowded, "a")).toEqual({ x: 600, y: 140 });
+  });
+});
+
+describe("line colors", () => {
+  it("each line uses the nearest set color up the branch, or gray", () => {
+    const colored = layoutTree([
+      { ...node("root", null, 0, 0), lineColor: "#3B82F6" },
+      { ...node("a", "root", 300, -100), lineColor: "#EF4444" },
+      node("a1", "a", 600, -100),
+      node("b", "root", 300, 200),
+    ]);
+    const plain = layoutTree([node("root", null, 0, 0), node("b", "root", 300, 200)]);
+
+    expect(colored.byId.get("a1")?.branchColor).toBe("#EF4444");
+    expect(colored.byId.get("b")?.branchColor).toBe("#3B82F6");
+    expect(plain.byId.get("b")?.branchColor).toBe(DEFAULT_LINE_COLOR);
+  });
+
+  it("M-04 sends lineColor only when it changed, and null to inherit again", () => {
+    const original = { type: "TEXT" as const, url: null, lineColor: "#EF4444" };
+    const values = { type: "TEXT" as const, title: "T", body: "", url: "", newUploadId: null };
+
+    expect(buildUpdateBody(original, { ...values, lineColor: "#EF4444" })).toEqual({
+      ok: true,
+      body: { title: "T", body: null },
+    });
+    expect(buildUpdateBody(original, { ...values, lineColor: null })).toEqual({
+      ok: true,
+      body: { title: "T", body: null, lineColor: null },
+    });
+  });
+
+  it("draws S-curves from the facing sides of the cards", () => {
+    const a = layout.byId.get("a");
+    const root = layout.byId.get("root");
+    if (!a || !root) throw new Error("layout");
+
+    const side = linkGeometry(root, a, "card");
+    expect(side.start.x).toBeGreaterThan(root.x);
+    expect(side.end.x).toBeLessThan(a.x);
+    expect(side.controls?.[0].y).toBe(side.start.y);
+
+    const dots = linkGeometry(root, a, "dot");
+    expect(dots.start).toEqual({ x: root.x, y: root.y });
+    expect(dots.controls).toBeNull();
+  });
+});
+
+describe("open link", () => {
+  it("only links http/https URLs and opens them in a new tab", () => {
+    const { rerender } = render(<OpenLink url="https://example.com/page" />);
+    const link = screen.getByTestId("open-link");
+    expect(link).toHaveAttribute("href", "https://example.com/page");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+    rerender(<OpenLink url="javascript:alert(1)" />);
+    expect(screen.queryByTestId("open-link")).not.toBeInTheDocument();
   });
 });

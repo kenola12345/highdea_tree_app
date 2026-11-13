@@ -105,6 +105,7 @@ describe("POST /api/trees/:id/nodes", () => {
       positionX: 120.5,
       positionY: -40,
       sortOrder: 0,
+      lineColor: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -781,5 +782,55 @@ describe("GET /api/trees/:id/nodes", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.nodes).toEqual([]);
+  });
+});
+
+describe("line colors (manifests/nodes.md §3.5 Line colors per branch)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("stores a branch line color on create and update, returns it in the skeleton, and clears it with null", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({ type: "TEXT", title: "Red branch", parentId: tree.rootId, lineColor: "#EF4444" });
+    expect(created.status).toBe(201);
+    expect(created.body.data.node.lineColor).toBe("#EF4444");
+
+    const rootColored = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ lineColor: "#3B82F6" });
+    expect(rootColored.status).toBe(200);
+    expect(rootColored.body.data.node.lineColor).toBe("#3B82F6");
+
+    const cleared = await request(app)
+      .patch(`/api/nodes/${created.body.data.node.id as string}`)
+      .set("Cookie", cookie)
+      .send({ lineColor: null });
+    expect(cleared.body.data.node.lineColor).toBeNull();
+
+    const detail = await request(app).get(`/api/trees/${tree.id}`).set("Cookie", cookie);
+    const colors = (detail.body.data.nodes as { id: string; lineColor: string | null }[])
+      .map((n) => n.lineColor)
+      .sort();
+    expect(colors).toEqual(["#3B82F6", null]);
+  });
+
+  it("rejects a color that isn't #RRGGBB", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const res = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ lineColor: "red" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual([{ field: "lineColor", message: expect.any(String) }]);
   });
 });

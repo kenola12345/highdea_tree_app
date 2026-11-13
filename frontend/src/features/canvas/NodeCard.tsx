@@ -2,6 +2,7 @@ import type { NodeDetails } from "@highdea/shared";
 import clsx from "clsx";
 import { memo } from "react";
 
+import { OpenLink } from "../../components/OpenLink";
 import { domainOf } from "../../lib/urls";
 import { toVideoEmbed } from "../../lib/videoEmbed";
 import { cardSize, type LaidOutNode } from "./layout";
@@ -148,6 +149,16 @@ function CardContent({ treeId, node }: { treeId: string; node: LaidOutNode }) {
           )
         )}
       </div>
+      {node.type === "LINK" && (
+        <OpenLink
+          url={details?.url}
+          testId="card-open-link"
+          className="text-brand-700 hover:bg-brand-50 -mr-1 size-8 shrink-0 justify-center self-start rounded-lg text-base"
+        >
+          <span aria-hidden="true">↗</span>
+          <span className="sr-only">Open link</span>
+        </OpenLink>
+      )}
     </>
   );
 }

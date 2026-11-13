@@ -25,6 +25,11 @@ const nodeBodySchema = z
   .nullable();
 const positionSchema = z.number();
 const sortOrderSchema = z.int32();
+/** 枝の線の色。#RRGGBB、または null（祖先の色を受け継ぐ）（manifests/nodes.md §3.5 Line colors per branch） */
+export const lineColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #3B82F6")
+  .nullable();
 
 /** LINK・VIDEO の URL。http/https、2,048文字まで */
 export const nodeUrlSchema = z
@@ -58,6 +63,7 @@ const createCommon = {
   positionX: positionSchema.optional(),
   positionY: positionSchema.optional(),
   sortOrder: sortOrderSchema.optional(),
+  lineColor: lineColorSchema.optional(),
 };
 
 /**
@@ -88,6 +94,7 @@ export const updateNodeSchema = z
     positionX: positionSchema.optional(),
     positionY: positionSchema.optional(),
     sortOrder: sortOrderSchema.optional(),
+    lineColor: lineColorSchema.optional(),
   })
   .superRefine((body, ctx) => {
     if (Object.keys(body).length === 0) {

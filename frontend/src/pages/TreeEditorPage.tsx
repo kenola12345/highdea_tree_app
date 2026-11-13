@@ -19,7 +19,7 @@ import { Spinner } from "../components/Spinner";
 import { useToast } from "../components/Toast";
 import { canReparent } from "../features/canvas/dropTarget";
 import { EditorToolbar } from "../features/canvas/EditorToolbar";
-import { layoutTree } from "../features/canvas/layout";
+import { DEFAULT_LINE_COLOR, layoutTree } from "../features/canvas/layout";
 import { NodeToolbar } from "../features/canvas/NodeToolbar";
 import { type CanvasApi, TreeCanvas } from "../features/canvas/TreeCanvas";
 import { countDescendants, newChildPosition } from "../features/canvas/treeOps";
@@ -187,6 +187,13 @@ function Editor({
     },
   });
 
+  /** 線の色を Inherit にしたとき使われる色（親の枝の色、中心のアイデアなら既定の色） */
+  function inheritedColorFor(nodeId: string | undefined): string {
+    const node = nodeId ? layout.byId.get(nodeId) : undefined;
+    const parent = node?.parentId ? layout.byId.get(node.parentId) : undefined;
+    return parent?.branchColor ?? DEFAULT_LINE_COLOR;
+  }
+
   const editingNode = editing ? (nodes.find((n) => n.id === editing.id) ?? null) : null;
   const deletingNode = deletingId ? (layout.byId.get(deletingId) ?? null) : null;
   const addingParent = addingTo ? layout.byId.get(addingTo) : undefined;
@@ -220,6 +227,7 @@ function Editor({
           renderSelectedOverlay={(node, rect) =>
             drag.isDragging ? null : (
               <NodeToolbar
+                treeId={treeId}
                 node={node}
                 rect={rect}
                 nodeCount={nodes.length}
@@ -252,6 +260,7 @@ function Editor({
         node={editingNode}
         details={editing ? cachedDetails(editing.id) : undefined}
         initialType={editing?.initialType}
+        inheritedLineColor={inheritedColorFor(editing?.id)}
         onClose={() => {
           setEditing(null);
         }}

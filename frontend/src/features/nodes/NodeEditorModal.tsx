@@ -8,6 +8,7 @@ import { FormField, inputClassName } from "../../components/FormField";
 import { Modal } from "../../components/Modal";
 import { toVideoEmbed } from "../../lib/videoEmbed";
 import { ImageUploadField } from "./ImageUploadField";
+import { LineColorField } from "./LineColorField";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { buildUpdateBody, type NodeFormValues, type NodeType } from "./nodeForm";
 import { TypeTabs } from "./TypeTabs";
@@ -15,6 +16,8 @@ import { TypeTabs } from "./TypeTabs";
 type NodeEditorModalProps = {
   treeId: string;
   node: NodeSkeleton | null;
+  /** Inherit を選んだときに使われる、祖先から受け継ぐ線の色 */
+  inheritedLineColor: string;
   details: NodeDetails | undefined;
   /** 枝の追加直後に開くときの初期の種類（M-05 で選んだもの） */
   initialType?: NodeType;
@@ -43,6 +46,7 @@ function NodeEditorForm({
   node,
   details,
   initialType,
+  inheritedLineColor,
   onClose,
 }: NodeEditorModalProps & { node: NodeSkeleton }) {
   const [values, setValues] = useState<NodeFormValues>({
@@ -51,6 +55,7 @@ function NodeEditorForm({
     body: details?.body ?? "",
     url: details?.url ?? "",
     newUploadId: null,
+    lineColor: node.lineColor,
   });
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<"title" | "body" | "url" | "image", string>>>(
@@ -72,7 +77,7 @@ function NodeEditorForm({
       nextErrors.url = "Enter a YouTube or Vimeo URL";
     if (preview.status === "notAllowed") nextErrors.url = preview.message;
     const built = buildUpdateBody(
-      { type: node.type, url: details?.url ?? null },
+      { type: node.type, url: details?.url ?? null, lineColor: node.lineColor },
       { ...values, title: values.title.trim() },
     );
     if (!built.ok) nextErrors[built.field] = built.message;
@@ -190,6 +195,15 @@ function NodeEditorForm({
           </div>
         )}
       </FormField>
+
+      <LineColorField
+        value={values.lineColor}
+        inheritedColor={inheritedLineColor}
+        isRoot={node.parentId === null}
+        onChange={(color) => {
+          set("lineColor", color);
+        }}
+      />
 
       <div className="flex justify-end gap-2 pt-2">
         <button

@@ -1,23 +1,95 @@
 import { memo } from "react";
 
-import type { LaidOutNode } from "./layout";
+import { cardSize, type LaidOutNode } from "./layout";
+import type { DetailLevel } from "./viewport";
 
-type NodeLinkProps = { source: LaidOutNode; target: LaidOutNode };
+type NodeLinkProps = { source: LaidOutNode; target: LaidOutNode; level: DetailLevel };
+
+type Point = { x: number; y: number };
 
 /**
- * 親ノードから子ノードへの線。中心どうしを結び、カードの下に描く（カードが線の端を隠す）。
- * 中心で結ぶと、放射状に置いた木でも、点だけの表示（遠いズーム）でも線が自然につながる。
+ * 親から子への線の端点と制御点。向き合う辺（左右に離れていれば左右の辺、上下なら上下の辺）の中央から出入りし、
+ * なめらかな S 字の曲線にする（manifests/nodes.md §3.5 Line style）。点表示（遠いズーム）では中心どうしを結ぶ。
  */
-export const NodeLink = memo(function NodeLink({ source, target }: NodeLinkProps) {
+export function linkGeometry(source: LaidOutNode, target: LaidOutNode, level: DetailLevel) {
+  if (level === "dot") {
+    return {
+      start: { x: source.x, y: source.y },
+      end: { x: target.x, y: target.y },
+      controls: null,
+    };
+  }
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const s = cardSize(source);
+  const t = cardSize(target);
+  let start: Point;
+  let end: Point;
+  let c1: Point;
+  let c2: Point;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const dir = dx >= 0 ? 1 : -1;
+    start = { x: source.x + (dir * s.width) / 2, y: source.y };
+    end = { x: target.x - (dir * t.width) / 2, y: target.y };
+    const bend = Math.max(40, Math.abs(end.x - start.x) / 2);
+    c1 = { x: start.x + dir * bend, y: start.y };
+    c2 = { x: end.x - dir * bend, y: end.y };
+  } else {
+    const dir = dy >= 0 ? 1 : -1;
+    start = { x: source.x, y: source.y + (dir * s.height) / 2 };
+    end = { x: target.x, y: target.y - (dir * t.height) / 2 };
+    const bend = Math.max(30, Math.abs(end.y - start.y) / 2);
+    c1 = { x: start.x, y: start.y + dir * bend };
+    c2 = { x: end.x, y: end.y - dir * bend };
+  }
+  return { start, end, controls: [c1, c2] as const };
+}
+
+const n = (v: number) => String(Math.round(v * 10) / 10);
+
+/**
+ * 親ノードから子ノードへの線。破線の S 字曲線で、カードとつながる所に小さな丸を付ける。
+ * 色は子ノードの枝の色（自分か祖先が設定した色）。
+ */
+export const NodeLink = memo(function NodeLink({ source, target, level }: NodeLinkProps) {
+  const { start, end, controls } = linkGeometry(source, target, level);
+  const color = target.branchColor;
+  const d = controls
+    ? `M ${n(start.x)} ${n(start.y)} C ${n(controls[0].x)} ${n(controls[0].y)}, ${n(controls[1].x)} ${n(controls[1].y)}, ${n(end.x)} ${n(end.y)}`
+    : `M ${n(start.x)} ${n(start.y)} L ${n(end.x)} ${n(end.y)}`;
   return (
-    <line
-      x1={source.x}
-      y1={source.y}
-      x2={target.x}
-      y2={target.y}
-      stroke="#94a3b8"
-      strokeWidth={2}
-      vectorEffect="non-scaling-stroke"
-    />
+    <g data-testid="node-link" data-color={color}>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeDasharray="6 5"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      {level !== "dot" && (
+        <>
+          <circle
+            cx={start.x}
+            cy={start.y}
+            r={5}
+            fill="white"
+            stroke={color}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          <circle
+            cx={end.x}
+            cy={end.y}
+            r={5}
+            fill="white"
+            stroke={color}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+        </>
+      )}
+    </g>
   );
 });

@@ -34,6 +34,7 @@ const nodeResponseSelect = {
   positionX: true,
   positionY: true,
   sortOrder: true,
+  lineColor: true,
   createdAt: true,
   updatedAt: true,
   imageUpload: { select: { storageKey: true } },
@@ -92,6 +93,7 @@ export function toNodeResponse(row: NodeResponseRow): NodeResponse {
     positionX: row.positionX,
     positionY: row.positionY,
     sortOrder: row.sortOrder,
+    lineColor: row.lineColor,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -207,6 +209,7 @@ export async function create(
         positionX: body.positionX ?? 0,
         positionY: body.positionY ?? 0,
         sortOrder: body.sortOrder ?? (await nextSortOrder(tx, body.parentId)),
+        lineColor: body.lineColor ?? null,
       },
       select: nodeResponseSelect,
     });
@@ -288,7 +291,11 @@ export async function update(
     });
     const nextType = assertFieldsFitType(current.type, body);
 
-    const data: Prisma.NodeUncheckedUpdateInput = { title: body.title, body: body.body };
+    const data: Prisma.NodeUncheckedUpdateInput = {
+      title: body.title,
+      body: body.body,
+      lineColor: body.lineColor,
+    };
     if (nextType !== current.type) {
       // 型が変わったら古い型の項目を消す（画像ファイル自体は未使用画像の掃除ジョブが消す）
       Object.assign(data, { type: nextType, url: null, imageUploadId: null, ...EMPTY_PREVIEW });

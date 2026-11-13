@@ -1,8 +1,11 @@
 import { MAX_NODES_PER_TREE } from "@highdea/shared";
 
+import { OpenLink } from "../../components/OpenLink";
 import type { LaidOutNode } from "./layout";
+import { useNodeDetail } from "./useNodeDetails";
 
 type NodeToolbarProps = {
+  treeId: string;
   node: LaidOutNode;
   rect: { x: number; y: number; width: number; height: number };
   nodeCount: number;
@@ -21,6 +24,7 @@ const button =
  * スマホでは押しやすいよう各ボタンを 44×44px 以上にする。
  */
 export function NodeToolbar({
+  treeId,
   node,
   rect,
   nodeCount,
@@ -29,6 +33,7 @@ export function NodeToolbar({
   onDelete,
   onView,
 }: NodeToolbarProps) {
+  const details = useNodeDetail(treeId, node.id);
   const full = nodeCount >= MAX_NODES_PER_TREE;
   const isMedia = node.type === "IMAGE" || node.type === "VIDEO";
   return (
@@ -62,6 +67,9 @@ export function NodeToolbar({
         <button type="button" onClick={onView} data-testid="view-media-button" className={button}>
           View
         </button>
+      )}
+      {node.type === "LINK" && (
+        <OpenLink url={details?.url} testId="toolbar-open-link" className={button} />
       )}
       {!node.isRoot && (
         <button

@@ -13,7 +13,7 @@ The Explore feed with search and category filter, the read-only Tree Viewer, pub
 - Browse a feed of public trees from all users, newest first, with search (title and description, case-insensitive) and a category filter.
 - The category filter lists category names used on public trees, grouped across users by name and sorted by how many public trees use them.
 - View a public tree read-only, and a user's public profile with their public trees.
-- **Pages/modals:** P-06, P-07, P-08. **API:** `GET /api/explore`, `GET /api/explore/categories`, `GET /api/users/:username`, `GET /api/trees/:id`, `GET /api/trees/:id/nodes`. **Tables:** `trees`, `categories`, `users`.
+- **Pages/modals:** P-06, P-07, P-08, M-12. **API:** `GET /api/explore`, `GET /api/explore/categories`, `GET /api/users/:username`, `GET /api/trees/:id`, `GET /api/trees/:id/nodes`. **Tables:** `trees`, `categories`, `users`.
 
 ### 3.9 Moderation (Admin)
 
@@ -37,7 +37,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | ID | Screen | URL | Summary | Access |
 |---|---|---|---|---|
-| P-06 | Tree Viewer | `/trees/:id` | Read-only canvas of a tree, with owner name, categories and description. Owners see an "Edit" button; admins see "Remove" on public trees | Anyone (public trees); Owner (own private or removed trees) |
+| P-06 | Tree Viewer | `/trees/:id` | Read-only canvas of a tree, with owner name, categories and description. Click an idea to open its details (M-12). Owners see an "Edit" button; admins see "Remove" on public trees | Anyone (public trees); Owner (own private or removed trees) |
 | P-07 | Explore | `/explore` | Feed of public trees from all users: search box, popular category chips, paging. Each card links to the Tree Viewer and the owner's profile | Anyone |
 | P-08 | User Profile | `/u/:username` | Avatar, display name, username, join date, and the user's public trees with paging | Anyone |
 
@@ -45,6 +45,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | ID | Modal | Trigger | Main functions |
 |---|---|---|---|
+| M-12 | Node Details | Click (or tap) an idea in the Tree Viewer (P-06) | Read-only view of one idea: type, title, note, link preview with "Open link" (new tab), video player, or image (opens M-10 full size). Content comes from `GET /api/trees/:id/nodes?ids=`. Side panel on desktop, full-screen sheet on phones. Close with `Esc` |
 | M-09 | Remove Tree (Admin) | "Remove" button in the Tree Viewer (P-06), shown only to `ADMIN` on public trees | Required reason (shown to the owner). "Removes the tree from public view and makes it private." (`POST /api/admin/trees/:id/remove`). After success, the viewer shows P-11 because the tree is no longer public |
 
 ## 5. API

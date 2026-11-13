@@ -10,7 +10,12 @@ export const ROOT_HEIGHT = 96;
 const DEPTH_SPACING = 300;
 const SIBLING_SPACING = 120;
 
+/** 線の色が誰にも設定されていないときの色（slate-400） */
+export const DEFAULT_LINE_COLOR = "#94a3b8";
+
 export type LaidOutNode = NodeSkeleton & {
+  /** このノードへ入る線の色。自分の lineColor、なければ最も近い祖先の色、なければ既定の色（manifests/nodes.md §3.5） */
+  branchColor: string;
   /** カード中心のワールド座標 */
   x: number;
   y: number;
@@ -62,8 +67,10 @@ export function layoutTree(skeleton: NodeSkeleton[]): Layout {
 
   const nodes: LaidOutNode[] = [];
   const byId = new Map<string, LaidOutNode>();
+  // descendants() は親を子より先に返すので、親の色を引き継ぎながら順に決められる
   for (const d of root.descendants()) {
     const saved = hasSavedPosition(d.data);
+    const parentColor = d.parent ? byId.get(d.parent.data.id)?.branchColor : undefined;
     // d3 の tree は x が兄弟方向・y が深さ方向なので、左→右に伸びるよう入れ替える
     const node: LaidOutNode = {
       ...d.data,
@@ -71,6 +78,7 @@ export function layoutTree(skeleton: NodeSkeleton[]): Layout {
       y: saved ? d.data.positionY : (d.x ?? 0),
       depth: d.depth,
       isRoot: d.parent === null,
+      branchColor: d.data.lineColor ?? parentColor ?? DEFAULT_LINE_COLOR,
     };
     nodes.push(node);
     byId.set(node.id, node);

@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import { GridBackground } from "./GridBackground";
 import { cardSize, type LaidOutNode, layoutTree } from "./layout";
 import { MiniMap } from "./MiniMap";
 import { NodeCard } from "./NodeCard";
@@ -226,12 +227,13 @@ export function TreeCanvas({
         }}
         onPointerUp={onPointerUp}
       >
+        <GridBackground transform={transform} />
         <g
           transform={`translate(${String(transform.x)},${String(transform.y)}) scale(${String(transform.k)})`}
         >
           <g>
             {links.map((l) => (
-              <NodeLink key={l.id} source={l.source} target={l.target} />
+              <NodeLink key={l.id} source={l.source} target={l.target} level={level} />
             ))}
           </g>
           <g>
