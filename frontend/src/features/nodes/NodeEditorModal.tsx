@@ -203,7 +203,7 @@ function NodeEditorForm({
           type="submit"
           disabled={update.isPending}
           data-testid="node-save"
-          className="bg-brand-600 hover:bg-brand-700 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {update.isPending ? "Saving…" : "Save"}
         </button>

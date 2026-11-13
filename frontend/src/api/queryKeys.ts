@@ -5,6 +5,17 @@ export type TreeListParams = { page: number; categoryId?: string };
 export type ExploreParams = { page: number; q?: string; category?: string };
 
 export const queryKeys = {
+  /** 一覧の種類ごとの先頭キー（ページや絞り込みに関係なく、まとめて無効化するときに使う） */
+  all: {
+    trees: ["trees"] as const,
+    tree: ["tree"] as const,
+    trash: ["trash"] as const,
+    explore: ["explore"] as const,
+    exploreCategories: ["exploreCategories"] as const,
+    users: ["user"] as const,
+  },
+  /** あるユーザーの公開プロフィール（全ページ） */
+  userAllPages: (username: string) => ["user", username.toLowerCase()] as const,
   me: ["me"] as const,
   trees: (params?: TreeListParams) => ["trees", params ?? {}] as const,
   tree: (id: string) => ["tree", id] as const,

@@ -18,9 +18,9 @@ export function useRemoveTree(treeId: string, ownerUsername: string) {
       }),
     onSettled: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["explore"] }),
-        queryClient.invalidateQueries({ queryKey: ["exploreCategories"] }),
-        queryClient.invalidateQueries({ queryKey: ["user", ownerUsername.toLowerCase()] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.all.explore }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.all.exploreCategories }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.userAllPages(ownerUsername) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tree(treeId) }),
       ]);
     },

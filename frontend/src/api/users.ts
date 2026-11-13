@@ -17,8 +17,8 @@ function useOnMeChanged() {
   return async (user: MeResponse) => {
     queryClient.setQueryData(queryKeys.me, user);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["user"] }),
-      queryClient.invalidateQueries({ queryKey: ["explore"] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.all.users }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.all.explore }),
     ]);
   };
 }
@@ -70,6 +70,8 @@ export function useDeactivate() {
       apiFetch<null>("/users/me/deactivate", { method: "POST", ...jsonBody(body) }),
     onSuccess: async () => {
       await navigate("/", { replace: true });
+      // 移動後の画面が描画されるのを待ってからログイン情報を消す（設定ページのガードが先に反応しないように）
+      await new Promise((resolve) => setTimeout(resolve, 0));
       queryClient.setQueryData(queryKeys.me, null);
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.me[0] });
     },

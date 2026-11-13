@@ -4,7 +4,8 @@ import { defineConfig } from "vite";
 
 // /api と /uploads をバックエンドへ中継し、ブラウザからは同一オリジンに見せる。
 // SameSite=Lax の認証 Cookie を常に送らせるため（manifests/common.md §7.4, §9）
-const BACKEND_URL = "http://localhost:3000";
+// E2E テストでは専用のバックエンド（別ポート・別DB）へ向けるため、BACKEND_URL で上書きできる
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

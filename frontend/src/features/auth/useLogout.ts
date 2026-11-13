@@ -4,15 +4,20 @@ import { useNavigate } from "react-router";
 import { logout } from "../../api/auth";
 import { queryKeys } from "../../api/queryKeys";
 
-/** ログアウトしてキャッシュを捨て、トップページへ戻る（他人の画面にデータが残らないように） */
+/**
+ * ログアウトしてキャッシュを捨て、トップページへ戻る（他人の画面にデータが残らないように）。
+ * 先にトップページへ移ってからログアウトを送る: ログイン必須のページにいるままログイン情報を消すと、
+ * そのページのガードが先に /login へ飛ばしてしまうため。
+ */
 export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   return useMutation({
     mutationFn: logout,
-    onSettled: async () => {
-      // 先に公開ページへ移る（ログイン必須ページにいると、ガードが先に /login へ飛ばしてしまうため）
+    onMutate: async () => {
       await navigate("/");
+    },
+    onSettled: () => {
       // ログイン状態のクエリは画面が監視しているので消さずに null（ゲスト）にし、それ以外のデータはすべて捨てる。
       // clear() で消すと監視中の画面が古いユーザーのまま更新されないため
       queryClient.setQueryData(queryKeys.me, null);

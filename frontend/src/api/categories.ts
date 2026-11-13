@@ -19,9 +19,15 @@ export function useCategories() {
  */
 async function invalidateCategoryViews(queryClient: QueryClient): Promise<void> {
   await Promise.all(
-    ["categories", "trees", "tree", "trash", "explore", "exploreCategories", "user"].map((key) =>
-      queryClient.invalidateQueries({ queryKey: [key] }),
-    ),
+    [
+      queryKeys.categories,
+      queryKeys.all.trees,
+      queryKeys.all.tree,
+      queryKeys.all.trash,
+      queryKeys.all.explore,
+      queryKeys.all.exploreCategories,
+      queryKeys.all.users,
+    ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   );
 }
 

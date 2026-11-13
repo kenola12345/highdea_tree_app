@@ -8,7 +8,7 @@ import { useMe } from "../features/auth/useMe";
 export default function LandingPage() {
   const { user, isLoading } = useMe();
   const primary =
-    "bg-brand-600 hover:bg-brand-700 rounded-lg px-5 py-2.5 text-sm font-semibold text-white";
+    "bg-brand-700 hover:bg-brand-800 rounded-lg px-5 py-2.5 text-sm font-semibold text-white";
   const secondary =
     "rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold hover:bg-slate-50";
 

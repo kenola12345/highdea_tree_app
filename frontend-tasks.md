@@ -212,19 +212,20 @@
 - Depends on: Phases 3–10; all backend Phases
 - Main files: `frontend/tests/e2e/**`, `frontend-tasks.md`
 
-- [ ] 11-1 E2E helpers in `frontend/tests/e2e/helpers.ts`: reset and seed the test data through the backend, `loginAs(page, email)`
-- [ ] 11-2 E2E `auth.spec.ts`: sign up → `/me`; log in with `next`; logged-in user opening `/login` → `/me`; guest opening `/me` → `/login?next=`; log out
-- [ ] 11-3 E2E `trees.spec.ts`: create a tree (M-01) → editor; edit details (M-02); move to Trash (M-03); restore from Trash (P-09)
-- [ ] 11-4 E2E `editor.spec.ts` (desktop): add a branch (M-05 → M-04), edit a link node with a preview, drag a node and reload (position kept), re-parent, delete a branch (M-06)
-- [ ] 11-5 E2E `editor-mobile.spec.ts` (phone project): long-press drag saves the position; a quick swipe on a node pans instead
-- [ ] 11-6 E2E `explore.spec.ts`: Explore search and category chip; open a tree in the Viewer; open the owner's profile; a private tree URL shows P-11
-- [ ] 11-7 E2E `admin.spec.ts`: admin removes a public tree (M-09) → gone from Explore; owner sees the "Removed by admin" badge and the disabled visibility switch
-- [ ] 11-8 E2E `settings.spec.ts`: change the display name; change the password and log in with it; create, rename and delete a category; delete the account (M-11) → can't log in
-- [ ] 11-9 Run `npm run lint`, `npm run typecheck -w frontend`, `npm test -w frontend`, `npm run test:e2e` and fix failures
-- [ ] 11-10 Mobile layout pass at 375 px: every page and modal keeps the `px-4` side gutter for text, nothing scrolls sideways, modals are full-screen sheets (`standards/frontend.md` §2.4)
-- [ ] 11-11 Accessibility pass: keyboard-only flow through header, forms and modals; focus returns after closing a modal; labels on every input; color contrast of category chips with white text
-- [ ] 11-12 Coverage check: every page (P-01–P-11) and modal (M-01–M-11) in the manifest is reachable and matches its spec; list gaps here as new tasks
-- [ ] 11-13 Review with `standards/review-checklist.md` (Frontend and Security sections)
+- [x] 11-1 E2E helpers in `frontend/tests/e2e/helpers.ts`: reset and seed the test data through the backend, `loginAs(page, email)`
+- [x] 11-2 E2E `auth.spec.ts`: sign up → `/me`; log in with `next`; logged-in user opening `/login` → `/me`; guest opening `/me` → `/login?next=`; log out
+- [x] 11-3 E2E `trees.spec.ts`: create a tree (M-01) → editor; edit details (M-02); move to Trash (M-03); restore from Trash (P-09)
+- [x] 11-4 E2E `editor.spec.ts` (desktop): add a branch (M-05 → M-04), edit a link node with a preview, drag a node and reload (position kept), re-parent, delete a branch (M-06)
+- [x] 11-5 E2E `editor-mobile.spec.ts` (phone project): long-press drag saves the position; a quick swipe on a node pans instead
+- [x] 11-6 E2E `explore.spec.ts`: Explore search and category chip; open a tree in the Viewer; open the owner's profile; a private tree URL shows P-11
+- [x] 11-7 E2E `admin.spec.ts`: admin removes a public tree (M-09) → gone from Explore; owner sees the "Removed by admin" badge and the disabled visibility switch
+- [x] 11-8 E2E `settings.spec.ts`: change the display name; change the password and log in with it; create, rename and delete a category; delete the account (M-11) → can't log in
+- [x] 11-9 Run `npm run lint`, `npm run typecheck -w frontend`, `npm test -w frontend`, `npm run test:e2e` and fix failures
+- [x] 11-10 Mobile layout pass at 375 px: every page and modal keeps the `px-4` side gutter for text, nothing scrolls sideways, modals are full-screen sheets (`standards/frontend.md` §2.4)
+- [x] 11-11 Accessibility pass: keyboard-only flow through header, forms and modals; focus returns after closing a modal; labels on every input; color contrast of category chips with white text
+- [x] 11-12 Coverage check: every page (P-01–P-11) and modal (M-01–M-11) in the manifest is reachable and matches its spec; list gaps here as new tasks
+- [x] 11-13 Review with `standards/review-checklist.md` (Frontend and Security sections)
+- [ ] 11-14 Gap found in 11-12: LINK nodes show the page title and domain but there's no way to open the URL (in the editor's node toolbar or in the viewer). The manifest doesn't say; decide whether to add an "Open link" action (new tab, `rel="noopener noreferrer"`, http/https only) and update `manifests/nodes.md` first
 
 ---
 

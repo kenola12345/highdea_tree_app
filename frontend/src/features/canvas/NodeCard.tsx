@@ -78,7 +78,7 @@ export const NodeCard = memo(function NodeCard({
         className={clsx(
           "flex h-full w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl border px-3 shadow-sm select-none",
           node.isRoot
-            ? "bg-brand-600 border-brand-700 text-white"
+            ? "bg-brand-700 border-brand-800 text-white"
             : "border-slate-200 bg-white text-slate-900",
           selected &&
             (node.isRoot ? "ring-brand-300 ring-4" : "ring-brand-500 border-brand-500 ring-2"),

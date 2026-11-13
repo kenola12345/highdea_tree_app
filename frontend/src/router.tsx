@@ -1,8 +1,16 @@
-import { Navigate, Outlet, type RouteObject, ScrollRestoration, useLocation } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  type RouteObject,
+  ScrollRestoration,
+  useLocation,
+  useSearchParams,
+} from "react-router";
 
 import { AppHeader } from "./components/AppHeader";
 import { Spinner } from "./components/Spinner";
 import { useMe } from "./features/auth/useMe";
+import { isSafeNextPath } from "./lib/urls";
 import ExplorePage from "./pages/ExplorePage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -40,11 +48,18 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-/** 未ログイン専用のページ（新規登録・ログイン）。ログイン済みなら /me へ（API も 403 ALREADY_AUTHENTICATED を返す） */
+/**
+ * 未ログイン専用のページ（新規登録・ログイン）。ログイン済みなら /me へ（API も 403 ALREADY_AUTHENTICATED を返す）。
+ * ログインした直後もこのガードが先に反応するため、安全な ?next= があればそちらへ送る（ログイン前の画面に戻すため）。
+ */
 export function GuestOnly() {
   const { user, isLoading } = useMe();
+  const [searchParams] = useSearchParams();
   if (isLoading) return <Spinner />;
-  if (user) return <Navigate to="/me" replace />;
+  if (user) {
+    const next = searchParams.get("next");
+    return <Navigate to={isSafeNextPath(next) ? next : "/me"} replace />;
+  }
   return <Outlet />;
 }
 

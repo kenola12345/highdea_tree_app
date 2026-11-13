@@ -44,7 +44,7 @@ export default function MyTreesPage() {
         setCreating(true);
       }}
       data-testid="new-tree-button"
-      className="bg-brand-600 hover:bg-brand-700 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+      className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-semibold text-white"
     >
       + New tree
     </button>

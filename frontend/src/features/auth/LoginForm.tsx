@@ -77,7 +77,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         type="submit"
         disabled={login.isPending}
         data-testid="login-submit"
-        className="bg-brand-600 hover:bg-brand-700 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="bg-brand-700 hover:bg-brand-800 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
         {login.isPending ? "Logging in…" : "Log in"}
       </button>

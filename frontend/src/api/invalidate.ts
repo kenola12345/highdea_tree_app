@@ -14,17 +14,17 @@ export async function invalidateAfterTreeChange(
   tree: ChangedTree = {},
 ): Promise<void> {
   const tasks = [
-    queryClient.invalidateQueries({ queryKey: ["trees"] }),
-    queryClient.invalidateQueries({ queryKey: ["trash"] }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.all.trees }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.all.trash }),
     queryClient.invalidateQueries({ queryKey: queryKeys.categories }),
   ];
   // 公開状態が分からない変更（公開→非公開の切り替えなど）も考え、PRIVATE と確定していなければ公開側も更新する
   if (tree.visibility !== "PRIVATE") {
-    tasks.push(queryClient.invalidateQueries({ queryKey: ["explore"] }));
-    tasks.push(queryClient.invalidateQueries({ queryKey: ["exploreCategories"] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.all.explore }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.all.exploreCategories }));
     if (tree.ownerUsername) {
       tasks.push(
-        queryClient.invalidateQueries({ queryKey: ["user", tree.ownerUsername.toLowerCase()] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.userAllPages(tree.ownerUsername) }),
       );
     }
   }

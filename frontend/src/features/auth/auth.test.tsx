@@ -169,3 +169,22 @@ describe("Log out", () => {
     expect(screen.queryByTestId("logout-button")).not.toBeInTheDocument();
   });
 });
+
+describe("returning to ?next= after login", () => {
+  it("follows ?next= even when the guest-only guard reacts first", async () => {
+    const { router } = renderApp(`/login?next=${encodeURIComponent("/settings?tab=account")}`, {
+      "GET /api/auth/me": guestReply,
+      "POST /api/auth/login": { status: 200, body: { data: { user: alice } } },
+    });
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Email"), "alice@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByTestId("login-submit"));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/settings");
+    });
+    expect(router.state.location.search).toBe("?tab=account");
+  });
+});

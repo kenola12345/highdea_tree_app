@@ -77,9 +77,9 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
 
 /** ノード数（マイツリーのカード）や更新日時が変わるので一覧を古い扱いにする */
 function invalidateLists(queryClient: QueryClient) {
-  void queryClient.invalidateQueries({ queryKey: ["trees"] });
-  void queryClient.invalidateQueries({ queryKey: ["explore"] });
-  void queryClient.invalidateQueries({ queryKey: ["user"] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.all.trees });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.all.explore });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.all.users });
 }
 
 /**
