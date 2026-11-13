@@ -6,6 +6,27 @@
 
 **MANIFEST.md is the source of truth** for features, data model, API, and stack. Read the relevant section before implementing anything, and don't contradict it. If a change is needed, update MANIFEST.md first (or ask).
 
+## Manifest split plan
+
+MANIFEST.md stays a single file while the design phases (API/screen detail, final review) are still running. **After the final review**, split it with the `manifest-split` skill into:
+
+```
+manifests/
+├── index.md    table of contents, when to read each file
+├── common.md   stack, API rules, error codes, roles, auth rules,
+│               ER diagram, deletion policy, full Prisma schema, future ideas
+├── users.md    signup/login/logout, profile, settings (/api/auth/*, /api/users/*, users)
+├── trees.md    dashboard, tree CRUD, categories (/api/trees, /api/categories,
+│               trees, categories, tree_categories)
+├── nodes.md    tree editor canvas, nodes, image upload, link preview
+│               (/api/trees/:id/nodes, /api/nodes/*, /api/uploads, /api/link-preview,
+│               nodes, uploads)
+└── explore.md  explore feed, tree viewer, public profile, admin removal
+                (/api/explore, /api/admin/*)
+```
+
+After the split, read `manifests/index.md` + `manifests/common.md` + the domain file(s) for the task, instead of MANIFEST.md.
+
 ## Status
 
 Planning stage. Only `MANIFEST.md` and `CLAUDE.md` exist — no code yet. Don't scaffold or implement features unless asked.
