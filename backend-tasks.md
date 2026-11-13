@@ -210,14 +210,14 @@
 - Depends on: Phases 4–9
 - Main files: `backend/src/server.ts`, `backend/prisma/seed.ts`, `backend/scripts/make-admin.ts`, `backend-tasks.md`
 
-- [ ] 10-1 Register `schedulePurgeTrash()` and `scheduleCleanupUploads()` in `backend/src/server.ts` (not during tests). Check: the server log shows both jobs scheduled
-- [ ] 10-2 Write `backend/prisma/seed.ts`: 2 users (one admin), categories, a public tree with ~20 nodes of every type, a private tree, a tree in the Trash. Check: `npm run seed -w backend` runs twice without errors (reset first)
-- [ ] 10-3 Write `backend/scripts/make-admin.ts`: `npm run make-admin -w backend -- <email>` sets `role = ADMIN` for an active user, with a clear message if not found
-- [ ] 10-4 Run `npm run lint`, `npm run typecheck -w backend` and fix every error
-- [ ] 10-5 Run the full backend test suite `npm test -w backend` and fix failures
-- [ ] 10-6 Coverage check: for each of the 30 endpoints in `manifests/common.md` §6, confirm the route exists and every error code in its spec has a test. List any gaps here as new tasks
-- [ ] 10-7 Smoke test against the dev DB: seed, start the server, log in with `curl`, call `GET /api/auth/me`, `GET /api/trees`, `GET /api/trees/:id`, `POST /api/trees/:id/nodes`, `GET /api/explore`; check statuses and shapes against the manifest
-- [ ] 10-8 Security pass with `standards/review-checklist.md` (auth on every route, ownership in queries, no `passwordHash` in any response, rate limiters attached, `nosniff` on uploads, CORS with credentials)
+- [x] 10-1 Register `schedulePurgeTrash()` and `scheduleCleanupUploads()` in `backend/src/server.ts` (not during tests). Check: the server log shows both jobs scheduled
+- [x] 10-2 Write `backend/prisma/seed.ts`: 2 users (one admin), categories, a public tree with ~20 nodes of every type, a private tree, a tree in the Trash. Check: `npm run seed -w backend` runs twice without errors (reset first)
+- [x] 10-3 Write `backend/scripts/make-admin.ts`: `npm run make-admin -w backend -- <email>` sets `role = ADMIN` for an active user, with a clear message if not found
+- [x] 10-4 Run `npm run lint`, `npm run typecheck -w backend` and fix every error
+- [x] 10-5 Run the full backend test suite `npm test -w backend` and fix failures
+- [x] 10-6 Coverage check: for each of the 30 endpoints in `manifests/common.md` §6, confirm the route exists and every error code in its spec has a test. List any gaps here as new tasks
+- [x] 10-7 Smoke test against the dev DB: seed, start the server, log in with `curl`, call `GET /api/auth/me`, `GET /api/trees`, `GET /api/trees/:id`, `POST /api/trees/:id/nodes`, `GET /api/explore`; check statuses and shapes against the manifest
+- [x] 10-8 Security pass with `standards/review-checklist.md` (auth on every route, ownership in queries, no `passwordHash` in any response, rate limiters attached, `nosniff` on uploads, CORS with credentials)
 
 ---
 
