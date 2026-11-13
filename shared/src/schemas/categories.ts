@@ -3,7 +3,11 @@ import { z } from "zod";
 import { CATEGORY_NAME_MAX } from "../constants.js";
 
 /** カテゴリ名。前後の空白を除いて 1〜50文字（manifests/trees.md POST /api/categories） */
-export const categoryNameSchema = z.string().trim().min(1).max(CATEGORY_NAME_MAX);
+export const categoryNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a name")
+  .max(CATEGORY_NAME_MAX, `Use ${String(CATEGORY_NAME_MAX)} characters or fewer`);
 
 /** 色は #RRGGBB の16進表記のみ（manifests/trees.md categories） */
 export const categoryColorSchema = z

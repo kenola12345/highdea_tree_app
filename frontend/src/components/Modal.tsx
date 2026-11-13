@@ -11,6 +11,10 @@ type ModalProps = {
   testId?: string;
 };
 
+// 開いているモーダルの積み重ね。Esc やフォーカス制御は一番上のモーダルだけが行う
+// （例: ツリー作成 M-01 の上でカテゴリ作成 M-07 を開いたとき、Esc で両方が閉じないように）
+const openStack: symbol[] = [];
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -29,6 +33,9 @@ export function Modal({ open, title, onClose, children, footer, testId }: ModalP
 
   useEffect(() => {
     if (!open) return;
+    const token = Symbol("modal");
+    openStack.push(token);
+    const isTop = () => openStack.at(-1) === token;
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const panel = panelRef.current;
@@ -37,6 +44,7 @@ export function Modal({ open, title, onClose, children, footer, testId }: ModalP
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
+      if (!isTop()) return;
       if (event.key === "Escape") {
         event.stopPropagation();
         onCloseRef.current();
@@ -58,6 +66,7 @@ export function Modal({ open, title, onClose, children, footer, testId }: ModalP
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      openStack.splice(openStack.indexOf(token), 1);
       document.body.style.overflow = overflow;
       previouslyFocused?.focus();
     };

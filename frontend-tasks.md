@@ -77,13 +77,13 @@
 - Screens: M-07, M-08, the Settings Categories tab (content for P-10), the category picker used by M-01 / M-02
 - APIs: `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id`
 
-- [ ] 4-1 Implement `frontend/src/api/categories.ts`: `useCategories`, `useCreateCategory`, `useUpdateCategory` (also invalidates cached trees showing the category), `useDeleteCategory` (invalidates `['categories']`, `['trees']`, `['tree']`)
-- [ ] 4-2 Implement `ColorPicker.tsx`: a preset palette plus a `#RRGGBB` input, keyboard accessible
-- [ ] 4-3 Implement `CategoryFormModal.tsx` (M-07): name and color, create or edit mode, `CATEGORY_NAME_TAKEN` under the name field, `CATEGORY_LIMIT_REACHED` (100) as a form message; returns the created category to its caller
-- [ ] 4-4 Implement `DeleteCategoryModal.tsx` (M-08): "Remove this category from N trees? The trees themselves stay." with N from `treeCount`
-- [ ] 4-5 Implement `CategoryPicker.tsx`: multi-select of the user's categories, max 10 (further options disabled with a hint), "+ New category" opens M-07 and selects the new category
-- [ ] 4-6 Implement `CategoriesTab.tsx`: list sorted A–Z with color, name and tree count; "+ New category", "Edit" and "Delete" per row; empty state
-- [ ] 4-7 Unit tests: picker stops at 10, M-07 shows the duplicate-name error under the field, M-08 shows the tree count
+- [x] 4-1 Implement `frontend/src/api/categories.ts`: `useCategories`, `useCreateCategory`, `useUpdateCategory` (also invalidates cached trees showing the category), `useDeleteCategory` (invalidates `['categories']`, `['trees']`, `['tree']`)
+- [x] 4-2 Implement `ColorPicker.tsx`: a preset palette plus a `#RRGGBB` input, keyboard accessible
+- [x] 4-3 Implement `CategoryFormModal.tsx` (M-07): name and color, create or edit mode, `CATEGORY_NAME_TAKEN` under the name field, `CATEGORY_LIMIT_REACHED` (100) as a form message; returns the created category to its caller
+- [x] 4-4 Implement `DeleteCategoryModal.tsx` (M-08): "Remove this category from N trees? The trees themselves stay." with N from `treeCount`
+- [x] 4-5 Implement `CategoryPicker.tsx`: multi-select of the user's categories, max 10 (further options disabled with a hint), "+ New category" opens M-07 and selects the new category
+- [x] 4-6 Implement `CategoriesTab.tsx`: list sorted A–Z with color, name and tree count; "+ New category", "Edit" and "Delete" per row; empty state
+- [x] 4-7 Unit tests: picker stops at 10, M-07 shows the duplicate-name error under the field, M-08 shows the tree count
 
 ---
 
