@@ -10,6 +10,7 @@ coverage/
 # 開発用のアップロード画像
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/tests/.uploads/
 
 # Playwright
 playwright-report/

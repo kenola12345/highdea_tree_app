@@ -367,6 +367,7 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `CATEGORY_NOT_FOUND` | `404` | `GET /api/trees`, `POST /api/trees`, `PATCH /api/trees/:id`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id` |
 | `PARENT_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
+| `ROUTE_NOT_FOUND` | `404` | Any request to an `/api` path that has no endpoint (not listed in the endpoint specs) |
 | `TREE_NOT_FOUND` | `404` | 8 endpoints |
 | `UPLOAD_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `USER_NOT_FOUND` | `404` | `GET /api/users/:username` |

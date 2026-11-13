@@ -23,6 +23,11 @@ export default tseslint.config(
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
+      // Express のエラーハンドラーは引数4つが必須など、使わない引数を _ で明示できるようにする
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
@@ -31,6 +36,15 @@ export default tseslint.config(
       "simple-import-sort/exports": "error",
       "no-console": ["error", { allow: ["warn", "error"] }],
       eqeqeq: ["error", "always"],
+    },
+  },
+  {
+    // テストでは Supertest のレスポンス本文（any）をそのまま検証するため、any 由来の警告だけ外す
+    files: ["**/tests/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
     },
   },
   {

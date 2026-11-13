@@ -1,3 +1,19 @@
-// フロントエンドとバックエンドで共有する Zod スキーマ・型・定数の入口。
-// 中身は backend-tasks.md Phase 2 で追加する。
-export {};
+// フロントエンドとバックエンドで共有する定数・エラーコード・Zod スキーマ・型の入口。
+export * from "./constants.js";
+export * from "./errors.js";
+export * from "./schemas/admin.js";
+export * from "./schemas/auth.js";
+export * from "./schemas/categories.js";
+export * from "./schemas/common.js";
+export * from "./schemas/explore.js";
+export * from "./schemas/linkPreview.js";
+export * from "./schemas/nodes.js";
+export * from "./schemas/trees.js";
+export * from "./schemas/uploads.js";
+export * from "./schemas/users.js";
+export * from "./types/category.js";
+export * from "./types/node.js";
+export * from "./types/pagination.js";
+export * from "./types/tree.js";
+export * from "./types/upload.js";
+export * from "./types/user.js";
