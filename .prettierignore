@@ -1,0 +1,4 @@
+manifests/
+standards/
+*.md
+backend/prisma/migrations/

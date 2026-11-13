@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+
+# 環境変数（秘密情報を含むためコミットしない。例は .env.example）
+.env
+.env.*
+!.env.example
+
+# 開発用のアップロード画像
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Playwright
+playwright-report/
+test-results/
+
+.DS_Store

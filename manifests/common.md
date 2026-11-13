@@ -429,7 +429,7 @@ TypeScript everywhere (`strict: true`), in an npm-workspaces monorepo: `frontend
 
 | Purpose | Technology | Version | Notes |
 |---|---|---|---|
-| Language | TypeScript | 7.0 | `strict: true` |
+| Language | TypeScript | 6.0 | `strict: true`. Not 7.0 yet: typescript-eslint (`standards/general.md`) supports TypeScript up to 6.0. Move to 7 once it does |
 | Unit / API tests | Vitest | 5.1 | Frontend, backend and `shared/` |
 | API tests (HTTP) | Supertest | 7.3 | Calls the Express app in tests. **Added in final review** |
 | E2E tests | Playwright (`@playwright/test`) | 1.65 | Desktop and mobile viewports (touch drag, §4.3) |

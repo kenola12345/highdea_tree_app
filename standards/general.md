@@ -4,7 +4,7 @@ Part of the coding standards. Start from [index.md](./index.md). Section numbers
 
 ### 1.1 Compiler and Linter Settings
 
-TypeScript 7.0 everywhere, `strict: true` *(manifest)*. All packages are ES modules (`"type": "module"`).
+TypeScript 6.0 everywhere, `strict: true` *(manifest)*. All packages are ES modules (`"type": "module"`).
 
 `tsconfig.base.json` (repo root). Each workspace extends it:
 

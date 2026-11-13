@@ -1,0 +1,24 @@
+# 開発用 DB のみ（フロントエンド・バックエンドは npm で起動する: manifests/common.md §7.3, §9）
+services:
+  db:
+    image: postgres:18
+    environment:
+      # 値は backend/.env の DATABASE_URL と合わせる。変更する場合はルートの .env で上書きできる
+      POSTGRES_USER: ${POSTGRES_USER:-highdea}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-highdea}
+      POSTGRES_DB: ${POSTGRES_DB:-highdea}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18 のイメージはデータを /var/lib/postgresql 配下のバージョン別ディレクトリに置く
+      - db-data:/var/lib/postgresql
+      # 初回起動時のみ実行: APIテスト用の highdea_test DB を作成
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:

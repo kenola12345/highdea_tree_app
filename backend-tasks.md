@@ -12,26 +12,26 @@
 - Depends on: none
 - Main files: `package.json`, `tsconfig.base.json`, `eslint.config.js`, `.prettierrc.json`, `.gitignore`, `docker-compose.yml`, `shared/package.json`, `shared/tsconfig.json`, `backend/package.json`, `backend/tsconfig.json`, `backend/.env.example`, `backend/.env`, `backend/.env.test`, `backend/prisma.config.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/**`, `backend/src/config/env.ts`, `backend/src/lib/prisma.ts`, `backend/src/app.ts`, `backend/src/server.ts`, `backend/vitest.config.ts`
 
-- [ ] 1-1 Confirm the project root `highdea_tree_app/` (the repository root) and create the empty directories `shared/src/`, `backend/src/`, `backend/prisma/`, `backend/scripts/`, `backend/tests/` and `backend/uploads/` (with a `.gitkeep`)
-- [ ] 1-2 Create the root `package.json`: `"private": true`, `"type": "module"`, npm workspaces `shared`, `backend`, `frontend`; scripts `dev`, `test`, `test:e2e`, `lint`, `typecheck` (the frontend ones can be placeholders until the frontend exists)
-- [ ] 1-3 Create `tsconfig.base.json` exactly as in `standards/general.md` §1.1
-- [ ] 1-4 Install root dev dependencies (`typescript@7.0`, `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-simple-import-sort`, `eslint-plugin-react-hooks`, `eslint-config-prettier`, `prettier`, `prettier-plugin-tailwindcss`) and create `eslint.config.js` and `.prettierrc.json` from `standards/general.md` §1.1
-- [ ] 1-5 Update `.gitignore`: `node_modules/`, `dist/`, `.env`, `.env.*`, `!.env.example`, `backend/uploads/*`, `!backend/uploads/.gitkeep`, `playwright-report/`, `test-results/`
-- [ ] 1-6 Create `docker-compose.yml` with one `db` service: `postgres:18`, user/password/db `highdea`, port `5432`, a named volume, and an init script that also creates the `highdea_test` database. Check: `docker compose up -d` starts and `psql` connects to both databases
-- [ ] 1-7 Create `shared/package.json` (name `@highdea/shared`, `"type": "module"`, `exports` → `src/index.ts`, dependency `zod@4.6`) and `shared/tsconfig.json` (extends the base, `nodenext`)
-- [ ] 1-8 Create `backend/package.json` (`"type": "module"`) and install runtime dependencies: `express@5.3`, `zod@4.6`, `@prisma/client@7.10.1`, `@prisma/adapter-pg@7.10.1`, `pg@8.23`, `jsonwebtoken@9.0`, `bcrypt@6.0`, `cookie-parser@1.4`, `helmet@8.3`, `cors@2.8`, `express-rate-limit@8.7`, `multer@2.5`, `file-type@22.3`, `cheerio@1.2`, `node-cron@4.6`, `@highdea/shared` (workspace)
-- [ ] 1-9 Install backend dev dependencies: `prisma@7.10.1`, `tsx@4.23`, `vitest@5.1`, `supertest@7.3`, and the `@types/*` packages (`node`, `express`, `jsonwebtoken`, `bcrypt`, `cookie-parser`, `cors`, `multer`, `supertest`)
-- [ ] 1-10 Add backend scripts: `dev` (`tsx watch src/server.ts`), `start`, `build`, `typecheck`, `test`, `prisma:migrate` (`prisma migrate dev`), `prisma:generate`, `seed` (`tsx prisma/seed.ts`), `make-admin` (`tsx scripts/make-admin.ts`)
-- [ ] 1-11 Create `backend/tsconfig.json` from `standards/general.md` §1.1. Check: `npm run typecheck -w backend` runs
-- [ ] 1-12 Create `backend/.env.example` with the 6 variables from manifest §9.3 (`standards/environment.md` §8.1), copy it to `backend/.env` with a random `JWT_SECRET`, and create `backend/.env.test` pointing to `highdea_test`
-- [ ] 1-13 Implement `backend/src/config/env.ts`: Zod schema for the 6 variables, exit with a clear message when invalid (`standards/environment.md` §8.2). Check: removing `JWT_SECRET` makes startup fail with a readable error
-- [ ] 1-14 Create `backend/prisma.config.ts` (Prisma 7: schema path, migrations path, `DATABASE_URL`, seed command)
-- [ ] 1-15 Copy the schema from `manifests/common.md` §5.4 into `backend/prisma/schema.prisma` unchanged. Check: `npx prisma validate` passes
-- [ ] 1-16 Run `npm run prisma:migrate -w backend -- --name init --create-only`, then add the one-root-per-tree partial unique index (`nodes_one_root_per_tree`) as raw SQL at the end of the migration, with a comment (`standards/database.md` §4.2)
-- [ ] 1-17 Apply the migration and generate the client. Check: the 6 tables, 3 enums and the partial index exist in `highdea` (`\d nodes`)
-- [ ] 1-18 Implement `backend/src/lib/prisma.ts`: one `PrismaClient` with `PrismaPg`, query logging only in development (`standards/database.md` §4.3)
-- [ ] 1-19 Create a minimal `backend/src/app.ts` that builds and exports the Express app (JSON body parser, `GET /api/health` → `{ data: { ok: true } }`), and `backend/src/server.ts` that calls `listen(env.PORT)`. Check: `npm run dev -w backend` and `curl localhost:3000/api/health` returns `200`
-- [ ] 1-20 Create `backend/vitest.config.ts` (node environment, loads `.env.test`, runs files one at a time) and one smoke test for `/api/health` with Supertest. Check: `npm test -w backend` passes
+- [x] 1-1 Confirm the project root `highdea_tree_app/` (the repository root) and create the empty directories `shared/src/`, `backend/src/`, `backend/prisma/`, `backend/scripts/`, `backend/tests/` and `backend/uploads/` (with a `.gitkeep`)
+- [x] 1-2 Create the root `package.json`: `"private": true`, `"type": "module"`, npm workspaces `shared`, `backend`, `frontend`; scripts `dev`, `test`, `test:e2e`, `lint`, `typecheck` (the frontend ones can be placeholders until the frontend exists)
+- [x] 1-3 Create `tsconfig.base.json` exactly as in `standards/general.md` §1.1
+- [x] 1-4 Install root dev dependencies (`typescript@6.0` — not 7.0, which typescript-eslint doesn't support yet; `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-simple-import-sort`, `eslint-plugin-react-hooks`, `eslint-config-prettier`, `prettier`, `prettier-plugin-tailwindcss`) and create `eslint.config.js` and `.prettierrc.json` from `standards/general.md` §1.1
+- [x] 1-5 Update `.gitignore`: `node_modules/`, `dist/`, `.env`, `.env.*`, `!.env.example`, `backend/uploads/*`, `!backend/uploads/.gitkeep`, `playwright-report/`, `test-results/`
+- [x] 1-6 Create `docker-compose.yml` with one `db` service: `postgres:18`, user/password/db `highdea`, port `5432`, a named volume, and an init script that also creates the `highdea_test` database. Check: `docker compose up -d` starts and `psql` connects to both databases
+- [x] 1-7 Create `shared/package.json` (name `@highdea/shared`, `"type": "module"`, `exports` → `src/index.ts`, dependency `zod@4.6`) and `shared/tsconfig.json` (extends the base, `nodenext`)
+- [x] 1-8 Create `backend/package.json` (`"type": "module"`) and install runtime dependencies: `express@5.3`, `zod@4.6`, `@prisma/client@7.10.1`, `@prisma/adapter-pg@7.10.1`, `pg@8.23`, `jsonwebtoken@9.0`, `bcrypt@6.0`, `cookie-parser@1.4`, `helmet@8.3`, `cors@2.8`, `express-rate-limit@8.7`, `multer@2.5`, `file-type@22.3`, `cheerio@1.2`, `node-cron@4.6`, `@highdea/shared` (workspace)
+- [x] 1-9 Install backend dev dependencies: `prisma@7.10.1`, `tsx@4.23`, `vitest@5.1`, `supertest@7.3`, and the `@types/*` packages (`node`, `express`, `jsonwebtoken`, `bcrypt`, `cookie-parser`, `cors`, `multer`, `supertest`)
+- [x] 1-10 Add backend scripts: `dev` (`tsx watch src/server.ts`), `start`, `build`, `typecheck`, `test`, `prisma:migrate` (`prisma migrate dev`), `prisma:generate`, `seed` (`tsx prisma/seed.ts`), `make-admin` (`tsx scripts/make-admin.ts`)
+- [x] 1-11 Create `backend/tsconfig.json` from `standards/general.md` §1.1. Check: `npm run typecheck -w backend` runs
+- [x] 1-12 Create `backend/.env.example` with the 6 variables from manifest §9.3 (`standards/environment.md` §8.1), copy it to `backend/.env` with a random `JWT_SECRET`, and create `backend/.env.test` pointing to `highdea_test`
+- [x] 1-13 Implement `backend/src/config/env.ts`: Zod schema for the 6 variables, exit with a clear message when invalid (`standards/environment.md` §8.2). Check: removing `JWT_SECRET` makes startup fail with a readable error
+- [x] 1-14 Create `backend/prisma.config.ts` (Prisma 7: schema path, migrations path, `DATABASE_URL`, seed command)
+- [x] 1-15 Copy the schema from `manifests/common.md` §5.4 into `backend/prisma/schema.prisma` unchanged. Check: `npx prisma validate` passes
+- [x] 1-16 Run `npm run prisma:migrate -w backend -- --name init --create-only`, then add the one-root-per-tree partial unique index (`nodes_one_root_per_tree`) as raw SQL at the end of the migration, with a comment (`standards/database.md` §4.2)
+- [x] 1-17 Apply the migration and generate the client. Check: the 6 tables, 3 enums and the partial index exist in `highdea` (`\d nodes`)
+- [x] 1-18 Implement `backend/src/lib/prisma.ts`: one `PrismaClient` with `PrismaPg`, query logging only in development (`standards/database.md` §4.3)
+- [x] 1-19 Create a minimal `backend/src/app.ts` that builds and exports the Express app (JSON body parser, `GET /api/health` → `{ data: { ok: true } }`), and `backend/src/server.ts` that calls `listen(env.PORT)`. Check: `npm run dev -w backend` and `curl localhost:3000/api/health` returns `200`
+- [x] 1-20 Create `backend/vitest.config.ts` (node environment, loads `.env.test`, runs files one at a time) and one smoke test for `/api/health` with Supertest. Check: `npm test -w backend` passes
 
 ---
 
