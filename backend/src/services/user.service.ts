@@ -1,9 +1,7 @@
 import type {
   ChangePasswordBody,
   MeResponse,
-  Pagination,
-  PublicTreeItem,
-  PublicUserResponse,
+  PublicProfileResponse,
   UpdateAccountBody,
   UpdateProfileBody,
 } from "@highdea/shared";
@@ -16,12 +14,6 @@ import { toPagination, toSkipTake } from "./common/pagination.js";
 import { publicTreeWhere } from "./common/treeAccess.js";
 import { toPublicTreeItem, treeListSelect } from "./common/treeMapper.js";
 import { meSelect, toMeResponse, toPublicUserResponse } from "./common/userMapper.js";
-
-export type PublicProfileResponse = {
-  user: PublicUserResponse;
-  trees: PublicTreeItem[];
-  pagination: Pagination;
-};
 
 /**
  * 公開プロフィールと公開ツリーの一覧。閲覧者が本人・管理者でも公開情報だけを返す。

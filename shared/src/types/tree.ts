@@ -91,3 +91,12 @@ export type TrashItem = {
   deletedAt: string;
   purgeAt: string;
 };
+
+/** POST /api/admin/trees/:id/remove の data.tree */
+export type RemovedTreeResponse = {
+  id: string;
+  title: string;
+  visibility: TreeVisibility;
+  removedAt: string;
+  removalReason: string;
+};

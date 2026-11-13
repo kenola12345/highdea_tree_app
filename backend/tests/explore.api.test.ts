@@ -209,6 +209,20 @@ describe("GET /api/explore/categories", () => {
     });
   });
 
+  it("on a tie, shows the spelling that starts with a capital letter", async () => {
+    const alice = await createUser();
+    const bob = await createUser();
+    const aliceWork = await createCategory(alice.id, "work");
+    const bobWork = await createCategory(bob.id, "Work");
+    await createTree(alice.id, { visibility: "PUBLIC", categoryIds: [aliceWork.id] });
+    await createTree(bob.id, { visibility: "PUBLIC", categoryIds: [bobWork.id] });
+
+    const res = await request(app).get("/api/explore/categories");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.categories).toEqual([{ key: "work", name: "Work", treeCount: 2 }]);
+  });
+
   it("filters by name prefix ignoring case and applies limit", async () => {
     const owner = await createUser();
     const names = ["Travel", "Tech", "Tea_time", "Art"];

@@ -1,3 +1,6 @@
+import type { Pagination } from "./pagination.js";
+import type { PublicTreeItem } from "./tree.js";
+
 // ユーザーのレスポンス型。passwordHash は決して含めない。
 
 export type UserRole = "USER" | "ADMIN";
@@ -20,4 +23,11 @@ export type PublicUserResponse = {
   displayName: string;
   avatarUrl: string | null;
   createdAt: string;
+};
+
+/** GET /api/users/:username の data（公開ツリーのみ） */
+export type PublicProfileResponse = {
+  user: PublicUserResponse;
+  trees: PublicTreeItem[];
+  pagination: Pagination;
 };

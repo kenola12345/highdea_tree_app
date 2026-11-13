@@ -102,7 +102,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.categories`: one entry per distinct `name_key`, each with `key` (the lowercased name, passed to `GET /api/explore?category=`), `name` (the most common spelling, for display) and `treeCount` (public trees that aren't removed or deleted and whose owner is active). Sorted by `treeCount`, highest first. Categories used only on private, removed or deleted trees aren't listed.
+  Follows the common format `{ "data": {...} }`. `data.categories`: one entry per distinct `name_key`, each with `key` (the lowercased name, passed to `GET /api/explore?category=`), `name` (the most common spelling, for display; on a tie, the spelling that starts with a capital letter, e.g. "Work" over "work") and `treeCount` (public trees that aren't removed or deleted and whose owner is active). Sorted by `treeCount`, highest first. Categories used only on private, removed or deleted trees aren't listed.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `q` is empty after trimming or too long, or `limit` isn't an integer from 1 to 50.

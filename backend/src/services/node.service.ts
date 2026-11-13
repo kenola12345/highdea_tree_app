@@ -338,14 +338,14 @@ export async function savePositions(
 ): Promise<{ nodes: NodePositionResponse[] }> {
   return prisma.$transaction(async (tx) => {
     await lockOwnedActiveTree(tx, userId, treeId);
-    const now = new Date();
-    // 最大2,000件を1件ずつ更新すると遅いため、配列を unnest して1回の UPDATE にする
+    // 最大2,000件を1件ずつ更新すると遅いため、配列を unnest して1回の UPDATE にする。
+    // ノードの updated_at は「内容の変更」を表すため位置だけの保存では変えない
+    // （変えるとキャンバスがドラッグしただけのノードの詳細を取り直してしまう: manifests/nodes.md）
     const rows = await tx.$queryRaw<NodePositionRow[]>`
       UPDATE nodes AS n SET
         position_x = v.x,
         position_y = v.y,
-        sort_order = COALESCE(v.s, n.sort_order),
-        updated_at = ${now}
+        sort_order = COALESCE(v.s, n.sort_order)
       FROM unnest(
         ${items.map((i) => i.id)}::text[],
         ${items.map((i) => i.positionX)}::float8[],

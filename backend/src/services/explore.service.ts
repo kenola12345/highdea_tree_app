@@ -1,8 +1,9 @@
 import type {
   ExploreCategoriesQuery,
+  ExploreCategoriesResponse,
+  ExploreCategoryItem,
+  ExploreListResponse,
   ExploreQuery,
-  ExploreTreeItem,
-  Pagination,
 } from "@highdea/shared";
 import type { Prisma } from "@prisma/client";
 
@@ -10,15 +11,6 @@ import { prisma } from "../lib/prisma.js";
 import { toPagination, toSkipTake } from "./common/pagination.js";
 import { publicTreeWhere } from "./common/treeAccess.js";
 import { toExploreTreeItem, treeListSelect } from "./common/treeMapper.js";
-
-/** GET /api/explore の data */
-export type ExploreListResponse = { trees: ExploreTreeItem[]; pagination: Pagination };
-
-/** GET /api/explore/categories の1件。key は ?category= に渡す小文字の名前、name は表示用 */
-export type ExploreCategoryItem = { key: string; name: string; treeCount: number };
-
-/** GET /api/explore/categories の data */
-export type ExploreCategoriesResponse = { categories: ExploreCategoryItem[] };
 
 /** LIKE のワイルドカード（% _ \）を文字そのものとして扱うためにエスケープする */
 function escapeLike(text: string): string {
@@ -92,7 +84,10 @@ export async function categories(
       (
         SELECT s.name FROM spellings s
         WHERE s.name_key = k.name_key
-        ORDER BY s.uses DESC, s.name ASC
+        -- 最も多い表記を採用し、同数なら大文字で始まる表記（"Work" > "work"）、それでも同じならコード順で1つに決める
+        ORDER BY s.uses DESC,
+          (left(s.name, 1) <> lower(left(s.name, 1))) DESC,
+          s.name COLLATE "C" ASC
         LIMIT 1
       ) AS "name",
       COUNT(DISTINCT k.tree_id)::int AS "treeCount"

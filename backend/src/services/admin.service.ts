@@ -1,17 +1,8 @@
-import type { TreeVisibility } from "@highdea/shared";
+import type { RemovedTreeResponse } from "@highdea/shared";
 
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
 import { publicTreeWhere } from "./common/treeAccess.js";
-
-/** POST /api/admin/trees/:id/remove の data.tree */
-export type RemovedTreeResponse = {
-  id: string;
-  title: string;
-  visibility: TreeVisibility;
-  removedAt: string;
-  removalReason: string;
-};
 
 /**
  * 管理者が公開ツリーを非公開化する（削除ではない）。

@@ -12,6 +12,7 @@ export * from "./schemas/trees.js";
 export * from "./schemas/uploads.js";
 export * from "./schemas/users.js";
 export * from "./types/category.js";
+export * from "./types/explore.js";
 export * from "./types/node.js";
 export * from "./types/pagination.js";
 export * from "./types/tree.js";

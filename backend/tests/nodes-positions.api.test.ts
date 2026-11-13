@@ -36,7 +36,7 @@ async function setup(options: Parameters<typeof createTree>[1] = {}) {
 }
 
 describe("PATCH /api/trees/:id/nodes/positions", () => {
-  it("saves every position, keeps sortOrder when omitted, and bumps updatedAt", async () => {
+  it("saves every position, keeps sortOrder when omitted, and bumps the tree's updatedAt", async () => {
     const { cookie, tree, a, b } = await setup();
     await prisma.tree.update({
       where: { id: tree.id },
@@ -70,6 +70,21 @@ describe("PATCH /api/trees/:id/nodes/positions", () => {
     expect(savedTree.updatedAt.getTime()).toBeGreaterThan(
       new Date("2026-01-01T00:00:00Z").getTime(),
     );
+  });
+
+  it("doesn't change the nodes' own updatedAt, so the canvas won't refetch their details", async () => {
+    const { cookie, tree, a } = await setup();
+    const before = new Date("2026-01-01T00:00:00Z");
+    await prisma.$executeRaw`UPDATE nodes SET updated_at = ${before} WHERE id = ${a.id}`;
+
+    const res = await savePositions(tree.id, cookie, {
+      nodes: [{ id: a.id, positionX: 99, positionY: 99 }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.nodes[0].updatedAt).toBe(before.toISOString());
+    const saved = await prisma.node.findUniqueOrThrow({ where: { id: a.id } });
+    expect(saved.updatedAt.toISOString()).toBe(before.toISOString());
   });
 
   it("returns 404 NODE_NOT_FOUND and saves nothing when one ID belongs to another tree", async () => {

@@ -287,11 +287,12 @@ Only positions and order can be changed here. Content, type and parent are chang
 **Processing（処理）**
 
 - All updates run in one transaction: either every node is saved or none is. The tree's `updatedAt` is bumped in the same transaction.
+- Saving positions doesn't change the nodes' own `updatedAt`. A node's `updatedAt` marks a change to its content (what `GET /api/trees/:id/nodes` returns), so the canvas doesn't refetch the details of nodes that were only dragged.
 
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.nodes` lists each updated node with `id`, `positionX`, `positionY`, `sortOrder` and `updatedAt`.
+  Follows the common format `{ "data": {...} }`. `data.nodes` lists each updated node with `id`, `positionX`, `positionY`, `sortOrder` and `updatedAt` (unchanged by this endpoint).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `nodes` is missing, empty, or has more than 2,000 items; an ID appears twice; a position isn't a number; or an item has a field other than the ones above.
