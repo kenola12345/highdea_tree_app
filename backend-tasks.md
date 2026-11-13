@@ -89,19 +89,19 @@
 - Main files: `shared/src/schemas/users.ts`, `backend/src/services/user.service.ts`, `backend/src/controllers/users.controller.ts`, `backend/src/routes/users.routes.ts`, `backend/tests/users.api.test.ts` (no overlap with other Phases)
 - Endpoints: `GET /api/users/:username`, `PATCH /api/users/me`, `PATCH /api/users/me/account`, `PATCH /api/users/me/password`, `POST /api/users/me/deactivate`
 
-- [ ] 4-1 Fill `shared/src/schemas/users.ts`: `updateProfileSchema` (`displayName`, `avatarUrl`; at least one field), `updateAccountSchema` (`email`?, `username`?, `currentPassword`; at least one of email/username), `changePasswordSchema` (`newPassword` ≠ `currentPassword`), `deactivateSchema` (`password`)
-- [ ] 4-2 `UserService.getPublicProfile(username, page, limit)`: lowercase the username; missing or deactivated → `404 USER_NOT_FOUND`; return `PublicUserResponse` + the user's public trees (`publicTreeWhere`, newest `updatedAt` first, `toTreeSummary`) + pagination
-- [ ] 4-3 `UserService.updateProfile(userId, body)`: update only `displayName` / `avatarUrl`, return `MeResponse`
-- [ ] 4-4 Add `UserService.checkCurrentPassword(userId, password)`: wrong → `403 WRONG_PASSWORD` (counted by `passwordCheckLimiter`)
-- [ ] 4-5 `UserService.updateAccount`: check the password; reserved username → `400 USERNAME_RESERVED`; email/username taken by any other account (including deactivated) → `409 EMAIL_TAKEN` / `USERNAME_TAKEN` (also from `P2002`); save. The old username is released at once (no redirect, no reservation)
-- [ ] 4-6 `UserService.changePassword`: check the current password, hash and save the new one; the user stays logged in
-- [ ] 4-7 `UserService.deactivate`: check the password, set `deletedAt`; the controller clears the auth cookie
-- [ ] 4-8 `backend/src/controllers/users.controller.ts` + `users.routes.ts`: `GET /:username` (public, no auth), `PATCH /me` (`requireAuth`), `PATCH /me/account`, `PATCH /me/password`, `POST /me/deactivate` (`requireAuth`, `passwordCheckLimiter`). Register `/me/*` routes before `/:username`
-- [ ] 4-9 Tests: `GET /api/users/:username` (`200` with only public trees; private, removed and Trash trees excluded; email and role never returned; `404` for unknown and deactivated users; uppercase username works; pagination)
-- [ ] 4-10 Tests: `PATCH /me` (`200`, `400` empty body or unknown field such as `role`, `401`)
-- [ ] 4-11 Tests: `PATCH /me/account` (email change, username change and old name reusable by another user, `WRONG_PASSWORD`, `USERNAME_RESERVED`, `EMAIL_TAKEN`, `USERNAME_TAKEN`, `401`)
-- [ ] 4-12 Tests: `PATCH /me/password` (login works with the new password, same-password `400`, `WRONG_PASSWORD`) and `POST /me/deactivate` (cookie cleared, old token gets `401`, login fails, email and username stay taken)
-- [ ] 4-13 Test: the 6th wrong password within 15 minutes across the three password endpoints returns `429 RATE_LIMITED`
+- [x] 4-1 Fill `shared/src/schemas/users.ts`: `updateProfileSchema` (`displayName`, `avatarUrl`; at least one field), `updateAccountSchema` (`email`?, `username`?, `currentPassword`; at least one of email/username), `changePasswordSchema` (`newPassword` ≠ `currentPassword`), `deactivateSchema` (`password`)
+- [x] 4-2 `UserService.getPublicProfile(username, page, limit)`: lowercase the username; missing or deactivated → `404 USER_NOT_FOUND`; return `PublicUserResponse` + the user's public trees (`publicTreeWhere`, newest `updatedAt` first, `toTreeSummary`) + pagination
+- [x] 4-3 `UserService.updateProfile(userId, body)`: update only `displayName` / `avatarUrl`, return `MeResponse`
+- [x] 4-4 Add `UserService.checkCurrentPassword(userId, password)`: wrong → `403 WRONG_PASSWORD` (counted by `passwordCheckLimiter`)
+- [x] 4-5 `UserService.updateAccount`: check the password; reserved username → `400 USERNAME_RESERVED`; email/username taken by any other account (including deactivated) → `409 EMAIL_TAKEN` / `USERNAME_TAKEN` (also from `P2002`); save. The old username is released at once (no redirect, no reservation)
+- [x] 4-6 `UserService.changePassword`: check the current password, hash and save the new one; the user stays logged in
+- [x] 4-7 `UserService.deactivate`: check the password, set `deletedAt`; the controller clears the auth cookie
+- [x] 4-8 `backend/src/controllers/users.controller.ts` + `users.routes.ts`: `GET /:username` (public, no auth), `PATCH /me` (`requireAuth`), `PATCH /me/account`, `PATCH /me/password`, `POST /me/deactivate` (`requireAuth`, `passwordCheckLimiter`). Register `/me/*` routes before `/:username`
+- [x] 4-9 Tests: `GET /api/users/:username` (`200` with only public trees; private, removed and Trash trees excluded; email and role never returned; `404` for unknown and deactivated users; uppercase username works; pagination)
+- [x] 4-10 Tests: `PATCH /me` (`200`, `400` empty body or unknown field such as `role`, `401`)
+- [x] 4-11 Tests: `PATCH /me/account` (email change, username change and old name reusable by another user, `WRONG_PASSWORD`, `USERNAME_RESERVED`, `EMAIL_TAKEN`, `USERNAME_TAKEN`, `401`)
+- [x] 4-12 Tests: `PATCH /me/password` (login works with the new password, same-password `400`, `WRONG_PASSWORD`) and `POST /me/deactivate` (cookie cleared, old token gets `401`, login fails, email and username stay taken)
+- [x] 4-13 Test: the 6th wrong password within 15 minutes across the three password endpoints returns `429 RATE_LIMITED`
 
 ---
 
@@ -111,23 +111,23 @@
 - Endpoints: `GET /api/trees`, `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id`, `GET /api/trash`, `POST /api/trees/:id/restore`
 - Note: the route `POST /api/trees/:id/restore` lives in `trash.routes.ts` (mounted under `/api`), so `trees.routes.ts` and `trash.routes.ts` don't both need editing by different Phases
 
-- [ ] 5-1 Fill `shared/src/schemas/trees.ts`: `listTreesQuerySchema` (pagination + `categoryId`), `createTreeSchema` (`title` 1–100, `description` ≤ 500, `visibility`, `categoryIds` up to 10 with duplicates removed, `rootTitle` 1–200 defaulting to `title`), `updateTreeSchema` (at least one field)
-- [ ] 5-2 Fill `shared/src/types/tree.ts`: `TreeSummary`, `TreeDetailResponse` (tree, categories, owner, removal info for the owner, `isOwner`, node skeleton `NodeSkeleton[]`: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`), `TrashItem` (with `purgeAt`)
-- [ ] 5-3 Add `TreeService.assertOwnCategories(tx, userId, categoryIds)`: any missing or foreign ID → `404 CATEGORY_NOT_FOUND`
-- [ ] 5-4 `TreeService.listMine(userId, query)`: own trees with `deletedAt = null`, optional `categoryId` filter (foreign/missing → `CATEGORY_NOT_FOUND`), newest `updatedAt` first, `_count` for `nodeCount`, pagination
-- [ ] 5-5 `TreeService.create(userId, body)`: one transaction: create the tree, its root node and the category tags; return `TreeSummary` (`201`)
-- [ ] 5-6 `TreeService.getDetail(viewer, treeId)`: visible to the owner (not deleted) or to anyone if public; otherwise `404 TREE_NOT_FOUND`; return tree + categories + owner + node skeleton (all nodes, skeleton fields only) + `isOwner`; removal reason only for the owner
-- [ ] 5-7 `TreeService.update(userId, treeId, body)`: owner and not deleted, else `404`; setting `PUBLIC` on a removed tree → `409 TREE_REMOVED`; categories replaced in a transaction (`CATEGORY_NOT_FOUND` rolls back)
-- [ ] 5-8 `TreeService.moveToTrash(userId, treeId)`: owner and not already deleted, else `404`; set `deletedAt`; return the tree with `purgeAt`
-- [ ] 5-9 `TrashService.list(userId, page, limit)`: own trees with `deletedAt` set, most recently deleted first, `purgeAt = deletedAt + TRASH_RETENTION_DAYS`
-- [ ] 5-10 `TrashService.restore(userId, treeId)`: missing / purged / foreign → `404 TREE_NOT_FOUND`; not deleted → `409 TREE_NOT_IN_TRASH`; clear `deletedAt` (visibility and categories kept as they were)
-- [ ] 5-11 `backend/src/controllers/trees.controller.ts` + `trees.routes.ts`: `GET /trees` (`requireAuth`), `POST /trees` (`requireAuth`, `201`), `GET /trees/:id` (`optionalAuth`), `PATCH /trees/:id`, `DELETE /trees/:id` (`requireAuth`)
-- [ ] 5-12 `backend/src/controllers/trash.controller.ts` + `trash.routes.ts`: `GET /trash`, `POST /trees/:id/restore` (`requireAuth`)
-- [ ] 5-13 Implement `backend/src/jobs/purgeTrash.ts`: export `purgeTrash(now)` that hard-deletes trees whose `deletedAt` is older than 10 days (nodes and tags go by CASCADE) and logs the count, plus `schedulePurgeTrash()` (daily `node-cron`). Registration in `server.ts` happens in Phase 10
-- [ ] 5-14 Tests: `GET /api/trees` (only own non-deleted trees, category filter, `CATEGORY_NOT_FOUND`, pagination, `401`) and `POST /api/trees` (`201` with a root node, `400` cases, `CATEGORY_NOT_FOUND` creates nothing)
-- [ ] 5-15 Tests: `GET /api/trees/:id` (owner sees private; guest and other users get `404` for private, removed, Trash and deactivated-owner trees; public works for guests; `isOwner`; skeleton fields only)
-- [ ] 5-16 Tests: `PATCH /api/trees/:id` (`200`, `TREE_REMOVED`, other user `404`, category replacement) and `DELETE /api/trees/:id` (`200`, second delete `404`)
-- [ ] 5-17 Tests: `GET /api/trash` (`purgeAt`, order, only own) and restore (`200`, `TREE_NOT_IN_TRASH`, other user `404`); `purgeTrash` deletes only trees older than 10 days
+- [x] 5-1 Fill `shared/src/schemas/trees.ts`: `listTreesQuerySchema` (pagination + `categoryId`), `createTreeSchema` (`title` 1–100, `description` ≤ 500, `visibility`, `categoryIds` up to 10 with duplicates removed, `rootTitle` 1–200 defaulting to `title`), `updateTreeSchema` (at least one field)
+- [x] 5-2 Fill `shared/src/types/tree.ts`: `TreeSummary`, `TreeDetailResponse` (tree, categories, owner, removal info for the owner, `isOwner`, node skeleton `NodeSkeleton[]`: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`), `TrashItem` (with `purgeAt`)
+- [x] 5-3 Add `TreeService.assertOwnCategories(tx, userId, categoryIds)`: any missing or foreign ID → `404 CATEGORY_NOT_FOUND`
+- [x] 5-4 `TreeService.listMine(userId, query)`: own trees with `deletedAt = null`, optional `categoryId` filter (foreign/missing → `CATEGORY_NOT_FOUND`), newest `updatedAt` first, `_count` for `nodeCount`, pagination
+- [x] 5-5 `TreeService.create(userId, body)`: one transaction: create the tree, its root node and the category tags; return `TreeSummary` (`201`)
+- [x] 5-6 `TreeService.getDetail(viewer, treeId)`: visible to the owner (not deleted) or to anyone if public; otherwise `404 TREE_NOT_FOUND`; return tree + categories + owner + node skeleton (all nodes, skeleton fields only) + `isOwner`; removal reason only for the owner
+- [x] 5-7 `TreeService.update(userId, treeId, body)`: owner and not deleted, else `404`; setting `PUBLIC` on a removed tree → `409 TREE_REMOVED`; categories replaced in a transaction (`CATEGORY_NOT_FOUND` rolls back)
+- [x] 5-8 `TreeService.moveToTrash(userId, treeId)`: owner and not already deleted, else `404`; set `deletedAt`; return the tree with `purgeAt`
+- [x] 5-9 `TrashService.list(userId, page, limit)`: own trees with `deletedAt` set, most recently deleted first, `purgeAt = deletedAt + TRASH_RETENTION_DAYS`
+- [x] 5-10 `TrashService.restore(userId, treeId)`: missing / purged / foreign → `404 TREE_NOT_FOUND`; not deleted → `409 TREE_NOT_IN_TRASH`; clear `deletedAt` (visibility and categories kept as they were)
+- [x] 5-11 `backend/src/controllers/trees.controller.ts` + `trees.routes.ts`: `GET /trees` (`requireAuth`), `POST /trees` (`requireAuth`, `201`), `GET /trees/:id` (`optionalAuth`), `PATCH /trees/:id`, `DELETE /trees/:id` (`requireAuth`)
+- [x] 5-12 `backend/src/controllers/trash.controller.ts` + `trash.routes.ts`: `GET /trash`, `POST /trees/:id/restore` (`requireAuth`)
+- [x] 5-13 Implement `backend/src/jobs/purgeTrash.ts`: export `purgeTrash(now)` that hard-deletes trees whose `deletedAt` is older than 10 days (nodes and tags go by CASCADE) and logs the count, plus `schedulePurgeTrash()` (daily `node-cron`). Registration in `server.ts` happens in Phase 10
+- [x] 5-14 Tests: `GET /api/trees` (only own non-deleted trees, category filter, `CATEGORY_NOT_FOUND`, pagination, `401`) and `POST /api/trees` (`201` with a root node, `400` cases, `CATEGORY_NOT_FOUND` creates nothing)
+- [x] 5-15 Tests: `GET /api/trees/:id` (owner sees private; guest and other users get `404` for private, removed, Trash and deactivated-owner trees; public works for guests; `isOwner`; skeleton fields only)
+- [x] 5-16 Tests: `PATCH /api/trees/:id` (`200`, `TREE_REMOVED`, other user `404`, category replacement) and `DELETE /api/trees/:id` (`200`, second delete `404`)
+- [x] 5-17 Tests: `GET /api/trash` (`purgeAt`, order, only own) and restore (`200`, `TREE_NOT_IN_TRASH`, other user `404`); `purgeTrash` deletes only trees older than 10 days
 
 ---
 
@@ -136,14 +136,14 @@
 - Main files: `shared/src/schemas/categories.ts`, `shared/src/types/category.ts`, `backend/src/services/category.service.ts`, `backend/src/controllers/categories.controller.ts`, `backend/src/routes/categories.routes.ts`, `backend/tests/categories.api.test.ts` (no overlap with other Phases)
 - Endpoints: `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id`
 
-- [ ] 6-1 Fill `shared/src/schemas/categories.ts` (`name` trimmed 1–50, `color` `#RRGGBB`, strict objects so `nameKey` / `userId` are rejected; update needs at least one field) and `shared/src/types/category.ts` (`CategoryResponse` with `treeCount` as the spec lists)
-- [ ] 6-2 `CategoryService.list(userId)`: own categories sorted by name (A–Z) with `treeCount` = the user's trees with this category that aren't in the Trash (one query, no N+1)
-- [ ] 6-3 `CategoryService.create(userId, body)`: transaction: count ≥ 100 → `409 CATEGORY_LIMIT_REACHED`; set `nameKey = name.trim().toLowerCase()`; `P2002` → `409 CATEGORY_NAME_TAKEN`
-- [ ] 6-4 `CategoryService.update(userId, id, body)`: foreign/missing → `404 CATEGORY_NOT_FOUND`; update `nameKey` with `name`; case-only rename of the same category allowed; `P2002` → `CATEGORY_NAME_TAKEN`
-- [ ] 6-5 `CategoryService.remove(userId, id)`: foreign/missing → `404`; delete (tags removed by CASCADE, including trees in the Trash)
-- [ ] 6-6 `backend/src/controllers/categories.controller.ts` + `categories.routes.ts` (all `requireAuth`; `POST` returns `201`)
-- [ ] 6-7 Tests: list (only own, tree counts), create (`201`, `CATEGORY_NAME_TAKEN` for "Work" vs "work", `CATEGORY_LIMIT_REACHED` at 100, `400` for `nameKey` in the body)
-- [ ] 6-8 Tests: update (`200`, case-only rename allowed, name clash `409`, other user `404`) and delete (`200`, tags gone from trees, trees kept, other user `404`)
+- [x] 6-1 Fill `shared/src/schemas/categories.ts` (`name` trimmed 1–50, `color` `#RRGGBB`, strict objects so `nameKey` / `userId` are rejected; update needs at least one field) and `shared/src/types/category.ts` (`CategoryResponse` with `treeCount` as the spec lists)
+- [x] 6-2 `CategoryService.list(userId)`: own categories sorted by name (A–Z) with `treeCount` = the user's trees with this category that aren't in the Trash (one query, no N+1)
+- [x] 6-3 `CategoryService.create(userId, body)`: transaction: count ≥ 100 → `409 CATEGORY_LIMIT_REACHED`; set `nameKey = name.trim().toLowerCase()`; `P2002` → `409 CATEGORY_NAME_TAKEN`
+- [x] 6-4 `CategoryService.update(userId, id, body)`: foreign/missing → `404 CATEGORY_NOT_FOUND`; update `nameKey` with `name`; case-only rename of the same category allowed; `P2002` → `CATEGORY_NAME_TAKEN`
+- [x] 6-5 `CategoryService.remove(userId, id)`: foreign/missing → `404`; delete (tags removed by CASCADE, including trees in the Trash)
+- [x] 6-6 `backend/src/controllers/categories.controller.ts` + `categories.routes.ts` (all `requireAuth`; `POST` returns `201`)
+- [x] 6-7 Tests: list (only own, tree counts), create (`201`, `CATEGORY_NAME_TAKEN` for "Work" vs "work", `CATEGORY_LIMIT_REACHED` at 100, `400` for `nameKey` in the body)
+- [x] 6-8 Tests: update (`200`, case-only rename allowed, name clash `409`, other user `404`) and delete (`200`, tags gone from trees, trees kept, other user `404`)
 
 ---
 
@@ -152,18 +152,18 @@
 - Main files: `shared/src/schemas/{uploads,linkPreview}.ts`, `shared/src/types/upload.ts`, `backend/src/lib/ssrfGuard.ts`, `backend/src/middleware/upload.ts`, `backend/src/services/{upload,linkPreview}.service.ts`, `backend/src/controllers/{uploads,linkPreview}.controller.ts`, `backend/src/routes/{uploads,linkPreview}.routes.ts`, `backend/src/jobs/cleanupUploads.ts`, `backend/tests/{uploads,linkPreview}.api.test.ts`, `backend/tests/lib/ssrfGuard.test.ts`, `backend/tests/jobs/cleanupUploads.test.ts` (no overlap with other Phases)
 - Endpoints: `POST /api/uploads`, `POST /api/link-preview`
 
-- [ ] 7-1 Implement `backend/src/middleware/upload.ts`: Multer memory storage, `limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 }`, single field `file`; no file / several files / not multipart → `400 VALIDATION_ERROR`
-- [ ] 7-2 `UploadService.save(userId, file)`: detect the type with `file-type` from the bytes; not PNG/JPEG/WebP/GIF → `415 UNSUPPORTED_FILE_TYPE`; `storageKey = randomUUID() + ext`; write to `UPLOAD_DIR`; create the `uploads` row; delete the file if the DB insert fails
-- [ ] 7-3 Fill `shared/src/types/upload.ts` (`UploadResponse`: `id`, `url` (`/uploads/<storageKey>`), `originalName`, `mimeType`, `sizeBytes`, `createdAt`) and wire `backend/src/controllers/uploads.controller.ts` + `uploads.routes.ts` (`requireAuth`, `uploadLimiter`, `upload`, `201`)
-- [ ] 7-4 Implement `backend/src/lib/ssrfGuard.ts` part 1: `assertPublicUrl(url)`: `http`/`https` only, ports 80/443 only, resolve DNS and refuse private, loopback, link-local and unique-local IPv4/IPv6 addresses → `400 URL_NOT_ALLOWED`
-- [ ] 7-5 `ssrfGuard.ts` part 2: `safeFetch(url)`: manual redirects (max 3, each target re-checked), 5-second total timeout, read at most 1 MB, only `text/html`; failures → `422 PREVIEW_UNAVAILABLE`
-- [ ] 7-6 `LinkPreviewService.parse(html, baseUrl)`: `og:title` / `og:description` / `og:image`, falling back to `<title>` and `<meta name="description">`; make a relative image URL absolute; trim to the column lengths (300 / 1000)
-- [ ] 7-7 `LinkPreviewService.getPreview(url)`: in-memory cache for 10 minutes per URL; export it for the node service (Phase 8) together with a `tryGetPreview(url)` that returns empty fields instead of throwing
-- [ ] 7-8 Fill `shared/src/schemas/linkPreview.ts` (`url` http/https, ≤ 2,048) and wire `backend/src/controllers/linkPreview.controller.ts` + `linkPreview.routes.ts` (`POST /link-preview`, `requireAuth`, `linkPreviewLimiter`)
-- [ ] 7-9 Implement `backend/src/jobs/cleanupUploads.ts`: `cleanupUploads()` deletes uploads no node points to (row and file, no grace period), and `scheduleCleanupUploads()` (daily at a low-traffic time). Registration in Phase 10
-- [ ] 7-10 Tests: uploads (`201` for each allowed type, `415` for SVG and for a `.png` that is really text, `413` over 5 MB, `400` with no file, `401`, `429` after 60, file served at `/uploads/...` with `nosniff`)
-- [ ] 7-11 Tests: `ssrfGuard` unit tests (`127.0.0.1`, `10.x`, `192.168.x`, `169.254.169.254`, `::1`, port 8080, a redirect to a private address) and link preview API tests with the fetch mocked (`200` with OG fields, `<title>` fallback, `URL_NOT_ALLOWED`, `PREVIEW_UNAVAILABLE`, `401`, cache hit)
-- [ ] 7-12 Test: `cleanupUploads` removes only unused uploads and their files
+- [x] 7-1 Implement `backend/src/middleware/upload.ts`: Multer memory storage, `limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 }`, single field `file`; no file / several files / not multipart → `400 VALIDATION_ERROR`
+- [x] 7-2 `UploadService.save(userId, file)`: detect the type with `file-type` from the bytes; not PNG/JPEG/WebP/GIF → `415 UNSUPPORTED_FILE_TYPE`; `storageKey = randomUUID() + ext`; write to `UPLOAD_DIR`; create the `uploads` row; delete the file if the DB insert fails
+- [x] 7-3 Fill `shared/src/types/upload.ts` (`UploadResponse`: `id`, `url` (`/uploads/<storageKey>`), `originalName`, `mimeType`, `sizeBytes`, `createdAt`) and wire `backend/src/controllers/uploads.controller.ts` + `uploads.routes.ts` (`requireAuth`, `uploadLimiter`, `upload`, `201`)
+- [x] 7-4 Implement `backend/src/lib/ssrfGuard.ts` part 1: `assertPublicUrl(url)`: `http`/`https` only, ports 80/443 only, resolve DNS and refuse private, loopback, link-local and unique-local IPv4/IPv6 addresses → `400 URL_NOT_ALLOWED`
+- [x] 7-5 `ssrfGuard.ts` part 2: `safeFetch(url)`: manual redirects (max 3, each target re-checked), 5-second total timeout, read at most 1 MB, only `text/html`; failures → `422 PREVIEW_UNAVAILABLE`
+- [x] 7-6 `LinkPreviewService.parse(html, baseUrl)`: `og:title` / `og:description` / `og:image`, falling back to `<title>` and `<meta name="description">`; make a relative image URL absolute; trim to the column lengths (300 / 1000)
+- [x] 7-7 `LinkPreviewService.getPreview(url)`: in-memory cache for 10 minutes per URL; export it for the node service (Phase 8) together with a `tryGetPreview(url)` that returns empty fields instead of throwing
+- [x] 7-8 Fill `shared/src/schemas/linkPreview.ts` (`url` http/https, ≤ 2,048) and wire `backend/src/controllers/linkPreview.controller.ts` + `linkPreview.routes.ts` (`POST /link-preview`, `requireAuth`, `linkPreviewLimiter`)
+- [x] 7-9 Implement `backend/src/jobs/cleanupUploads.ts`: `cleanupUploads()` deletes uploads no node points to (row and file, no grace period), and `scheduleCleanupUploads()` (daily at a low-traffic time). Registration in Phase 10
+- [x] 7-10 Tests: uploads (`201` for each allowed type, `415` for SVG and for a `.png` that is really text, `413` over 5 MB, `400` with no file, `401`, `429` after 60, file served at `/uploads/...` with `nosniff`)
+- [x] 7-11 Tests: `ssrfGuard` unit tests (`127.0.0.1`, `10.x`, `192.168.x`, `169.254.169.254`, `::1`, port 8080, a redirect to a private address) and link preview API tests with the fetch mocked (`200` with OG fields, `<title>` fallback, `URL_NOT_ALLOWED`, `PREVIEW_UNAVAILABLE`, `401`, cache hit)
+- [x] 7-12 Test: `cleanupUploads` removes only unused uploads and their files
 
 ---
 
@@ -196,13 +196,13 @@
 - Main files: `shared/src/schemas/{explore,admin}.ts`, `backend/src/services/{explore,admin}.service.ts`, `backend/src/controllers/{explore,admin}.controller.ts`, `backend/src/routes/{explore,admin}.routes.ts`, `backend/tests/{explore,admin}.api.test.ts` (no overlap with other Phases)
 - Endpoints: `GET /api/explore`, `GET /api/explore/categories`, `POST /api/admin/trees/:id/remove`
 
-- [ ] 9-1 Fill `shared/src/schemas/explore.ts` (`exploreQuerySchema`: `q` 1–100 trimmed, `category` 1–50 lowercased, pagination; `exploreCategoriesQuerySchema`: `q` 1–50, `limit` 1–50) and `shared/src/schemas/admin.ts` (`reason` trimmed 1–500)
-- [ ] 9-2 `ExploreService.list(query)`: `publicTreeWhere` + `q` (title or description contains, case-insensitive) + `category` (any tag with that `name_key`), newest `updatedAt` first, `toTreeSummary` with owner `username`/`displayName`, pagination
-- [ ] 9-3 `ExploreService.categories(query)`: distinct `name_key`s on public trees with counts and a display name, optional prefix `q`, most used first, `limit` (one grouped query, no N+1)
-- [ ] 9-4 `AdminService.removeTree(adminId, treeId, reason)`: not publicly visible → `404 TREE_NOT_FOUND`; already removed → `409 TREE_ALREADY_REMOVED`; set `removedAt`, `removedById`, `removalReason` and `visibility = PRIVATE`
-- [ ] 9-5 `backend/src/controllers/explore.controller.ts` + `explore.routes.ts` (public) and `admin.controller.ts` + `admin.routes.ts` (`requireAuth`, `requireAdmin`)
-- [ ] 9-6 Tests: Explore (only public trees; private, removed, Trash and deactivated-owner trees excluded; `q` search; category match across users ignoring case; pagination; `400` for empty `q`) and categories (counts only public trees, prefix filter)
-- [ ] 9-7 Tests: admin remove (`200` and the tree disappears from Explore, owner can still open it privately, `TREE_ALREADY_REMOVED`, private tree `404`, `USER` → `403 FORBIDDEN`, guest `401`, `400` empty reason)
+- [x] 9-1 Fill `shared/src/schemas/explore.ts` (`exploreQuerySchema`: `q` 1–100 trimmed, `category` 1–50 lowercased, pagination; `exploreCategoriesQuerySchema`: `q` 1–50, `limit` 1–50) and `shared/src/schemas/admin.ts` (`reason` trimmed 1–500)
+- [x] 9-2 `ExploreService.list(query)`: `publicTreeWhere` + `q` (title or description contains, case-insensitive) + `category` (any tag with that `name_key`), newest `updatedAt` first, `toTreeSummary` with owner `username`/`displayName`, pagination
+- [x] 9-3 `ExploreService.categories(query)`: distinct `name_key`s on public trees with counts and a display name, optional prefix `q`, most used first, `limit` (one grouped query, no N+1)
+- [x] 9-4 `AdminService.removeTree(adminId, treeId, reason)`: not publicly visible → `404 TREE_NOT_FOUND`; already removed → `409 TREE_ALREADY_REMOVED`; set `removedAt`, `removedById`, `removalReason` and `visibility = PRIVATE`
+- [x] 9-5 `backend/src/controllers/explore.controller.ts` + `explore.routes.ts` (public) and `admin.controller.ts` + `admin.routes.ts` (`requireAuth`, `requireAdmin`)
+- [x] 9-6 Tests: Explore (only public trees; private, removed, Trash and deactivated-owner trees excluded; `q` search; category match across users ignoring case; pagination; `400` for empty `q`) and categories (counts only public trees, prefix filter)
+- [x] 9-7 Tests: admin remove (`200` and the tree disappears from Explore, owner can still open it privately, `TREE_ALREADY_REMOVED`, private tree `404`, `USER` → `403 FORBIDDEN`, guest `401`, `400` empty reason)
 
 ---
 
