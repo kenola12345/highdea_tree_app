@@ -47,7 +47,7 @@ Sign up, log in, log out. Each user has a public profile (username, display name
 - Add child nodes branching from any node (rule: every node except the root has exactly one parent).
 - Node types: `TEXT` (raw thought), `LINK` (website), `VIDEO` (e.g. YouTube URL, embedded), `IMAGE` (uploaded image).
 - For `LINK`, the **backend fetches a preview** (page title + thumbnail) when the URL is saved, and stores it on the node.
-- `IMAGE` uploads are stored on local disk (`backend/uploads/`) in development; cloud storage (S3) later. **[TBD]** max file size and allowed formats.
+- `IMAGE` uploads are stored on local disk (`backend/uploads/`) in development; cloud storage (S3) later. Allowed: PNG, JPEG, WebP, GIF, up to 5 MB.
 - Drag nodes to reposition; node positions are saved.
 - A tree can have at most **2,000 nodes**.
 - **Canvas loading (lazy, like lazy-loaded images):**
@@ -130,6 +130,7 @@ erDiagram
     text id PK
     text user_id FK
     varchar name
+    varchar name_key
   }
   TREE_CATEGORIES {
     text tree_id PK,FK
@@ -218,7 +219,8 @@ erDiagram
 **Business rules and constraints**
 - Each tree has exactly one root node (`parent_id IS NULL`). Enforced in the **app layer**: TreeService creates it with the tree, and NodeService rejects creating another root or deleting the root. Optional extra: a partial unique index added by raw SQL in the migration, `CREATE UNIQUE INDEX nodes_one_root_per_tree ON nodes(tree_id) WHERE parent_id IS NULL;` (Prisma can't express partial indexes). **[To confirm]**
 - A node's parent must belong to the same tree. Enforced in the **app layer** (NodeService).
-- A node can't be moved under itself or under one of its own descendants. Enforced in the **app layer** (NodeService walks up the ancestors when `parentId` changes). **[To confirm]** whether re-parenting is allowed at all.
+- A node can't be moved under itself or under one of its own descendants. Enforced in the **app layer** (NodeService walks up the ancestors when `parentId` changes). Moving a node (with its subtree) to another parent in the same tree is allowed; the root can't be moved.
+- A node's `type` can be changed. `title` and `body` are kept; fields that don't apply to the new type are cleared in the same update. Enforced in the **app layer** (NodeService).
 - Required fields depend on the type. Enforced in the **app layer** (a Zod discriminated union on `type`):
   - `TEXT`: `title` only.
   - `LINK`: `url` (http/https).
@@ -234,16 +236,17 @@ erDiagram
 |---|---|---|---|
 | id | TEXT | PK, DEFAULT cuid() | Category ID |
 | user_id | TEXT | NOT NULL, FK→users.id | Owner |
-| name | VARCHAR(50) | NOT NULL | Category name |
+| name | VARCHAR(50) | NOT NULL | Category name, as the user typed it (e.g. `Work`) |
+| name_key | VARCHAR(50) | NOT NULL | `name` trimmed and lowercased (e.g. `work`). Set by the server, never by the client. Used for case-insensitive uniqueness and the Explore filter |
 | color | VARCHAR(7) | NOT NULL, DEFAULT '#6B7280' | Hex color, e.g. `#FF8800` |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
 | updated_at | TIMESTAMPTZ(3) | NOT NULL | Updated at |
 
 **Business rules and constraints**
-- Category names are unique per user. Enforced in the **DB** (UNIQUE(user_id, name)).
+- Category names are unique per user, ignoring upper/lower case ("Work" and "work" are the same). Enforced in the **DB** (UNIQUE(user_id, name_key)), so even simultaneous requests can't create a duplicate, and in the **app layer** (CategoryService sets `name_key` from `name` on every create and rename, and turns a unique violation into `409 CATEGORY_NAME_TAKEN`).
 - `color` must be a `#RRGGBB` hex value. Enforced in the **app layer** (Zod regex).
 - Only the owner can edit or delete a category. Enforced in the **app layer** (CategoryService).
-- **[To confirm]** Categories belong to each user, but Explore filters by `?category=`. Plan: Explore matches on the category **name**, case-insensitive, across all users (indexed on `name`). The alternative is a shared, global category list.
+- **[To confirm]** Categories belong to each user, but Explore filters by `?category=`. Plan: Explore matches on the category **name**, case-insensitive, across all users (lowercase the filter and match `name_key`, which is indexed). The alternative is a shared, global category list.
 
 #### tree_categories（ツリー×カテゴリ 中間テーブル）
 
@@ -271,10 +274,10 @@ erDiagram
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Uploaded at |
 
 **Business rules and constraints**
-- Only image MIME types are accepted, up to a size limit. Enforced in the **app layer** (Multer file filter and limits). **[To confirm]** formats (e.g. png, jpeg, webp, gif) and maximum size (e.g. 5 MB).
+- Only image MIME types are accepted, up to a size limit. Enforced in the **app layer** (Multer limits plus a content check). Allowed formats: PNG, JPEG, WebP, GIF. Maximum size: 5 MB.
 - The server generates `storage_key` (a cuid plus the file extension). The client's file name is never used as a path. Enforced in the **app layer** (UploadService).
 - An upload can't be deleted while a node still uses it. Enforced in the **DB** (FK `ON DELETE RESTRICT`).
-- Uploads no longer used by any node are deleted later by a cleanup job. Enforced in the **app layer** (a scheduled job). **[To confirm]**
+- Uploads not used by any node are deleted by a daily cleanup job, with no grace period: any upload with no node pointing to it is deleted, however new it is. Enforced in the **app layer** (a scheduled job, run at a low-traffic time). If the job deletes an image between upload and node save, the node save fails with `404 UPLOAD_NOT_FOUND` and the editor asks the user to upload it again.
 
 ### 5.3 Deletion Policy（削除・無効化ポリシー）
 
@@ -400,6 +403,7 @@ model Category {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   name      String   @db.VarChar(50)
+  nameKey   String   @map("name_key") @db.VarChar(50)
   color     String   @default("#6B7280") @db.VarChar(7)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -407,8 +411,8 @@ model Category {
   user  User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   trees TreeCategory[]
 
-  @@unique([userId, name])
-  @@index([name])
+  @@unique([userId, nameKey])
+  @@index([nameKey])
   @@map("categories")
 }
 
@@ -456,7 +460,7 @@ Policies:
 | Users | `GET /api/users/:username`, `PATCH /api/users/me` |
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
 | Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore` |
-| Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `DELETE /api/nodes/:id` |
+| Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (move many nodes at once), `DELETE /api/nodes/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`) |
 | Uploads | `POST /api/uploads` (image upload, multipart) |
@@ -797,6 +801,65 @@ No parameters and no body. The user is identified by the `access_token` cookie.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
+#### Trash
+
+---
+##### **GET /api/trash**
+
+- **Summary（機能概要）:** Lists the logged-in user's deleted trees (the Trash), with how long each has left before it's permanently deleted. Used by the Trash screen (`/trash`).
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). Returns only the user's own deleted trees; admins don't see other users' Trash.
+
+**Request（リクエスト）**
+
+- **Query Parameters**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `page` | `Int` | | Page number, starting at 1. Default `1` |
+| `limit` | `Int` | | Trees per page, 1–50. Default `20` |
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`.
+  - `data.trees`: the user's trees where `deletedAt` is set and not yet purged, most recently deleted first. Each item has `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `nodeCount`, `removedAt`, `deletedAt` and `purgeAt`. `purgeAt` is `deletedAt` + 10 days: when the daily job will delete it permanently. The screen shows it as "days left".
+  - `data.pagination`: `page`, `limit`, `total` (same shape as `GET /api/users/:username`).
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `page` or `limit` isn't a positive integer, or `limit` is over 50.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **POST /api/trees/:id/restore**
+
+- **Summary（機能概要）:** Restores a tree from the Trash by clearing its `deletedAt`. The tree comes back with all of its nodes and category tags, and appears in My Trees again.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). Anyone else gets `404`.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+No body.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.tree` is the restored tree, with the same fields as `GET /api/trees`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `nodeCount`, `removedAt`, `removalReason`, `createdAt`, `updatedAt`.
+  The tree keeps the visibility it had when it was deleted, so a public tree is public again right away. A tree an admin removed stays removed (still hidden from the public).
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, was already permanently deleted (more than 10 days in the Trash), or isn't owned by the caller.
+  - `409` `TREE_NOT_IN_TRASH` — The tree isn't in the Trash (`deletedAt` isn't set), so there's nothing to restore.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
 #### Nodes
 
 ---
@@ -827,6 +890,441 @@ No parameters and no body. The user is identified by the `access_token` cookie.
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `ids` is missing or empty, or has more than 100 IDs.
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or the caller isn't allowed to see it.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **POST /api/trees/:id/nodes**
+
+- **Summary（機能概要）:** Adds a new idea node branching from an existing node. Used by the Tree Editor.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). The owner can still add nodes to a tree an admin removed. Anyone else gets `404`. Trees in the Trash can't be edited.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+- **Body**
+  Required fields depend on `type`. Fields that don't apply to the type are rejected. Clients can't send the link preview fields; only the server sets them.
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `parentId` | `String` | ✅ | The node to branch from. Must be in this tree. A second root can't be created |
+| `type` | `"TEXT" \| "LINK" \| "VIDEO" \| "IMAGE"` | ✅ | Node type |
+| `title` | `String` | ✅ | Trimmed. 1–200 characters. For `TEXT` nodes, this is the thought itself |
+| `body` | `String \| null` | | Longer note, allowed on any type. Up to 10,000 characters **[To confirm]** |
+| `url` | `String` | `LINK`, `VIDEO` | `http` or `https`, up to 2,048 characters. For `VIDEO`: a YouTube or Vimeo URL **[To confirm]** |
+| `imageUploadId` | `String` | `IMAGE` | ID of an image uploaded with `POST /api/uploads` by the same user |
+| `positionX` | `Float` | | Canvas X position. Default `0`; the editor normally sends the position where the node was placed |
+| `positionY` | `Float` | | Canvas Y position. Default `0` |
+| `sortOrder` | `Int` | | Order among siblings. Default: after the parent's last child |
+
+**Processing（処理）**
+
+- The node count check and the insert run in one transaction that locks the tree row, so the 2,000-node limit can't be passed by two simultaneous requests. The tree's `updatedAt` is bumped in the same transaction.
+- For `LINK` nodes, the server fetches the page's title, description and thumbnail and saves them in the preview fields. The fetch times out after 5 seconds; if it fails, the node is still created with the preview fields empty. To stop the server being used to reach internal addresses (SSRF), the fetch only goes to public `http`/`https` hosts: private, loopback and link-local IP addresses are refused, including after redirects.
+
+**Response（レスポンス）**
+
+- **Success: `201 Created`**
+  Follows the common format `{ "data": {...} }`. `data.node` is the new node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `createdAt`, `updatedAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — A required field for the type is missing, a field doesn't apply to the type, or a rule above is broken (title length, body length, URL format, unsupported video site, preview fields sent).
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or isn't owned by the caller.
+  - `404` `PARENT_NOT_FOUND` — `parentId` doesn't exist or belongs to another tree.
+  - `404` `UPLOAD_NOT_FOUND` — `imageUploadId` doesn't exist or was uploaded by another user.
+  - `409` `NODE_LIMIT_REACHED` — The tree already has 2,000 nodes.
+  - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
+---
+
+---
+##### **PATCH /api/nodes/:id**
+
+- **Summary（機能概要）:** Edits a node: its content, its position on the canvas, its order among siblings, or its parent (moving the node and its whole subtree to another branch). Used by the Tree Editor.
+- **Authorization（認可）:** The owner of the node's tree only (`USER` or `ADMIN` who owns it). The owner can still edit nodes in a tree an admin removed. Anyone else gets `404`. Nodes in a tree in the Trash can't be edited.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Node ID (cuid) |
+
+- **Body**
+  Send only the fields to change; at least one is required. `type` can be changed freely between `TEXT`, `LINK`, `VIDEO` and `IMAGE` (see Processing). Fields that don't apply to the node's resulting type, and the link preview fields, are rejected.
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `type` | `"TEXT" \| "LINK" \| "VIDEO" \| "IMAGE"` | | Changes the node's type. The fields the new type requires must be sent in the same request (`url` for `LINK`/`VIDEO`, `imageUploadId` for `IMAGE`) |
+| `title` | `String` | | Trimmed. 1–200 characters |
+| `body` | `String \| null` | | Up to 10,000 characters. `null` clears it |
+| `url` | `String` | | `LINK` and `VIDEO` only. Same rules as when creating. Changing a `LINK` URL fetches a new preview |
+| `imageUploadId` | `String` | | `IMAGE` only. Replaces the image with another upload by the same user |
+| `parentId` | `String` | | Moves the node, with its whole subtree, under another node in the same tree. Not allowed on the root |
+| `positionX` | `Float` | | Canvas X position |
+| `positionY` | `Float` | | Canvas Y position |
+| `sortOrder` | `Int` | | Order among siblings |
+
+**Processing（処理）**
+
+- When `type` changes, `title` and `body` are kept, so text and links can be mixed freely in one tree. Fields that don't apply to the new type are cleared: `url` and the preview fields when leaving `LINK`/`VIDEO`, `imageUploadId` when leaving `IMAGE` (the image file is removed later by the uploads cleanup job). Changing to `LINK` fetches a preview for the new URL.
+- When `parentId` changes, the server walks up from the new parent to the root. If it meets the node being moved, the move would put the node under itself, so it's refused.
+- The update and the bump of the tree's `updatedAt` run in one transaction.
+- A new `LINK` URL is fetched the same way as in `POST /api/trees/:id/nodes`: 5-second timeout, public hosts only (SSRF protection), and the update still succeeds with empty preview fields if the fetch fails.
+- Moving a whole branch on the canvas changes many positions at once; the editor uses `PATCH /api/trees/:id/nodes/positions` for that instead of one request per node.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.node` is the updated node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `createdAt`, `updatedAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — The body is empty, includes preview fields, has a field that doesn't apply to the node's resulting type, changes `type` without the fields the new type requires, or breaks a rule above (lengths, URL format, unsupported video site).
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `NODE_NOT_FOUND` — The node doesn't exist, its tree is in the Trash, or the caller doesn't own the tree.
+  - `404` `PARENT_NOT_FOUND` — The new `parentId` doesn't exist or belongs to another tree.
+  - `404` `UPLOAD_NOT_FOUND` — `imageUploadId` doesn't exist or was uploaded by another user.
+  - `409` `INVALID_MOVE` — The move isn't allowed: the node is the root, or the new parent is the node itself or one of its descendants.
+  - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
+---
+
+---
+##### **PATCH /api/trees/:id/nodes/positions**
+
+- **Summary（機能概要）:** Saves the positions (and optionally sibling order) of many nodes in one request. The Tree Editor calls it when a whole branch is dragged, or after an auto-layout, instead of sending one request per node.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). The owner can still do this in a tree an admin removed. Anyone else gets `404`. Trees in the Trash can't be edited.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `nodes` | `Array` | ✅ | 1–2,000 items (the per-tree node limit). Each node ID may appear only once |
+| `nodes[].id` | `String` | ✅ | Node ID. Must belong to this tree |
+| `nodes[].positionX` | `Float` | ✅ | New canvas X position |
+| `nodes[].positionY` | `Float` | ✅ | New canvas Y position |
+| `nodes[].sortOrder` | `Int` | | New order among siblings |
+
+Only positions and order can be changed here. Content, type and parent are changed with `PATCH /api/nodes/:id`.
+
+**Processing（処理）**
+
+- All updates run in one transaction: either every node is saved or none is. The tree's `updatedAt` is bumped in the same transaction.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.nodes` lists each updated node with `id`, `positionX`, `positionY`, `sortOrder` and `updatedAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `nodes` is missing, empty, or has more than 2,000 items; an ID appears twice; a position isn't a number; or an item has a field other than the ones above.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or isn't owned by the caller.
+  - `404` `NODE_NOT_FOUND` — At least one node ID doesn't exist or belongs to another tree. Nothing is saved.
+  - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
+---
+
+---
+##### **DELETE /api/nodes/:id**
+
+- **Summary（機能概要）:** Permanently deletes a node and its whole subtree (every branch under it). The editor asks for confirmation first, showing how many ideas will be deleted. Nodes don't go to the Trash; only whole trees do.
+- **Authorization（認可）:** The owner of the node's tree only (`USER` or `ADMIN` who owns it). The owner can still do this in a tree an admin removed. Anyone else gets `404`. Nodes in a tree in the Trash can't be deleted.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Node ID (cuid) |
+
+**Processing（処理）**
+
+- The node is deleted, and the DB deletes its descendants with it (`ON DELETE CASCADE` on `parent_id`). The IDs of all deleted nodes are collected first, and the delete and the bump of the tree's `updatedAt` run in one transaction.
+- Images used by deleted `IMAGE` nodes aren't deleted here; the uploads cleanup job removes them once nothing uses them.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.deletedNodeIds` lists the IDs of the node and all its descendants, so the editor can drop them from the canvas and its cache.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `NODE_NOT_FOUND` — The node doesn't exist (or was already deleted), its tree is in the Trash, or the caller doesn't own the tree.
+  - `409` `CANNOT_DELETE_ROOT` — The node is the root (center idea). To remove it, delete the whole tree instead.
+  - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
+---
+
+#### Categories
+
+---
+##### **GET /api/categories**
+
+- **Summary（機能概要）:** Lists all of the logged-in user's categories. Used by the Settings screen (category management), the My Trees category filter, and the category picker when creating or editing a tree.
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). Returns only the user's own categories.
+
+**Request（リクエスト）**
+
+No parameters. All categories are returned without paging. **[To confirm]** a maximum number of categories per user (e.g. 100), which keeps this list small.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.categories`: the user's categories sorted by name (A–Z), each with `id`, `name`, `color`, `treeCount`, `createdAt` and `updatedAt`. `treeCount` counts the user's trees with this category that aren't in the Trash.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **POST /api/categories**
+
+- **Summary（機能概要）:** Creates a new category for the logged-in user. Used by Settings, and by the category picker when creating or editing a tree.
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). The owner is always the logged-in user, never taken from the request.
+
+**Request（リクエスト）**
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `name` | `String` | ✅ | Trimmed. 1–50 characters. Unique among the user's categories, ignoring upper/lower case ("Work" and "work" count as the same). The server stores the lowercased copy in `nameKey` |
+| `color` | `String` | | Hex color `#RRGGBB`. Default `#6B7280` (gray) |
+
+**Response（レスポンス）**
+
+- **Success: `201 Created`**
+  Follows the common format `{ "data": {...} }`. `data.category`: `id`, `name`, `color`, `treeCount` (`0`), `createdAt`, `updatedAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `name` is missing or breaks the length rule, `color` isn't a `#RRGGBB` hex value, or a field isn't allowed.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `409` `CATEGORY_NAME_TAKEN` — The user already has a category with this name (ignoring upper/lower case).
+  - `409` `CATEGORY_LIMIT_REACHED` — The user already has the maximum number of categories. **[To confirm]** the limit (e.g. 100).
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **PATCH /api/categories/:id**
+
+- **Summary（機能概要）:** Renames or recolors one of the user's categories. Every tree tagged with it shows the new name and color right away. Used by the Settings screen.
+- **Authorization（認可）:** The category's owner only (`USER` or `ADMIN` who owns it). Anyone else gets `404`.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Category ID (cuid) |
+
+- **Body**
+  Send only the fields to change; at least one is required. Any other field (e.g. `nameKey`, `userId`) is rejected.
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `name` | `String` | | Trimmed. 1–50 characters. Unique among the user's categories, ignoring upper/lower case. Changing only the case of the same category (e.g. `work` → `Work`) is allowed. The server updates `nameKey` with it |
+| `color` | `String` | | Hex color `#RRGGBB` |
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.category`: `id`, `name`, `color`, `treeCount`, `createdAt`, `updatedAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — The body is empty, has a field that isn't allowed, or breaks a rule above (name length, color format).
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `CATEGORY_NOT_FOUND` — The category doesn't exist or belongs to another user.
+  - `409` `CATEGORY_NAME_TAKEN` — Another of the user's categories already has this name (ignoring upper/lower case).
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **DELETE /api/categories/:id**
+
+- **Summary（機能概要）:** Permanently deletes one of the user's categories. The trees tagged with it aren't deleted; they just lose this tag. The Settings screen asks for confirmation first, showing how many trees use the category (`treeCount`).
+- **Authorization（認可）:** The category's owner only (`USER` or `ADMIN` who owns it). Anyone else gets `404`.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Category ID (cuid) |
+
+**Processing（処理）**
+
+- The category is deleted, and the DB removes its tags from every tree (`tree_categories`, `ON DELETE CASCADE`). This includes trees in the Trash, so restoring one of those later brings it back without this tag.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format: `{ "data": null }`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `CATEGORY_NOT_FOUND` — The category doesn't exist (or was already deleted) or belongs to another user.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+#### Explore
+
+---
+##### **GET /api/explore**
+
+- **Summary（機能概要）:** Returns a page of public trees from all users, with optional category filter and search. Used by the Explore screen (`/explore`).
+- **Authorization（認可）:** Anyone (Guest, `USER`, `ADMIN`). Login is optional. Only public trees are ever returned, for every caller including admins.
+
+**Request（リクエスト）**
+
+- **Query Parameters**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `q` | `String` | | Search text, 1–100 characters after trimming. Matches trees whose title or description contains it, ignoring upper/lower case |
+| `category` | `String` | | Category **name**, 1–50 characters. Matches trees tagged with any user's category of that name, ignoring upper/lower case (compared with `categories.name_key`) |
+| `page` | `Int` | | Page number, starting at 1. Default `1` |
+| `limit` | `Int` | | Trees per page, 1–50. Default `20` |
+
+`q` and `category` can be combined; a tree must match both.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`.
+  - `data.trees`: trees where `visibility` is `PUBLIC`, `removedAt` and `deletedAt` aren't set, and the owner isn't deactivated, newest `updatedAt` first. Each item has `id`, `title`, `description`, `categories` (`id`, `name`, `color`), `nodeCount`, `updatedAt`, and `owner` (`username`, `displayName`, `avatarUrl`).
+  - `data.pagination`: `page`, `limit`, `total` (same shape as `GET /api/users/:username`).
+  No matches returns an empty list, not an error.
+  Search uses a simple case-insensitive "contains" match (`ILIKE`), which is fine for a small number of trees. A trigram index (`pg_trgm`) or full-text search can be added later if it gets slow.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `q` or `category` is too long or empty after trimming, `page` or `limit` isn't a positive integer, or `limit` is over 50.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+#### Uploads
+
+---
+##### **POST /api/uploads**
+
+- **Summary（機能概要）:** Uploads one image file and returns its ID. The editor then uses the ID as `imageUploadId` when creating or editing an `IMAGE` node. Files are stored in `backend/uploads/` in development (S3 later).
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). The upload is owned by the logged-in user, and only that user can attach it to a node.
+
+**Request（リクエスト）**
+
+- **Body** (`multipart/form-data`)
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `file` | `File` | ✅ | Exactly one image. Allowed formats: PNG, JPEG, WebP, GIF. Max 5 MB |
+
+**Processing（処理）**
+
+- The file type is checked from the file's actual content (its first bytes), not only from the file name or the `Content-Type` the browser sent. SVG isn't allowed, because an SVG file can contain scripts.
+- The server generates the stored file name, `storage_key` (a new cuid plus the extension of the detected type, e.g. `clx123….png`). The original file name is saved only as data and never used as a path.
+- Uploaded files are served at `/uploads/:storageKey` with the detected `Content-Type` and `X-Content-Type-Options: nosniff`.
+- An upload that no node uses is removed by the daily uploads cleanup job, with no grace period. If that happens between uploading and saving the node, the node save returns `404 UPLOAD_NOT_FOUND` and the editor asks the user to upload the image again.
+
+**Response（レスポンス）**
+
+- **Success: `201 Created`**
+  Follows the common format `{ "data": {...} }`. `data.upload`: `id`, `url` (public URL of the image), `originalName`, `mimeType`, `sizeBytes`, `createdAt`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — No file was sent, more than one file was sent, or the request isn't `multipart/form-data`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `413` `FILE_TOO_LARGE` — The file is larger than 5 MB.
+  - `415` `UNSUPPORTED_FILE_TYPE` — The file isn't a PNG, JPEG, WebP or GIF image (checked from its content).
+  - `500` `INTERNAL_ERROR` — Unexpected server error. If the file was written but saving the record failed, the file is deleted.
+---
+
+#### Link preview
+
+---
+##### **POST /api/link-preview**
+
+- **Summary（機能概要）:** Fetches a web page and returns its title, description and thumbnail, so the editor can show a preview card while the user is adding a link, before the node is saved. Nothing is stored. When the `LINK` node is saved, the server fetches the preview itself (see `POST /api/trees/:id/nodes`); clients can't send preview fields.
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). Guests can't use it, so it can't be used anonymously to make the server fetch pages.
+
+**Request（リクエスト）**
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `url` | `String` | ✅ | `http` or `https` URL, up to 2,048 characters |
+
+**Processing（処理）**
+
+- **SSRF protection:** the server resolves the host name and refuses private, loopback and link-local IP addresses (e.g. `10.x`, `192.168.x`, `127.0.0.1`, `169.254.x`, `::1`). It checks again after every redirect, follows at most 3 redirects, and only uses ports 80 and 443.
+- **Limits:** the whole fetch times out after 5 seconds, and at most 1 MB of the response is read. Only `text/html` responses are parsed.
+- **What is read:** `og:title`, `og:description` and `og:image` (Open Graph tags), falling back to `<title>` and `<meta name="description">`. A relative `og:image` is turned into a full URL.
+- **Cache:** results are kept in memory for 10 minutes per URL, so saving the node right after previewing doesn't fetch the page a second time.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.preview`: `url` (the final URL after redirects), `title`, `description`, `imageUrl`. Any of `title`, `description` and `imageUrl` can be `null` if the page doesn't have it.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `url` is missing, too long, or not an `http`/`https` URL.
+  - `400` `URL_NOT_ALLOWED` — The URL points to a private or internal address, or uses a port other than 80/443 (directly or after a redirect).
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `422` `PREVIEW_UNAVAILABLE` — The page couldn't be fetched or read: timeout, error status, too many redirects, or not an HTML page. The editor can still save the link without a preview.
+  - `429` `RATE_LIMITED` — More than 30 preview requests from the same user within 1 minute. The editor waits until the user stops typing before requesting a preview, so normal use stays far below this.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+#### Admin
+
+---
+##### **DELETE /api/admin/trees/:id**
+
+- **Summary（機能概要）:** Lets an admin take down an inappropriate public tree. It isn't a real delete: the tree gets `removedAt`, `removedById` and `removalReason`, disappears from Explore, profiles and public viewing, and stays with its owner, who can still see and edit it privately and sees the reason. The owner can't make it public again.
+- **Authorization（認可）:** `ADMIN` only. Admins can act only on trees they're allowed to see, meaning public ones; a private tree returns `404`, the same as for anyone else.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `reason` | `String` | ✅ | Why the tree was removed, shown to the owner. Trimmed. 1–500 characters |
+
+A `DELETE` request with a body is valid HTTP, but some tools and proxies drop it. **[To confirm]** if that's a problem, use `POST /api/admin/trees/:id/remove` instead.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.tree`: `id`, `title`, `visibility`, `removedAt`, `removalReason`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `reason` is missing, empty after trimming, or longer than 500 characters.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `403` `FORBIDDEN` — The user is logged in but isn't an `ADMIN`.
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is private, is in the Trash, or its owner is deactivated (it's not publicly visible).
+  - `409` `TREE_ALREADY_REMOVED` — An admin already removed this tree.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
