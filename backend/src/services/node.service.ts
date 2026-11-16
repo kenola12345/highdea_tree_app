@@ -14,6 +14,7 @@ import type { NodeType, Prisma } from "@prisma/client";
 
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
+import { sortPair } from "./common/connectionPair.js";
 import { visibleTreeWhere } from "./common/treeAccess.js";
 import { type NodePreviewFields, tryGetPreview } from "./linkPreview.service.js";
 import { uploadUrl } from "./upload.service.js";
@@ -35,6 +36,7 @@ const nodeResponseSelect = {
   positionY: true,
   sortOrder: true,
   lineColor: true,
+  cardColor: true,
   createdAt: true,
   updatedAt: true,
   imageUpload: { select: { storageKey: true } },
@@ -94,6 +96,7 @@ export function toNodeResponse(row: NodeResponseRow): NodeResponse {
     positionY: row.positionY,
     sortOrder: row.sortOrder,
     lineColor: row.lineColor,
+    cardColor: row.cardColor,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -153,7 +156,7 @@ async function nextSortOrder(tx: Tx, parentId: string): Promise<number> {
 }
 
 /** ツリーの更新日時を進める（マイツリーの並び順・閲覧画面のキャッシュ判定に使うため） */
-async function touchTree(tx: Tx, treeId: string): Promise<void> {
+export async function touchTree(tx: Tx, treeId: string): Promise<void> {
   await tx.tree.update({ where: { id: treeId }, data: { updatedAt: new Date() } });
 }
 
@@ -210,6 +213,7 @@ export async function create(
         positionY: body.positionY ?? 0,
         sortOrder: body.sortOrder ?? (await nextSortOrder(tx, body.parentId)),
         lineColor: body.lineColor ?? null,
+        cardColor: body.cardColor ?? null,
       },
       select: nodeResponseSelect,
     });
@@ -295,6 +299,7 @@ export async function update(
       title: body.title,
       body: body.body,
       lineColor: body.lineColor,
+      cardColor: body.cardColor,
     };
     if (nextType !== current.type) {
       // 型が変わったら古い型の項目を消す（画像ファイル自体は未使用画像の掃除ジョブが消す）
@@ -317,6 +322,11 @@ export async function update(
       await assertParentInTree(tx, treeId, body.parentId);
       await assertNotIntoOwnBranch(tx, treeId, nodeId, body.parentId);
       data.parentId = body.parentId;
+      // 新しい親とのつながりは親子の線と重なるので消す（manifests/nodes.md node_connections）
+      if (body.parentId !== current.parentId) {
+        const [nodeAId, nodeBId] = sortPair(nodeId, body.parentId);
+        await tx.nodeConnection.deleteMany({ where: { nodeAId, nodeBId } });
+      }
       data.positionX = body.positionX;
       data.positionY = body.positionY;
       data.sortOrder =

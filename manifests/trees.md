@@ -23,7 +23,8 @@ Creating, listing, viewing, editing and deleting trees; the Trash and restore; c
 - Trees in the Trash are **permanently deleted 10 days** after they were deleted, with their nodes and category tags. The Trash shows the days left.
 - A restored tree keeps the visibility it had; a removed tree stays removed.
 - Trees in the Trash can't be viewed or edited.
-- **Pages/modals:** P-09, M-03. **API:** `DELETE /api/trees/:id`, `GET /api/trash`, `POST /api/trees/:id/restore`. **Tables:** `trees.deleted_at`; purge job (§3.10).
+- The owner can also **delete a tree permanently right away** ("Delete forever" on one tree, or "Empty Trash" for all of them), after a confirmation. This can't be undone; it removes the same data as the purge job.
+- **Pages/modals:** P-09, M-03, M-13. **API:** `DELETE /api/trees/:id`, `GET /api/trash`, `POST /api/trees/:id/restore`, `DELETE /api/trash/:id`, `DELETE /api/trash`. **Tables:** `trees.deleted_at`; purge job (§3.10).
 
 ### 3.7 Categories
 
@@ -45,6 +46,8 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `DELETE /api/trees/:id` | ❌ | ✅ Owner | ✅ Owner |
 | `GET /api/trash` | ❌ | ✅ own Trash | ✅ own Trash |
 | `POST /api/trees/:id/restore` | ❌ | ✅ Owner | ✅ Owner |
+| `DELETE /api/trash/:id` | ❌ | ✅ Owner | ✅ Owner |
+| `DELETE /api/trash` | ❌ | ✅ own Trash | ✅ own Trash |
 | `GET /api/categories` | ❌ | ✅ own categories | ✅ own categories |
 | `POST /api/categories` | ❌ | ✅ | ✅ |
 | `PATCH /api/categories/:id` | ❌ | ✅ Owner | ✅ Owner |
@@ -57,7 +60,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | ID | Screen | URL | Summary | Access |
 |---|---|---|---|---|
 | P-04 | My Trees (Dashboard) | `/me` | Grid of own trees (private and public): title, description, category chips, visibility badge, node count, last updated. Category filter, paging, "+ New tree". Removed trees show a "Removed by admin" badge | `USER`, `ADMIN` |
-| P-09 | Trash | `/trash` | Own deleted trees with "X days left" before permanent deletion, and a Restore button on each | `USER`, `ADMIN` |
+| P-09 | Trash | `/trash` | Own deleted trees with "X days left" before permanent deletion, and Restore and "Delete forever" (opens M-13) buttons on each. An "Empty Trash" button (opens M-13) above the list when the Trash isn't empty | `USER`, `ADMIN` |
 
 ### Modals
 
@@ -66,6 +69,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | M-01 | New Tree | "+ New tree" button on My Trees (P-04) | Title, description, center idea text (defaults to title), visibility, category picker (up to 10, with "+ New category" opening M-07). Creates the tree and opens the Editor (`POST /api/trees`) |
 | M-02 | Tree Settings | Gear button in the Editor toolbar (P-05); "Edit details" in a tree card's menu on My Trees (P-04) | Edit title, description, visibility and categories (`PATCH /api/trees/:id`). For a removed tree, shows the admin's reason and the visibility switch is disabled with "Removed by an admin; can't be made public". Has the "Move to Trash" button (opens M-03) |
 | M-03 | Move Tree to Trash | "Move to Trash" in M-02; "Delete" in a tree card's menu on My Trees (P-04) | Confirm: "This tree will be in Trash for 10 days, then deleted permanently." (`DELETE /api/trees/:id`). From the Editor, then goes to `/me` |
+| M-13 | Delete Permanently | "Delete forever" on a Trash item; "Empty Trash" on the Trash page (P-09) | Confirm, red button. One tree: "“{title}” will be deleted permanently, with all of its ideas. This can't be undone." (`DELETE /api/trash/:id`). Empty Trash: "All N trees in the Trash will be deleted permanently. This can't be undone." (`DELETE /api/trash`) |
 | M-07 | Category Form | "+ New category" or "Edit" on the Settings Categories tab (P-10); "+ New category" inside the category picker of M-01 / M-02 | Name and color picker (`POST /api/categories`, `PATCH /api/categories/:id`). Duplicate names (ignoring upper/lower case) show the error under the name field |
 | M-08 | Delete Category | "Delete" on a category row in Settings (P-10) | Confirm: "Remove this category from N trees? The trees themselves stay." (`DELETE /api/categories/:id`) |
 
@@ -91,6 +95,7 @@ stateDiagram-v2
   InTrash --> Removed : Owner restores, was Removed (stays private)
 
   InTrash --> Purged : System daily job, 10 days after deletion\n(nodes and category tags deleted; unused images cleaned up)
+  InTrash --> Purged : Owner deletes forever (DELETE /api/trash/:id)\nor empties the Trash (DELETE /api/trash)
   Purged --> [*]
 ```
 
@@ -99,7 +104,7 @@ stateDiagram-v2
 | Private | Owner only | My Trees, Editor, Viewer (owner) |
 | Public | Everyone | My Trees, Explore, User Profile, Viewer |
 | Removed | Owner only, with the admin's reason | My Trees (badge), Editor and M-02 (reason banner) |
-| InTrash | Owner only | Trash (days left, Restore) |
+| InTrash | Owner only | Trash (days left, Restore, Delete forever) |
 | Purged | Nobody (gone) | — |
 
 ## 5. API
@@ -159,7 +164,7 @@ stateDiagram-v2
 - **Success: `201 Created`**
   Follows the common format `{ "data": {...} }`.
   - `data.tree`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `removedAt` (`null`), `removalReason` (`null`), `createdAt`, `updatedAt`.
-  - `data.rootNode`: the new root node, a `TEXT` node with `parentId` `null` at position (0, 0): `id`, `treeId`, `parentId`, `type`, `title`, `body`, `positionX`, `positionY`, `sortOrder`, `lineColor` (`null`), `createdAt`, `updatedAt`.
+  - `data.rootNode`: the new root node, a `TEXT` node with `parentId` `null` at position (0, 0): `id`, `treeId`, `parentId`, `type`, `title`, `body`, `positionX`, `positionY`, `sortOrder`, `lineColor` (`null`), `cardColor` (`null`), `createdAt`, `updatedAt`.
   The frontend then opens the Tree Editor (`/trees/:id/edit`).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
@@ -194,7 +199,8 @@ stateDiagram-v2
   - `data.tree`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `removedAt`, `removalReason`, `createdAt`, `updatedAt`. `removedAt` and `removalReason` are only filled in for the owner; for anyone else they're always `null`.
   - `data.owner`: `username`, `displayName`, `avatarUrl`.
   - `data.isOwner`: `true` when the logged-in user owns the tree. The frontend uses it to decide between the editor and the read-only viewer.
-  - `data.nodes`: the **skeleton** of every node in the tree (up to 2,000), as a flat list (not nested). The frontend builds the hierarchy from `parentId` with `d3-hierarchy`. Each node has only the light fields: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `updatedAt`. Exactly one node has `parentId` `null`: the root. Heavy content (`body`, `url`, link preview, `imageUrl`) isn't included; the canvas lazy-loads it with `GET /api/trees/:id/nodes?ids=` as nodes come into view. `updatedAt` tells the frontend when its cached details for a node are stale.
+  - `data.nodes`: the **skeleton** of every node in the tree (up to 2,000), as a flat list (not nested). The frontend builds the hierarchy from `parentId` with `d3-hierarchy`. Each node has only the light fields: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `updatedAt`. Exactly one node has `parentId` `null`: the root. Heavy content (`body`, `url`, link preview, `imageUrl`) isn't included; the canvas lazy-loads it with `GET /api/trees/:id/nodes?ids=` as nodes come into view. `updatedAt` tells the frontend when its cached details for a node are stale.
+  - `data.connections`: every connection between two ideas of the tree (up to 500), each `{ id, nodeAId, nodeBId }`, oldest first. The canvas draws them as dotted lines besides the parent → child lines ([nodes.md](./nodes.md) §3.5, Connections).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or the caller isn't allowed to see it (see Authorization).
@@ -321,6 +327,54 @@ No body.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, was already permanently deleted (more than 10 days in the Trash), or isn't owned by the caller.
   - `409` `TREE_NOT_IN_TRASH` — The tree isn't in the Trash (`deletedAt` isn't set), so there's nothing to restore.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **DELETE /api/trash/:id**
+
+- **Summary（機能概要）:** Permanently deletes one tree from the Trash, right away instead of waiting for the 10-day purge. Its nodes and category tags are deleted with it (`ON DELETE CASCADE`); its uploaded images become unused and are removed by the uploads cleanup job. Can't be undone, so the frontend asks for confirmation first (M-13).
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). Anyone else gets `404`.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+No body.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format: `{ "data": null }`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, was already permanently deleted, or isn't owned by the caller.
+  - `409` `TREE_NOT_IN_TRASH` — The tree isn't in the Trash (`deletedAt` isn't set). Only trees in the Trash can be deleted permanently.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **DELETE /api/trash**
+
+- **Summary（機能概要）:** Empties the logged-in user's Trash: permanently deletes every one of their trees that's in the Trash, with the same effects as `DELETE /api/trash/:id`. Can't be undone, so the frontend asks for confirmation first (M-13).
+- **Authorization（認可）:** Logged-in users (`USER`, `ADMIN`). Deletes only the user's own trees; admins can't empty other users' Trash.
+
+**Request（リクエスト）**
+
+No parameters, no body.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.deletedCount`: how many trees were deleted (`0` if the Trash was already empty).
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -468,6 +522,7 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 - Editing a node bumps the tree's `updated_at`. Enforced in the **app layer** (NodeService updates the tree in the same transaction).
 - A deleted tree (`deleted_at` set) sits in its owner's Trash. Only the owner can see it there or restore it; restoring clears `deleted_at`. Enforced in the **app layer** (TrashService).
 - A tree in the Trash is permanently deleted 10 days after `deleted_at`. Enforced in the **app layer**: a daily purge job deletes trees where `deleted_at < now() - 10 days`; the DB then removes their nodes and category tags (`ON DELETE CASCADE`).
+- The owner can permanently delete a tree earlier, but only once it's in the Trash (`deleted_at` set); a live tree must be moved to the Trash first. Enforced in the **app layer** (TrashService, `409 TREE_NOT_IN_TRASH`).
 
 #### categories（カテゴリ）
 

@@ -212,3 +212,105 @@ describe("POST /api/trees/:id/restore", () => {
     expect(res.body.error.code).toBe("UNAUTHENTICATED");
   });
 });
+
+describe("DELETE /api/trash/:id", () => {
+  it("deletes a tree in the Trash permanently, with its nodes and category tags (200)", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const category = await createCategory(user.id, "Work");
+    const tree = await createTree(user.id, { deletedAt: daysAgo(2), categoryIds: [category.id] });
+
+    const res = await request(app).delete(`/api/trash/${tree.id}`).set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ data: null });
+    expect(await prisma.tree.findUnique({ where: { id: tree.id } })).toBeNull();
+    expect(await prisma.node.count({ where: { treeId: tree.id } })).toBe(0);
+    expect(await prisma.treeCategory.count({ where: { treeId: tree.id } })).toBe(0);
+    expect(await prisma.category.count({ where: { id: category.id } })).toBe(1);
+  });
+
+  it("returns 409 TREE_NOT_IN_TRASH for a tree that isn't deleted, and keeps it", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const res = await request(app).delete(`/api/trash/${tree.id}`).set("Cookie", cookie);
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: { code: "TREE_NOT_IN_TRASH", message: expect.any(String) } });
+    expect(await prisma.tree.findUnique({ where: { id: tree.id } })).not.toBeNull();
+  });
+
+  it("returns 404 TREE_NOT_FOUND for another user's tree, also for an admin", async () => {
+    const owner = await createUser();
+    const tree = await createTree(owner.id, { deletedAt: daysAgo(1) });
+    const { cookie } = await createLoggedInUser();
+    const { cookie: adminCookie } = await createAdmin();
+
+    const userRes = await request(app).delete(`/api/trash/${tree.id}`).set("Cookie", cookie);
+    const adminRes = await request(app).delete(`/api/trash/${tree.id}`).set("Cookie", adminCookie);
+
+    for (const res of [userRes, adminRes]) {
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("TREE_NOT_FOUND");
+    }
+    expect(await prisma.tree.findUnique({ where: { id: tree.id } })).not.toBeNull();
+  });
+
+  it("returns 404 TREE_NOT_FOUND for a missing or expired tree", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const expired = await createTree(user.id, { deletedAt: daysAgo(11) });
+
+    const missing = await request(app).delete("/api/trash/nope").set("Cookie", cookie);
+    const expiredRes = await request(app).delete(`/api/trash/${expired.id}`).set("Cookie", cookie);
+
+    for (const res of [missing, expiredRes]) {
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("TREE_NOT_FOUND");
+    }
+  });
+
+  it("returns 401 UNAUTHENTICATED for a guest", async () => {
+    const owner = await createUser();
+    const tree = await createTree(owner.id, { deletedAt: daysAgo(1) });
+
+    const res = await request(app).delete(`/api/trash/${tree.id}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
+  });
+});
+
+describe("DELETE /api/trash", () => {
+  it("deletes every tree in the user's Trash and returns the count (200)", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const other = await createUser();
+    const a = await createTree(user.id, { deletedAt: daysAgo(1) });
+    const b = await createTree(user.id, { deletedAt: daysAgo(4) });
+    const live = await createTree(user.id);
+    const othersTrashed = await createTree(other.id, { deletedAt: daysAgo(1) });
+
+    const res = await request(app).delete("/api/trash").set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ data: { deletedCount: 2 } });
+    const remaining = await prisma.tree.findMany({ select: { id: true } });
+    expect(remaining.map((t) => t.id).sort()).toEqual([live.id, othersTrashed.id].sort());
+    expect(await prisma.node.count({ where: { treeId: { in: [a.id, b.id] } } })).toBe(0);
+  });
+
+  it("returns deletedCount 0 when the Trash is already empty", async () => {
+    const { cookie } = await createLoggedInUser();
+
+    const res = await request(app).delete("/api/trash").set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ data: { deletedCount: 0 } });
+  });
+
+  it("returns 401 UNAUTHENTICATED for a guest", async () => {
+    const res = await request(app).delete("/api/trash");
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
+  });
+});

@@ -53,6 +53,7 @@ function treeReply(isOwner: boolean, extra: Record<string, unknown> = {}) {
             updatedAt: "2026-11-01T00:00:00Z",
           },
         ],
+        connections: [],
       },
     },
   };

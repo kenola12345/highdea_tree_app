@@ -24,7 +24,7 @@ export default async function globalSetup(): Promise<void> {
   const db = new pg.Client({ connectionString: E2E_BACKEND_ENV.DATABASE_URL });
   await db.connect();
   await db.query(
-    'TRUNCATE TABLE "tree_categories", "nodes", "uploads", "categories", "trees", "users" CASCADE',
+    'TRUNCATE TABLE "tree_categories", "node_connections", "nodes", "uploads", "categories", "trees", "users" CASCADE',
   );
   await db.end();
 }

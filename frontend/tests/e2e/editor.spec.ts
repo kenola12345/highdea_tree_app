@@ -97,7 +97,7 @@ test("E2E-EDITOR-06 a branch line color colors that branch and is kept after rel
   page,
 }) => {
   await card(page, "Problem").dblclick();
-  await page.getByTestId("line-color-#EF4444").click();
+  await page.locator("#line-color").fill("#EF4444");
   await page.getByTestId("node-save").click();
   await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
 
@@ -105,4 +105,89 @@ test("E2E-EDITOR-06 a branch line color colors that branch and is kept after rel
   await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
   const nodes = await nodesByTitle(page.request, treeId);
   expect(nodes.Problem).toBeDefined();
+});
+
+test("E2E-EDITOR-07 a card color picked in M-04 colors that card, including the center idea", async ({
+  page,
+}) => {
+  await card(page, "Startup ideas").dblclick();
+  await page.locator("#card-color").fill("#1E3A8A");
+  await page.getByTestId("node-save").click();
+  await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
+
+  await page.reload();
+  await expect(card(page, "Startup ideas")).toHaveCSS("background-color", "rgb(30, 58, 138)");
+  await expect(card(page, "Startup ideas")).toHaveCSS("color", "rgb(255, 255, 255)");
+});
+
+test("E2E-EDITOR-08 branch lines have no end dots, and View opens the Tree Viewer", async ({
+  page,
+}) => {
+  await expect(page.getByTestId("node-link").first()).toBeVisible();
+  await expect(page.getByTestId("node-link").locator("circle")).toHaveCount(0);
+
+  await page.getByRole("link", { name: "View", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/trees/${treeId}$`));
+});
+
+/** つながりの線の中点（画面座標）。曲線の長さの半分の点を SVG から画面へ変換する */
+async function connectionMidpoint(page: Page) {
+  return page
+    .getByTestId("connection-line")
+    .first()
+    .locator("path")
+    .last()
+    .evaluate((el) => {
+      const path = el as SVGPathElement;
+      const p = path.getPointAtLength(path.getTotalLength() / 2);
+      const m = path.getScreenCTM();
+      if (!m) throw new Error("no CTM");
+      return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f };
+    });
+}
+
+test("E2E-EDITOR-09 connect two ideas from different branches, see it in the Viewer, then remove it", async ({
+  page,
+}) => {
+  await card(page, "Students").click();
+  await page.getByTestId("connect-node-button").click();
+  await expect(page.getByTestId("connect-banner")).toContainText("connect it to “Students”");
+  await card(page, "Ideas get lost in Slack").click();
+  await expect(page.getByTestId("connect-banner")).toHaveCount(0);
+  await expect(page.getByTestId("connection-line")).toHaveCount(1);
+
+  // 同じ組はもう一度つながない
+  await card(page, "Ideas get lost in Slack").click();
+  await page.getByTestId("connect-node-button").click();
+  await card(page, "Students").click();
+  await expect(page.getByText("These ideas are already connected.")).toBeVisible();
+
+  await page.reload();
+  await page.getByText("Fit").click();
+  await expect(page.getByTestId("connection-line")).toHaveCount(1);
+  await page.getByRole("link", { name: "View", exact: true }).click();
+  await expect(page.getByTestId("connection-line")).toHaveCount(1);
+  await page.goBack();
+  await page.getByText("Fit").click();
+
+  const mid = await connectionMidpoint(page);
+  await page.mouse.click(mid.x, mid.y);
+  await page.getByTestId("remove-connection-button").click();
+  await expect(page.getByTestId("connection-line")).toHaveCount(0);
+  await page.reload();
+  await expect(card(page, "Students")).toBeVisible();
+  await expect(page.getByTestId("connection-line")).toHaveCount(0);
+});
+
+test("E2E-EDITOR-10 Esc or clicking the background cancels connecting", async ({ page }) => {
+  await card(page, "Students").click();
+  await page.getByTestId("connect-node-button").click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("connect-banner")).toHaveCount(0);
+
+  await card(page, "Students").click();
+  await page.getByTestId("connect-node-button").click();
+  await page.getByTestId("connect-cancel").click();
+  await expect(page.getByTestId("connect-banner")).toHaveCount(0);
+  await expect(page.getByTestId("connection-line")).toHaveCount(0);
 });

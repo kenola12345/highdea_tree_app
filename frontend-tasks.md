@@ -229,7 +229,7 @@
 
 ---
 
-## Phase 12: Canvas Look, Line Colors, Links and View-mode Details（キャンバスの見た目・線の色・リンク・閲覧時の詳細） 【直列】
+## Phase 12: Canvas Look, Line and Card Colors, Links and View-mode Details（キャンバスの見た目・線とカードの色・リンク・閲覧時の詳細） 【直列】
 - Depends on: Phases 7, 8, 10; backend `nodes.line_color` column (migration `add_node_line_color`)
 - Main files: `frontend/src/features/canvas/{NodeLink,GridBackground,layout,NodeCard,NodeToolbar,TreeCanvas}.tsx`, `frontend/src/features/nodes/{LineColorField,NodeDetailsPanel,NodeEditorModal,nodeForm}.ts(x)`, `frontend/src/components/OpenLink.tsx`, `frontend/src/pages/TreeViewerPage.tsx`
 - Screens: P-05, P-06, M-04, M-12 (new)
@@ -244,6 +244,24 @@
 - [x] 12-7 Open links: ↗ on LINK cards, "Open link" in the editor toolbar and in M-12 (new tab, `noopener noreferrer`, http/https only)
 - [x] 12-8 M-12 Node Details in the viewer: click an idea to see its note, link preview, video or image (→ M-10); side panel on desktop, full-screen sheet on phones, `Esc` closes
 - [x] 12-9 Tests: unit (color inheritance, S-curve geometry, lineColor body, OpenLink safety, M-12 panel) and E2E (E2E-EDITOR-06 branch color, E2E-EXPLORE-04 details and link)
+- [x] 12-10 Card colors: `card_color` column and migration (`add_node_card_color`), `cardColor` in the shared schemas, skeleton and node responses; any idea including the center idea; not inherited; text switches dark/white for contrast
+- [x] 12-11 Color pickers instead of fixed palettes for line, card and category colors (`components/ColorField.tsx`: system picker + `#RRGGBB` field + Default/Inherit)
+- [x] 12-12 Tests: API (card color save/clear/validation), unit (cardColor body, ColorField input), E2E (E2E-EDITOR-07 card color on the center idea; E2E-EDITOR-06 now types the line color)
+
+---
+
+## Phase 13: Connections Between Ideas（アイデア同士のつながり） 【直列】
+- Depends on: Phase 12; backend `node_connections` table (migration `add_node_connections`)
+- Main files: `backend/src/services/connection.service.ts`, `backend/src/{controllers,routes}/connections.*.ts`, `shared/src/schemas/connections.ts`, `frontend/src/api/connections.ts`, `frontend/src/features/canvas/{ConnectionLine,ConnectOverlays,TreeCanvas,NodeToolbar}.tsx`, `frontend/src/pages/{TreeEditorPage,TreeViewerPage}.tsx`
+- Screens: P-05, P-06
+- APIs: `GET /api/trees/:id` (now has `connections`), `POST /api/trees/:id/connections`, `DELETE /api/connections/:id`
+
+- [x] 13-1 Manifest first: Connections feature, endpoints, `node_connections` table, ER diagram, Prisma schema, error codes `INVALID_CONNECTION` / `CONNECTION_LIMIT_REACHED` / `CONNECTION_NOT_FOUND` (nodes.md, trees.md, common.md, index.md, CLAUDE.md)
+- [x] 13-2 Backend: table with sorted pair (`CHECK node_a_id < node_b_id`, unique pair), cascade with nodes and tree; create (same tree, not parent/child, no duplicates, 500 per tree, tree row locked) and delete; re-parenting under a connected idea removes that connection
+- [x] 13-3 Canvas draws connections as gray dotted S-curves under the cards (editor and viewer); a wide invisible hit area makes them easy to click or tap
+- [x] 13-4 Editor: "Connect" in the node toolbar → banner → click the other idea; `Esc`, Cancel or the background cancels; invalid pairs show a toast without a request
+- [x] 13-5 Editor: click a connection to select it → "Remove connection" (or `Delete`); optimistic create/remove with rollback; node delete and re-parent drop affected connections from the cache
+- [x] 13-6 Tests: API (15 cases: create, sorted IDs, duplicates, parent/child, validation, other tree, owner/admin/Trash 404, limit, delete, cascade, re-parent) and E2E (E2E-EDITOR-09 connect / viewer / remove, E2E-EDITOR-10 cancel)
 
 ---
 
@@ -294,4 +312,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 12 Phases, 134 tasks.
+Totals: 13 Phases, 143 tasks.

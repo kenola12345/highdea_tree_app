@@ -86,3 +86,36 @@ export async function restore(userId: string, treeId: string): Promise<OwnTreeIt
   });
   return toOwnTreeItem(row);
 }
+
+/**
+ * ゴミ箱のツリーを今すぐ完全削除する（manifests/trees.md DELETE /api/trash/:id）。
+ * ノードとカテゴリタグは ON DELETE CASCADE で一緒に消え、使われなくなった画像は画像の掃除ジョブが消す。
+ * WHY: ゴミ箱に入っていないツリーは消せない（誤操作で生きているツリーを消さないため、先にゴミ箱へ移す）。
+ * 存在しない・完全削除済み・他人のものは 404、ゴミ箱に入っていなければ 409。
+ */
+export async function deleteForever(userId: string, treeId: string): Promise<void> {
+  const cutoff = purgeCutoff(new Date());
+  const tree = await prisma.tree.findFirst({
+    where: { id: treeId, ownerId: userId },
+    select: { deletedAt: true },
+  });
+  if (!tree || (tree.deletedAt && tree.deletedAt < cutoff)) throw new AppError("TREE_NOT_FOUND");
+  if (!tree.deletedAt) throw new AppError("TREE_NOT_IN_TRASH");
+
+  // 確認後に別リクエストで復元された場合に消さないよう、ゴミ箱にあることを条件に削除する
+  const { count } = await prisma.tree.deleteMany({
+    where: { id: treeId, ownerId: userId, deletedAt: { not: null } },
+  });
+  if (count === 0) throw new AppError("TREE_NOT_FOUND");
+}
+
+/**
+ * 自分のゴミ箱を空にし、削除した件数を返す（manifests/trees.md DELETE /api/trash）。
+ * 保持期限を過ぎてまだ日次ジョブが消していないツリーも、どうせ消える対象なので一緒に消す。
+ */
+export async function empty(userId: string): Promise<number> {
+  const { count } = await prisma.tree.deleteMany({
+    where: { ownerId: userId, deletedAt: { not: null } },
+  });
+  return count;
+}

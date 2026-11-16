@@ -46,6 +46,7 @@ export default function TreeViewerPage() {
         <TreeCanvas
           treeId={id}
           nodes={data.nodes}
+          connections={data.connections}
           apiRef={apiRef}
           selectedId={selectedId}
           onNodeSelect={setSelectedId}

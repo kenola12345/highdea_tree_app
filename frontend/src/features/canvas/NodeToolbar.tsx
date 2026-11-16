@@ -13,13 +13,16 @@ type NodeToolbarProps = {
   onEdit: () => void;
   onDelete: () => void;
   onView: () => void;
+  /** つなぐ相手を選ぶモードに入る（manifests/nodes.md §3.5 Connections） */
+  onConnect: () => void;
 };
 
 const button =
   "flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-3 text-sm font-medium whitespace-nowrap hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 md:min-h-9";
 
 /**
- * 選択中のノードの上に出るツールバー: + Add（M-05）・Edit（M-04）・Delete（M-06）、画像・動画は View（M-10）。
+ * 選択中のノードの上に出るツールバー: + Add（M-05）・Edit（M-04）・Connect（別のアイデアとつなぐ）・Delete（M-06）、
+ * 画像・動画は View（M-10）。
  * 中心のアイデアには Delete を出さず、2,000件に達したら + Add を押せなくする（manifests/nodes.md NodeToolbar）。
  * スマホでは押しやすいよう各ボタンを 44×44px 以上にする。
  */
@@ -32,6 +35,7 @@ export function NodeToolbar({
   onEdit,
   onDelete,
   onView,
+  onConnect,
 }: NodeToolbarProps) {
   const details = useNodeDetail(treeId, node.id);
   const full = nodeCount >= MAX_NODES_PER_TREE;
@@ -71,6 +75,15 @@ export function NodeToolbar({
       {node.type === "LINK" && (
         <OpenLink url={details?.url} testId="toolbar-open-link" className={button} />
       )}
+      <button
+        type="button"
+        onClick={onConnect}
+        title="Connect to another idea"
+        data-testid="connect-node-button"
+        className={button}
+      >
+        Connect
+      </button>
       {!node.isRoot && (
         <button
           type="button"

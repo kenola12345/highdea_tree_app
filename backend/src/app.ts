@@ -10,6 +10,7 @@ import { apiNotFound, errorHandler } from "./middleware/errorHandler.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { categoriesRouter } from "./routes/categories.routes.js";
+import { connectionsRouter } from "./routes/connections.routes.js";
 import { exploreRouter } from "./routes/explore.routes.js";
 import { linkPreviewRouter } from "./routes/linkPreview.routes.js";
 import { nodesRouter } from "./routes/nodes.routes.js";
@@ -25,6 +26,7 @@ const API_ROUTERS: Router[] = [
   treesRouter,
   trashRouter,
   nodesRouter,
+  connectionsRouter,
   categoriesRouter,
   exploreRouter,
   uploadsRouter,

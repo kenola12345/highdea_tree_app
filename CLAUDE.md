@@ -32,7 +32,7 @@ Split by topic in `standards/` (general, frontend, backend, database, api, testi
 
 ## Status
 
-Design finished (manifest v1.0, 2026-11-13). No code yet. Don't scaffold or implement features unless asked.
+v1 is implemented: every task in `backend-tasks.md` and `frontend-tasks.md` is done (later additions such as connections between ideas are tracked as extra Phases in `frontend-tasks.md`), with API, unit and Playwright E2E tests. Still open: the production hosting setup (manifests/common.md §7.4, **[To confirm]**) and CI. New features or behavior changes go into the manifest first.
 
 ## Stack (summary — see manifests/common.md §7)
 
@@ -53,7 +53,25 @@ Design finished (manifest v1.0, 2026-11-13). No code yet. Don't scaffold or impl
 
 ## Commands
 
-TBD — added once the project is scaffolded (Phase 1).
+Run from the repo root (npm workspaces). Requires Node ≥ 26 and Docker.
+
+```bash
+npm install
+docker compose up -d --wait           # PostgreSQL (dev DB `highdea`; `highdea_test` is created on first start)
+cp backend/.env.example backend/.env  # first time only; set JWT_SECRET
+npm run prisma:migrate -w backend     # apply migrations (prisma migrate dev)
+npm run seed -w backend               # sample data; all seed users use password `password123`
+npm run make-admin -w backend -- you@example.com
+
+npm run dev        # backend http://localhost:3000 + frontend http://localhost:5173 (Vite proxies /api)
+npm test           # unit + API tests in every workspace (backend tests use backend/.env.test)
+npm run test:e2e   # Playwright, desktop + mobile; starts its own servers on :3100/:5174 with DB `highdea_e2e`
+npm run typecheck
+npm run lint
+npm run format
+```
+
+Seed accounts: `alice@example.com`, `bob@example.com` (USER), `admin@example.com` (ADMIN).
 
 ## Prisma Schema
 
@@ -117,10 +135,11 @@ model Tree {
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  owner      User           @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  removedBy  User?          @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
-  nodes      Node[]
-  categories TreeCategory[]
+  owner       User             @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  removedBy   User?            @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+  nodes       Node[]
+  categories  TreeCategory[]
+  connections NodeConnection[]
 
   @@index([ownerId, deletedAt, updatedAt(sort: Desc)])
   @@index([deletedAt])
@@ -145,18 +164,40 @@ model Node {
   positionY          Float     @default(0) @map("position_y")
   sortOrder          Int       @default(0) @map("sort_order")
   lineColor          String?   @map("line_color") @db.VarChar(7)
+  cardColor          String?   @map("card_color") @db.VarChar(7)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  parent      Node?   @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Node[]  @relation("NodeChildren")
-  imageUpload Upload? @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  tree         Tree             @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  parent       Node?            @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Node[]           @relation("NodeChildren")
+  imageUpload  Upload?          @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  connectionsA NodeConnection[] @relation("ConnectionNodeA")
+  connectionsB NodeConnection[] @relation("ConnectionNodeB")
 
   @@index([treeId])
   @@index([parentId, sortOrder])
   @@index([imageUploadId])
   @@map("nodes")
+}
+
+// Extra line between two ideas of the same tree (besides parent → child). Undirected:
+// node_a_id < node_b_id (DB CHECK added with raw SQL in the migration), so each pair is stored once.
+model NodeConnection {
+  id        String   @id @default(cuid())
+  treeId    String   @map("tree_id")
+  nodeAId   String   @map("node_a_id")
+  nodeBId   String   @map("node_b_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  nodeA Node @relation("ConnectionNodeA", fields: [nodeAId], references: [id], onDelete: Cascade)
+  nodeB Node @relation("ConnectionNodeB", fields: [nodeBId], references: [id], onDelete: Cascade)
+
+  @@unique([nodeAId, nodeBId])
+  @@index([treeId])
+  @@index([nodeBId])
+  @@map("node_connections")
 }
 
 model Category {

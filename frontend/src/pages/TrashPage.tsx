@@ -20,7 +20,7 @@ export default function TrashPage() {
       <h1 className="text-2xl font-bold">Trash</h1>
       <p className="mt-1 text-sm text-slate-600">
         Trees stay here for 10 days, then they&apos;re deleted permanently. Restore one to bring it
-        back as it was.
+        back as it was, or delete it forever now.
       </p>
       <div className="mt-6">
         {isPending && <Spinner />}
@@ -30,7 +30,7 @@ export default function TrashPage() {
         {data?.trees.length === 0 && <EmptyState title="Trash is empty" />}
         {data && data.trees.length > 0 && (
           <>
-            <TrashList trees={data.trees} />
+            <TrashList trees={data.trees} total={data.pagination.total} />
             <Pagination pagination={data.pagination} />
           </>
         )}

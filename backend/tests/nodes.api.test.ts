@@ -106,6 +106,7 @@ describe("POST /api/trees/:id/nodes", () => {
       positionY: -40,
       sortOrder: 0,
       lineColor: null,
+      cardColor: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -832,5 +833,53 @@ describe("line colors (manifests/nodes.md §3.5 Line colors per branch)", () => 
 
     expect(res.status).toBe(400);
     expect(res.body.error.details).toEqual([{ field: "lineColor", message: expect.any(String) }]);
+  });
+});
+
+describe("card colors (manifests/nodes.md §3.5 Card colors)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("stores a card color on any node including the root, returns it in the skeleton, and clears it with null", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({ type: "TEXT", title: "Yellow card", parentId: tree.rootId, cardColor: "#FDE68A" });
+    expect(created.body.data.node.cardColor).toBe("#FDE68A");
+
+    const root = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ cardColor: "#1E3A8A" });
+    expect(root.body.data.node.cardColor).toBe("#1E3A8A");
+
+    const cleared = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ cardColor: null });
+    expect(cleared.body.data.node.cardColor).toBeNull();
+
+    const detail = await request(app).get(`/api/trees/${tree.id}`).set("Cookie", cookie);
+    const colors = (detail.body.data.nodes as { cardColor: string | null }[])
+      .map((n) => n.cardColor)
+      .sort();
+    expect(colors).toEqual(["#FDE68A", null]);
+  });
+
+  it("rejects a card color that isn't #RRGGBB", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const res = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ cardColor: "#FFF" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual([{ field: "cardColor", message: expect.any(String) }]);
   });
 });

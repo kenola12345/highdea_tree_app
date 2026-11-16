@@ -84,7 +84,7 @@ Routing rules:
 
 - **Field-level errors:** every form (P-02, P-03, P-10, M-01, M-02, M-04, M-05, M-07, M-09, M-11) uses the same Zod schemas as the backend for instant checks, and maps the API's `details` (`{ field, message }`) to the matching field when the server rejects a request.
 - **Session handling:** on app load, `GET /api/auth/me` decides guest or logged in (`401` = guest, not an error). Any `401` during use (e.g. the 7-day token expired) clears the cached user and sends the user to `/login?next=<current url>`, keeping their place. `role` from `/me` controls admin-only buttons; the API still checks the role on every request.
-- **Cache invalidation after changes:** creating, editing, trashing or restoring a tree invalidates `['trees']` (My Trees), `['trash']`, `['categories']` (tree counts) and, for public trees, `['explore']` and the owner's profile. Category edits also invalidate every cached tree that shows that category.
+- **Cache invalidation after changes:** creating, editing, trashing, restoring or permanently deleting a tree invalidates `['trees']` (My Trees), `['trash']`, `['categories']` (tree counts) and, for public trees, `['explore']` and the owner's profile. Category edits also invalidate every cached tree that shows that category.
 - **Business rules visible in the UI:** the center idea has no Delete action; "+ Add" is disabled at 2,000 ideas; a removed tree's visibility switch is disabled with the admin's reason shown; the Trash shows "X days left" from `purgeAt`; delete confirmations state how many ideas (M-06) or trees (M-08) are affected.
 - **Not-found instead of forbidden:** any `404` for a page's main resource (tree, user profile) shows P-11 with the same message, whether the item doesn't exist, is private, removed or deleted, so the UI doesn't reveal private content either.
 
@@ -109,6 +109,8 @@ erDiagram
   USERS ||--o{ UPLOADS : "uploads"
   TREES ||--o{ NODES : "contains"
   NODES ||--o{ NODES : "parent of"
+  TREES ||--o{ NODE_CONNECTIONS : "contains"
+  NODES ||--o{ NODE_CONNECTIONS : "connected (a / b)"
   UPLOADS ||--o{ NODES : "shown in (IMAGE)"
   TREES ||--o{ TREE_CATEGORIES : "tagged"
   CATEGORIES ||--o{ TREE_CATEGORIES : "tags"
@@ -135,6 +137,12 @@ erDiagram
     NodeType type
     text image_upload_id FK
   }
+  NODE_CONNECTIONS {
+    text id PK
+    text tree_id FK
+    text node_a_id FK
+    text node_b_id FK
+  }
   CATEGORIES {
     text id PK
     text user_id FK
@@ -152,16 +160,17 @@ erDiagram
   }
 ```
 
-Table definitions are in the domain files: `users` → [users.md](./users.md); `trees`, `categories`, `tree_categories` → [trees.md](./trees.md); `nodes`, `uploads` → [nodes.md](./nodes.md).
+Table definitions are in the domain files: `users` → [users.md](./users.md); `trees`, `categories`, `tree_categories` → [trees.md](./trees.md); `nodes`, `node_connections`, `uploads` → [nodes.md](./nodes.md).
 
 ### 5.3 Deletion Policy（削除・無効化ポリシー）
 
 | Resource | Policy | Implementation | Related data | Notes |
 |---|---|---|---|---|
 | User | Deactivate (soft delete) | `users.deleted_at` | Trees, categories and uploads are kept but hidden from everyone | The user deletes their account with `POST /api/users/me/deactivate` (password required). Email and username stay taken. No reactivation in v1 |
-| Tree (owner deletes) | Soft delete → Trash, then hard delete after 10 days | `trees.deleted_at`, then a daily purge job | In the Trash: nodes and tags kept, so restore brings everything back. On purge: nodes and tags deleted (CASCADE); uploaded images become unused and are removed by the uploads cleanup job | Restore with `POST /api/trees/:id/restore` |
+| Tree (owner deletes) | Soft delete → Trash, then hard delete after 10 days (or sooner when the owner deletes it forever / empties the Trash) | `trees.deleted_at`, then a daily purge job or `DELETE /api/trash[/:id]` | In the Trash: nodes and tags kept, so restore brings everything back. On purge or permanent delete: nodes and tags deleted (CASCADE); uploaded images become unused and are removed by the uploads cleanup job | Restore with `POST /api/trees/:id/restore` |
 | Tree (admin removes) | Hide from public | `trees.removed_at`, `removed_by_id`, `removal_reason`; `visibility` set to `PRIVATE` | Owner keeps private access | Kept separate from `deleted_at`, so moderation actions stay auditable |
-| Node | Hard delete | `DELETE` | Whole subtree deleted (DB CASCADE). The image file stays until cleanup | Nodes have no history, so a soft delete isn't needed |
+| Node | Hard delete | `DELETE` | Whole subtree deleted (DB CASCADE), with every connection to a deleted node (CASCADE). The image file stays until cleanup | Nodes have no history, so a soft delete isn't needed |
+| Node connection | Hard delete | `DELETE /api/connections/:id` | None | Also deleted with either of its nodes or its tree (CASCADE) |
 | Category | Hard delete | `DELETE` | Its `tree_categories` rows are deleted (CASCADE). Trees stay | |
 | Tree–category tag | Hard delete | `DELETE` | — | Changing a tree's categories replaces all its tag rows |
 | Upload | Hard delete (by cleanup job) | `DELETE` + remove the file | Blocked while any node uses it (RESTRICT) | |
@@ -233,10 +242,11 @@ model Tree {
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  owner      User           @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  removedBy  User?          @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
-  nodes      Node[]
-  categories TreeCategory[]
+  owner       User             @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  removedBy   User?            @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+  nodes       Node[]
+  categories  TreeCategory[]
+  connections NodeConnection[]
 
   @@index([ownerId, deletedAt, updatedAt(sort: Desc)])
   @@index([deletedAt])
@@ -261,18 +271,40 @@ model Node {
   positionY          Float     @default(0) @map("position_y")
   sortOrder          Int       @default(0) @map("sort_order")
   lineColor          String?   @map("line_color") @db.VarChar(7)
+  cardColor          String?   @map("card_color") @db.VarChar(7)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  parent      Node?   @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Node[]  @relation("NodeChildren")
-  imageUpload Upload? @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  tree         Tree             @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  parent       Node?            @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Node[]           @relation("NodeChildren")
+  imageUpload  Upload?          @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  connectionsA NodeConnection[] @relation("ConnectionNodeA")
+  connectionsB NodeConnection[] @relation("ConnectionNodeB")
 
   @@index([treeId])
   @@index([parentId, sortOrder])
   @@index([imageUploadId])
   @@map("nodes")
+}
+
+// Extra line between two ideas of the same tree (besides parent → child). Undirected:
+// node_a_id < node_b_id (DB CHECK added with raw SQL in the migration), so each pair is stored once.
+model NodeConnection {
+  id        String   @id @default(cuid())
+  treeId    String   @map("tree_id")
+  nodeAId   String   @map("node_a_id")
+  nodeBId   String   @map("node_b_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  nodeA Node @relation("ConnectionNodeA", fields: [nodeAId], references: [id], onDelete: Cascade)
+  nodeB Node @relation("ConnectionNodeB", fields: [nodeBId], references: [id], onDelete: Cascade)
+
+  @@unique([nodeAId, nodeBId])
+  @@index([treeId])
+  @@index([nodeBId])
+  @@map("node_connections")
 }
 
 model Category {
@@ -337,8 +369,9 @@ Policies:
 | Auth | `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | Users | `GET /api/users/:username`, `PATCH /api/users/me`, `PATCH /api/users/me/account` (email, username), `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` (delete account) |
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
-| Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore` |
+| Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` (delete one forever), `DELETE /api/trash` (empty the Trash) |
 | Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (all drag moves), `DELETE /api/nodes/:id` |
+| Connections | `POST /api/trees/:id/connections` (connect two ideas), `DELETE /api/connections/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`), `GET /api/explore/categories` (category names for the filter) |
 | Uploads | `POST /api/uploads` (image upload, multipart) |
@@ -366,20 +399,23 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `FORBIDDEN` | `403` | `POST /api/admin/trees/:id/remove` |
 | `WRONG_PASSWORD` | `403` | `PATCH /api/users/me/account`, `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` |
 | `CATEGORY_NOT_FOUND` | `404` | `GET /api/trees`, `POST /api/trees`, `PATCH /api/trees/:id`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
-| `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id` |
+| `CONNECTION_NOT_FOUND` | `404` | `DELETE /api/connections/:id` |
+| `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections` |
 | `PARENT_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `ROUTE_NOT_FOUND` | `404` | Any request to an `/api` path that has no endpoint (not listed in the endpoint specs) |
-| `TREE_NOT_FOUND` | `404` | 8 endpoints |
+| `TREE_NOT_FOUND` | `404` | 10 endpoints |
 | `UPLOAD_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `USER_NOT_FOUND` | `404` | `GET /api/users/:username` |
 | `CANNOT_DELETE_ROOT` | `409` | `DELETE /api/nodes/:id` |
 | `CATEGORY_LIMIT_REACHED` | `409` | `POST /api/categories` |
 | `CATEGORY_NAME_TAKEN` | `409` | `POST /api/categories`, `PATCH /api/categories/:id` |
+| `CONNECTION_LIMIT_REACHED` | `409` | `POST /api/trees/:id/connections` |
 | `EMAIL_TAKEN` | `409` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
+| `INVALID_CONNECTION` | `409` | `POST /api/trees/:id/connections` |
 | `INVALID_MOVE` | `409` | `PATCH /api/nodes/:id` |
 | `NODE_LIMIT_REACHED` | `409` | `POST /api/trees/:id/nodes` |
 | `TREE_ALREADY_REMOVED` | `409` | `POST /api/admin/trees/:id/remove` |
-| `TREE_NOT_IN_TRASH` | `409` | `POST /api/trees/:id/restore` |
+| `TREE_NOT_IN_TRASH` | `409` | `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` |
 | `TREE_REMOVED` | `409` | `PATCH /api/trees/:id` |
 | `USERNAME_TAKEN` | `409` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
 | `FILE_TOO_LARGE` | `413` | `POST /api/uploads` |
@@ -568,6 +604,5 @@ Candidates — confirm or remove:
 - Real-time collaborative editing
 - Cloud storage (S3) for uploaded images
 - `UNLISTED` (link-only) tree visibility
-- Cross-links between nodes (graph, not just tree)
 - AI suggestions for branching ideas
 - Export tree as image / PDF

@@ -8,7 +8,7 @@ import { Modal } from "../../components/Modal";
 import { useToast } from "../../components/Toast";
 import { useApiForm } from "../../lib/forms";
 import { CategoryChip } from "./CategoryChip";
-import { CATEGORY_PALETTE, ColorPicker } from "./ColorPicker";
+import { ColorPicker, DEFAULT_CATEGORY_COLOR } from "./ColorPicker";
 
 type CategoryFormModalProps = {
   open: boolean;
@@ -43,7 +43,7 @@ export function CategoryFormModal({ open, onClose, category, onSaved }: Category
 
 function CategoryForm({ category, onClose, onSaved }: Omit<CategoryFormModalProps, "open">) {
   const [name, setName] = useState(category?.name ?? "");
-  const [color, setColor] = useState(category?.color ?? CATEGORY_PALETTE[0]);
+  const [color, setColor] = useState(category?.color ?? DEFAULT_CATEGORY_COLOR);
   const form = useApiForm(createCategorySchema);
   const create = useCreateCategory();
   const update = useUpdateCategory();

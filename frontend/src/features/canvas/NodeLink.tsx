@@ -48,7 +48,7 @@ export function linkGeometry(source: LaidOutNode, target: LaidOutNode, level: De
 const n = (v: number) => String(Math.round(v * 10) / 10);
 
 /**
- * 親ノードから子ノードへの線。破線の S 字曲線で、カードとつながる所に小さな丸を付ける。
+ * 親ノードから子ノードへの線。破線の S 字曲線（端点の丸は付けない）。
  * 色は子ノードの枝の色（自分か祖先が設定した色）。
  */
 export const NodeLink = memo(function NodeLink({ source, target, level }: NodeLinkProps) {
@@ -68,28 +68,6 @@ export const NodeLink = memo(function NodeLink({ source, target, level }: NodeLi
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
-      {level !== "dot" && (
-        <>
-          <circle
-            cx={start.x}
-            cy={start.y}
-            r={5}
-            fill="white"
-            stroke={color}
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx={end.x}
-            cy={end.y}
-            r={5}
-            fill="white"
-            stroke={color}
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-          />
-        </>
-      )}
     </g>
   );
 });

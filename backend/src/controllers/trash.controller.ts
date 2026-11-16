@@ -18,3 +18,16 @@ export const restore: RequestHandler = async (req, res) => {
   const tree = await trashService.restore(currentUser(req).id, id);
   res.status(200).json({ data: { tree } });
 };
+
+/** DELETE /api/trash/:id: ゴミ箱のツリーを完全削除 */
+export const deleteForever: RequestHandler = async (req, res) => {
+  const { id } = getValidated(req, "params", idParamSchema);
+  await trashService.deleteForever(currentUser(req).id, id);
+  res.status(200).json({ data: null });
+};
+
+/** DELETE /api/trash: ゴミ箱を空にする */
+export const empty: RequestHandler = async (req, res) => {
+  const deletedCount = await trashService.empty(currentUser(req).id);
+  res.status(200).json({ data: { deletedCount } });
+};

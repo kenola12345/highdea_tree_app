@@ -15,6 +15,7 @@ import { useToast } from "../components/Toast";
 import { saveStatus } from "../features/canvas/saveStatusStore";
 import { branchIds } from "../features/canvas/treeOps";
 import { ApiError, apiFetch, jsonBody } from "./client";
+import { setConnections, sortPair } from "./connections";
 import { queryKeys } from "./queryKeys";
 
 const neverIgnore = () => false;
@@ -60,6 +61,7 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     positionY: node.positionY,
     sortOrder: node.sortOrder,
     lineColor: node.lineColor,
+    cardColor: node.cardColor,
     updatedAt: node.updatedAt,
   };
   const details: NodeDetails = {
@@ -131,6 +133,7 @@ export function useCreateNode(treeId: string) {
           positionY: body.positionY ?? 0,
           sortOrder: body.sortOrder ?? Number.MAX_SAFE_INTEGER,
           lineColor: body.lineColor ?? null,
+          cardColor: body.cardColor ?? null,
           updatedAt: new Date().toISOString(),
         },
       ]);
@@ -180,10 +183,19 @@ export function useUpdateNode(treeId: string) {
                 ...(body.positionX !== undefined && { positionX: body.positionX }),
                 ...(body.positionY !== undefined && { positionY: body.positionY }),
                 ...(body.lineColor !== undefined && { lineColor: body.lineColor }),
+                ...(body.cardColor !== undefined && { cardColor: body.cardColor }),
               }
             : n,
         ),
       );
+      const newParentId = body.parentId;
+      if (newParentId !== undefined) {
+        // 新しい親とのつながりは枝の線と重なるので消える（サーバーも同じ処理をする）
+        const [nodeAId, nodeBId] = sortPair(id, newParentId);
+        setConnections(queryClient, treeId, (list) =>
+          list.filter((c) => c.nodeAId !== nodeAId || c.nodeBId !== nodeBId),
+        );
+      }
       return ctx;
     },
     onSuccess: ({ node }) => {
@@ -217,10 +229,12 @@ export function useDeleteNode(treeId: string) {
     onMutate: async (id) => {
       saveStatus.start(treeId);
       const ctx = await snapshot(queryClient, treeId);
-      setNodes(queryClient, treeId, (nodes) => {
-        const removed = branchIds(nodes, id);
-        return nodes.filter((n) => !removed.has(n.id));
-      });
+      const removed = branchIds(ctx.previous?.nodes ?? [], id);
+      setNodes(queryClient, treeId, (nodes) => nodes.filter((n) => !removed.has(n.id)));
+      // 消えるアイデアのつながりも一緒に消える（DB の ON DELETE CASCADE と同じ）
+      setConnections(queryClient, treeId, (list) =>
+        list.filter((c) => !removed.has(c.nodeAId) && !removed.has(c.nodeBId)),
+      );
       return ctx;
     },
     onSuccess: ({ deletedNodeIds }) => {

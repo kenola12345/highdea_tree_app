@@ -28,6 +28,7 @@ const nodeSkeletonSelect = {
   positionY: true,
   sortOrder: true,
   lineColor: true,
+  cardColor: true,
   updatedAt: true,
 } satisfies Prisma.NodeSelect;
 
@@ -135,6 +136,7 @@ export async function create(userId: string, body: CreateTreeBody): Promise<Crea
         parentId: null,
         type: "TEXT",
         lineColor: null,
+        cardColor: null,
         createdAt: root.createdAt.toISOString(),
         updatedAt: root.updatedAt.toISOString(),
       },
@@ -159,6 +161,10 @@ export async function getDetail(
         select: nodeSkeletonSelect,
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       },
+      connections: {
+        select: { id: true, nodeAId: true, nodeBId: true },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      },
     },
   });
   if (!row) throw new AppError("TREE_NOT_FOUND");
@@ -171,6 +177,7 @@ export async function getDetail(
     owner: row.owner,
     isOwner,
     nodes: row.nodes.map((node) => ({ ...node, updatedAt: node.updatedAt.toISOString() })),
+    connections: row.connections,
   };
 }
 
