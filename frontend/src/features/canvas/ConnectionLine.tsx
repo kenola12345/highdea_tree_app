@@ -1,17 +1,18 @@
 import { memo } from "react";
 
 import type { LaidOutNode } from "./layout";
-import { linkGeometry } from "./NodeLink";
+import { curveMidpoint, LineHalo, linkGeometry } from "./NodeLink";
 import type { DetailLevel } from "./viewport";
 
-/** つながりの線の色（slate-500）と、選択中の色（blue-600）。枝の線と見分けられるよう灰色の点線にする */
+/** つながりの線の既定の色（slate-500）。枝の線と見分けられるよう、色を選んでいなければ灰色の点線にする */
 export const CONNECTION_COLOR = "#64748b";
-const SELECTED_COLOR = "#2563eb";
 
 type ConnectionLineProps = {
   id: string;
   a: LaidOutNode;
   b: LaidOutNode;
+  /** 選んだ色（#RRGGBB）。null は既定の灰色 */
+  color: string | null;
   level: DetailLevel;
   selected: boolean;
   /** エディタでは押して選べる（太い透明の当たり判定を付ける） */
@@ -26,12 +27,14 @@ function ordered(a: LaidOutNode, b: LaidOutNode): [LaidOutNode, LaidOutNode] {
 }
 
 /**
- * アイデア同士のつながり（manifests/nodes.md §3.5 Connections）。枝と同じ S 字だが、細かい灰色の点線で描く。
+ * アイデア同士のつながり（manifests/nodes.md §3.5 Connections）。枝と同じ S 字だが、細かい点線で描く。
+ * 選択中は色を保ったまま太くし、薄い青の縁取りで選んでいることを示す（選んだ色を確かめながら変えられるように）。
  */
 export const ConnectionLine = memo(function ConnectionLine({
   id,
   a,
   b,
+  color,
   level,
   selected,
   selectable,
@@ -40,10 +43,12 @@ export const ConnectionLine = memo(function ConnectionLine({
   const d = controls
     ? `M ${n(start.x)} ${n(start.y)} C ${n(controls[0].x)} ${n(controls[0].y)}, ${n(controls[1].x)} ${n(controls[1].y)}, ${n(end.x)} ${n(end.y)}`
     : `M ${n(start.x)} ${n(start.y)} L ${n(end.x)} ${n(end.y)}`;
+  const stroke = color ?? CONNECTION_COLOR;
   return (
     <g
       data-testid="connection-line"
       data-connection-id={selectable ? id : undefined}
+      data-color={stroke}
       data-selected={selected || undefined}
       className={selectable ? "cursor-pointer" : undefined}
     >
@@ -58,10 +63,11 @@ export const ConnectionLine = memo(function ConnectionLine({
           pointerEvents="stroke"
         />
       )}
+      {selected && <LineHalo d={d} />}
       <path
         d={d}
         fill="none"
-        stroke={selected ? SELECTED_COLOR : CONNECTION_COLOR}
+        stroke={stroke}
         strokeWidth={selected ? 3 : 2}
         strokeDasharray="1 6"
         strokeLinecap="round"
@@ -74,11 +80,5 @@ export const ConnectionLine = memo(function ConnectionLine({
 
 /** つながりの中点（選択時のツールバーの位置に使う）。曲線の t=0.5 の点 */
 export function connectionMidpoint(a: LaidOutNode, b: LaidOutNode, level: DetailLevel) {
-  const { start, end, controls } = linkGeometry(...ordered(a, b), level);
-  if (!controls) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-  const [c1, c2] = controls;
-  return {
-    x: (start.x + 3 * c1.x + 3 * c2.x + end.x) / 8,
-    y: (start.y + 3 * c1.y + 3 * c2.y + end.y) / 8,
-  };
+  return curveMidpoint(linkGeometry(...ordered(a, b), level));
 }

@@ -265,6 +265,18 @@
 
 ---
 
+
+## Phase 14: Line Colors from the Canvas（線の色をキャンバスで変える） 【直列】
+- Depends on: Phase 13; backend migration `add_connection_color`
+- Main files: `backend/src/services/connection.service.ts`, `shared/src/schemas/connections.ts`, `frontend/src/api/connections.ts`, `frontend/src/features/canvas/{NodeLink,ConnectionLine,ConnectOverlays,TreeCanvas}.tsx`, `frontend/src/pages/TreeEditorPage.tsx`
+- APIs: `PATCH /api/connections/:id` (new), `PATCH /api/nodes/:id` (`lineColor`), `GET /api/trees/:id` (connections now have `color`)
+
+- [x] 14-1 Manifest first: connection `color` column, `PATCH /api/connections/:id`, clickable branch lines (nodes.md, trees.md, common.md, CLAUDE.md)
+- [x] 14-2 Backend: `node_connections.color`; `PATCH /api/connections/:id` (owner only, tree row locked, bumps `updatedAt`); API tests
+- [x] 14-3 Connections are drawn in their own color (gray by default); selected lines keep their color, get thicker and a light blue halo
+- [x] 14-4 Editor: selecting a connection shows Color / Default / Remove connection; clicking a branch line selects it and shows Color / Inherit (saves the child's `lineColor`); picker changes are batched before saving; `Esc` deselects
+- [x] 14-5 E2E-EDITOR-11 (connection color), E2E-EDITOR-12 (branch color by clicking the line)
+
 ## 並列実装サマリー（Parallel Implementation Summary）
 
 | Phase | Type | Depends on | Backend Phases | Can run in parallel with | Reason (dependencies, shared files) |
@@ -312,4 +324,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 13 Phases, 143 tasks.
+Totals: 14 Phases, 148 tasks.

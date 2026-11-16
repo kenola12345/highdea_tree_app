@@ -3,7 +3,14 @@ import { memo } from "react";
 import { cardSize, type LaidOutNode } from "./layout";
 import type { DetailLevel } from "./viewport";
 
-type NodeLinkProps = { source: LaidOutNode; target: LaidOutNode; level: DetailLevel };
+type NodeLinkProps = {
+  source: LaidOutNode;
+  target: LaidOutNode;
+  level: DetailLevel;
+  selected?: boolean;
+  /** エディタでは押して選べる（太い透明の当たり判定を付ける） */
+  selectable?: boolean;
+};
 
 type Point = { x: number; y: number };
 
@@ -47,26 +54,78 @@ export function linkGeometry(source: LaidOutNode, target: LaidOutNode, level: De
 
 const n = (v: number) => String(Math.round(v * 10) / 10);
 
+/** 曲線（または直線）の中点。選択中の線のツールバーの位置に使う。3次ベジェの t=0.5 の点 */
+export function curveMidpoint({ start, end, controls }: ReturnType<typeof linkGeometry>): Point {
+  if (!controls) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const [c1, c2] = controls;
+  return {
+    x: (start.x + 3 * c1.x + 3 * c2.x + end.x) / 8,
+    y: (start.y + 3 * c1.y + 3 * c2.y + end.y) / 8,
+  };
+}
+
+/** 選択中の線の下に敷く薄い青の縁取り（線の色はそのまま見せる） */
+export function LineHalo({ d }: { d: string }) {
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke="#3b82f6"
+      strokeOpacity={0.25}
+      strokeWidth={10}
+      strokeLinecap="round"
+      vectorEffect="non-scaling-stroke"
+      pointerEvents="none"
+      data-testid="line-halo"
+    />
+  );
+}
+
 /**
  * 親ノードから子ノードへの線。破線の S 字曲線（端点の丸は付けない）。
- * 色は子ノードの枝の色（自分か祖先が設定した色）。
+ * 色は子ノードの枝の色（自分か祖先が設定した色）。エディタでは押して選べ、選ぶと色を変えられる（manifests/nodes.md §3.5）。
  */
-export const NodeLink = memo(function NodeLink({ source, target, level }: NodeLinkProps) {
+export const NodeLink = memo(function NodeLink({
+  source,
+  target,
+  level,
+  selected = false,
+  selectable = false,
+}: NodeLinkProps) {
   const { start, end, controls } = linkGeometry(source, target, level);
   const color = target.branchColor;
   const d = controls
     ? `M ${n(start.x)} ${n(start.y)} C ${n(controls[0].x)} ${n(controls[0].y)}, ${n(controls[1].x)} ${n(controls[1].y)}, ${n(end.x)} ${n(end.y)}`
     : `M ${n(start.x)} ${n(start.y)} L ${n(end.x)} ${n(end.y)}`;
   return (
-    <g data-testid="node-link" data-color={color}>
+    <g
+      data-testid="node-link"
+      data-color={color}
+      data-branch-id={selectable ? target.id : undefined}
+      data-selected={selected || undefined}
+      className={selectable ? "cursor-pointer" : undefined}
+    >
+      {selectable && (
+        // 細い破線は押しにくいので、見えない太い線で当たり判定を広げる（画面上で 16px）
+        <path
+          d={d}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={16}
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="stroke"
+        />
+      )}
+      {selected && <LineHalo d={d} />}
       <path
         d={d}
         fill="none"
         stroke={color}
-        strokeWidth={2}
+        strokeWidth={selected ? 3 : 2}
         strokeDasharray="6 5"
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
+        pointerEvents="none"
       />
     </g>
   );

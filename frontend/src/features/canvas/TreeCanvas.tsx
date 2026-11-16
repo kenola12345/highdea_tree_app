@@ -18,7 +18,7 @@ import { cardSize, type LaidOutNode, layoutTree } from "./layout";
 import { MiniMap } from "./MiniMap";
 import { NodeCard } from "./NodeCard";
 import { NodeCounter } from "./NodeCounter";
-import { NodeLink } from "./NodeLink";
+import { curveMidpoint, linkGeometry, NodeLink } from "./NodeLink";
 import { useLoadNodeDetails } from "./useNodeDetails";
 import { useVisibleNodes } from "./useVisibleNodes";
 import { useZoom } from "./useZoom";
@@ -68,6 +68,12 @@ type TreeCanvasProps = {
   onConnectionSelect?: (id: string) => void;
   /** 選択中のつながりの中点に重ねて表示するもの（「Remove connection」）。point は画面座標 */
   renderConnectionOverlay?: (id: string, point: { x: number; y: number }) => ReactNode;
+  /** 選択中の枝の線（線が入る子ノードのID。エディタ） */
+  selectedBranchId?: string | null;
+  /** 枝の線を押したとき（子ノードのID）。渡したときだけ線を押せるようにする（エディタ用） */
+  onBranchSelect?: (nodeId: string) => void;
+  /** 選択中の枝の線の中点に重ねて表示するもの（色の変更）。point は画面座標 */
+  renderBranchOverlay?: (node: LaidOutNode, point: { x: number; y: number }) => ReactNode;
 };
 
 const NO_CONNECTIONS: NodeConnection[] = [];
@@ -99,6 +105,9 @@ export function TreeCanvas({
   selectedConnectionId = null,
   onConnectionSelect,
   renderConnectionOverlay,
+  selectedBranchId = null,
+  onBranchSelect,
+  renderBranchOverlay,
 }: TreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -133,7 +142,7 @@ export function TreeCanvas({
       connections.flatMap((c) => {
         const a = layout.byId.get(c.nodeAId);
         const b = layout.byId.get(c.nodeBId);
-        return a && b ? [{ id: c.id, a, b }] : [];
+        return a && b ? [{ id: c.id, color: c.color, a, b }] : [];
       }),
     [connections, layout.byId],
   );
@@ -206,6 +215,10 @@ export function TreeCanvas({
     target instanceof Element
       ? (target.closest("[data-connection-id]")?.getAttribute("data-connection-id") ?? null)
       : null;
+  const branchIdOf = (target: EventTarget | null) =>
+    target instanceof Element
+      ? (target.closest("[data-branch-id]")?.getAttribute("data-branch-id") ?? null)
+      : null;
 
   const lastTap = useRef<{ id: string; at: number } | null>(null);
   function onPointerUp(e: PointerEvent<SVGSVGElement>) {
@@ -245,6 +258,16 @@ export function TreeCanvas({
       })()
     : null;
 
+  const selectedBranch = selectedBranchId
+    ? layout.links.find((l) => l.id === selectedBranchId)
+    : undefined;
+  const branchPoint = selectedBranch
+    ? (() => {
+        const p = curveMidpoint(linkGeometry(selectedBranch.source, selectedBranch.target, level));
+        return { x: p.x * transform.k + transform.x, y: p.y * transform.k + transform.y };
+      })()
+    : null;
+
   // キャンバス上（ツールバーやズームボタンの上も含む）では、ブラウザのページ拡大・スクロールを起こさない
   // （manifests/nodes.md「the browser doesn't scroll or zoom the page while the user works on the canvas」）
   return (
@@ -261,7 +284,9 @@ export function TreeCanvas({
         )}
         onClick={(e: MouseEvent<SVGSVGElement>) => {
           const connectionId = onConnectionSelect ? connectionIdOf(e.target) : null;
+          const branchId = onBranchSelect ? branchIdOf(e.target) : null;
           if (connectionId) onConnectionSelect?.(connectionId);
+          else if (branchId) onBranchSelect?.(branchId);
           else onNodeSelect?.(nodeIdOf(e.target));
         }}
         onDoubleClick={(e) => {
@@ -279,21 +304,30 @@ export function TreeCanvas({
           transform={`translate(${String(transform.x)},${String(transform.y)}) scale(${String(transform.k)})`}
         >
           <g>
+            {links.map((l) => (
+              <NodeLink
+                key={l.id}
+                source={l.source}
+                target={l.target}
+                level={level}
+                selected={l.id === selectedBranchId}
+                selectable={Boolean(onBranchSelect)}
+              />
+            ))}
+          </g>
+          {/* つながりは枝の上に描く（枝の当たり判定に隠れて押せなくならないように） */}
+          <g>
             {visibleConnections.map((c) => (
               <ConnectionLine
                 key={c.id}
                 id={c.id}
                 a={c.a}
                 b={c.b}
+                color={c.color}
                 level={level}
                 selected={c.id === selectedConnectionId}
                 selectable={Boolean(onConnectionSelect)}
               />
-            ))}
-          </g>
-          <g>
-            {links.map((l) => (
-              <NodeLink key={l.id} source={l.source} target={l.target} level={level} />
             ))}
           </g>
           <g>
@@ -316,6 +350,7 @@ export function TreeCanvas({
       {selectedConnection &&
         connectionPoint &&
         renderConnectionOverlay?.(selectedConnection.id, connectionPoint)}
+      {selectedBranch && branchPoint && renderBranchOverlay?.(selectedBranch.target, branchPoint)}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
         <div className="pointer-events-auto hidden sm:block">

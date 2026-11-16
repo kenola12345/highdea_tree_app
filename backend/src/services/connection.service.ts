@@ -2,7 +2,9 @@ import {
   type CreateConnectionBody,
   MAX_CONNECTIONS_PER_TREE,
   type NodeConnection,
+  type UpdateConnectionBody,
 } from "@highdea/shared";
+import type { Prisma } from "@prisma/client";
 
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
@@ -10,7 +12,7 @@ import { sortPair } from "./common/connectionPair.js";
 import { lockOwnedActiveTree, touchTree } from "./node.service.js";
 
 /** レスポンスに返す列 */
-export const connectionSelect = { id: true, nodeAId: true, nodeBId: true } as const;
+export const connectionSelect = { id: true, nodeAId: true, nodeBId: true, color: true } as const;
 
 /**
  * 同じツリーの2つのアイデアをつなぐ（manifests/nodes.md POST /api/trees/:id/connections）。
@@ -50,21 +52,57 @@ export async function create(
   });
 }
 
+/** 自分の（ゴミ箱にない）ツリーのつながりのツリーIDを探す。なければ存在を明かさないよう CONNECTION_NOT_FOUND */
+async function findOwnedTreeId(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  connectionId: string,
+): Promise<string> {
+  const connection = await tx.nodeConnection.findFirst({
+    where: { id: connectionId, tree: { ownerId: userId, deletedAt: null } },
+    select: { treeId: true },
+  });
+  if (!connection) throw new AppError("CONNECTION_NOT_FOUND");
+  return connection.treeId;
+}
+
+/**
+ * つながりの線の色を変える（manifests/nodes.md PATCH /api/connections/:id）。null で既定の灰色に戻す。
+ * ノード編集と同じくツリー行をロックして直列にし、ツリーの updatedAt も更新する。
+ */
+export async function update(
+  userId: string,
+  connectionId: string,
+  body: UpdateConnectionBody,
+): Promise<NodeConnection> {
+  return prisma.$transaction(async (tx) => {
+    const treeId = await findOwnedTreeId(tx, userId, connectionId);
+    await lockOwnedActiveTree(tx, userId, treeId);
+    const { count } = await tx.nodeConnection.updateMany({
+      where: { id: connectionId },
+      data: { color: body.color },
+    });
+    // ロック待ちの間に、別のリクエストがつながり（かノード）を消していた
+    if (count === 0) throw new AppError("CONNECTION_NOT_FOUND");
+    await touchTree(tx, treeId);
+    return tx.nodeConnection.findUniqueOrThrow({
+      where: { id: connectionId },
+      select: connectionSelect,
+    });
+  });
+}
+
 /**
  * つながりを消す（manifests/nodes.md DELETE /api/connections/:id）。
  * 存在しない・他人のツリー・ゴミ箱のツリーのものは、存在を明かさないよう CONNECTION_NOT_FOUND。
  */
 export async function remove(userId: string, connectionId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const connection = await tx.nodeConnection.findFirst({
-      where: { id: connectionId, tree: { ownerId: userId, deletedAt: null } },
-      select: { treeId: true },
-    });
-    if (!connection) throw new AppError("CONNECTION_NOT_FOUND");
+    const treeId = await findOwnedTreeId(tx, userId, connectionId);
     // ノード編集と同じくツリー単位で直列にする（ロック後に消えていれば、別のリクエストが先に消した）
-    await lockOwnedActiveTree(tx, userId, connection.treeId);
+    await lockOwnedActiveTree(tx, userId, treeId);
     const { count } = await tx.nodeConnection.deleteMany({ where: { id: connectionId } });
     if (count === 0) throw new AppError("CONNECTION_NOT_FOUND");
-    await touchTree(tx, connection.treeId);
+    await touchTree(tx, treeId);
   });
 }

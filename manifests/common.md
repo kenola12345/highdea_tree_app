@@ -142,6 +142,7 @@ erDiagram
     text tree_id FK
     text node_a_id FK
     text node_b_id FK
+    varchar color
   }
   CATEGORIES {
     text id PK
@@ -295,6 +296,7 @@ model NodeConnection {
   treeId    String   @map("tree_id")
   nodeAId   String   @map("node_a_id")
   nodeBId   String   @map("node_b_id")
+  color     String?  @db.VarChar(7)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
@@ -371,7 +373,7 @@ Policies:
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
 | Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` (delete one forever), `DELETE /api/trash` (empty the Trash) |
 | Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (all drag moves), `DELETE /api/nodes/:id` |
-| Connections | `POST /api/trees/:id/connections` (connect two ideas), `DELETE /api/connections/:id` |
+| Connections | `POST /api/trees/:id/connections` (connect two ideas), `PATCH /api/connections/:id` (line color), `DELETE /api/connections/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`), `GET /api/explore/categories` (category names for the filter) |
 | Uploads | `POST /api/uploads` (image upload, multipart) |
@@ -394,12 +396,12 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `USERNAME_RESERVED` | `400` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
 | `VALIDATION_ERROR` | `400` | most endpoints |
 | `INVALID_CREDENTIALS` | `401` | `POST /api/auth/login` |
-| `UNAUTHENTICATED` | `401` | 22 endpoints (most authenticated endpoints) |
+| `UNAUTHENTICATED` | `401` | 23 endpoints (most authenticated endpoints) |
 | `ALREADY_AUTHENTICATED` | `403` | `POST /api/auth/signup`, `POST /api/auth/login` |
 | `FORBIDDEN` | `403` | `POST /api/admin/trees/:id/remove` |
 | `WRONG_PASSWORD` | `403` | `PATCH /api/users/me/account`, `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` |
 | `CATEGORY_NOT_FOUND` | `404` | `GET /api/trees`, `POST /api/trees`, `PATCH /api/trees/:id`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
-| `CONNECTION_NOT_FOUND` | `404` | `DELETE /api/connections/:id` |
+| `CONNECTION_NOT_FOUND` | `404` | `PATCH /api/connections/:id`, `DELETE /api/connections/:id` |
 | `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections` |
 | `PARENT_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `ROUTE_NOT_FOUND` | `404` | Any request to an `/api` path that has no endpoint (not listed in the endpoint specs) |

@@ -9,6 +9,7 @@ import {
   sortPair,
   useCreateConnection,
   useDeleteConnection,
+  useUpdateConnectionColor,
 } from "../api/connections";
 import { fetchNodeDetails } from "../api/nodeDetails";
 import {
@@ -23,7 +24,12 @@ import { useTree } from "../api/tree";
 import { ErrorState } from "../components/ErrorState";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../components/Toast";
-import { ConnectBanner, ConnectionToolbar } from "../features/canvas/ConnectOverlays";
+import { CONNECTION_COLOR } from "../features/canvas/ConnectionLine";
+import {
+  BranchToolbar,
+  ConnectBanner,
+  ConnectionToolbar,
+} from "../features/canvas/ConnectOverlays";
 import { canReparent } from "../features/canvas/dropTarget";
 import { EditorToolbar } from "../features/canvas/EditorToolbar";
 import { DEFAULT_LINE_COLOR, layoutTree } from "../features/canvas/layout";
@@ -78,6 +84,8 @@ function Editor({
   /** つなぐ元のアイデア。設定中は次に押したアイデアとつなぐ（manifests/nodes.md §3.5 Connections） */
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  /** 選択中の枝の線（線が入る子ノードのID）。押すと色を変えられる（manifests/nodes.md §3.5） */
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
   const nodes = data.nodes;
   const layout = useMemo(() => layoutTree(nodes), [nodes]);
@@ -87,6 +95,7 @@ function Editor({
   const savePositions = useSavePositions(treeId);
   const createConnection = useCreateConnection(treeId);
   const deleteConnection = useDeleteConnection(treeId);
+  const updateConnectionColor = useUpdateConnectionColor(treeId);
   const cachedDetails = (nodeId: string) =>
     queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(treeId, nodeId));
 
@@ -232,11 +241,17 @@ function Editor({
   const modalOpen = Boolean(addingTo ?? editing ?? deletingId ?? media) || settingsOpen || trashing;
 
   // つなぐ相手を選んでいる間・つながりを選んでいる間のキー操作: Esc で取り消し、Delete/Backspace で選んだつながりを消す
-  const connectKeysRef = useRef({ connecting: false, connectionSelected: false, remove: () => {} });
+  const connectKeysRef = useRef({
+    connecting: false,
+    connectionSelected: false,
+    branchSelected: false,
+    remove: () => {},
+  });
   useEffect(() => {
     connectKeysRef.current = {
       connecting: Boolean(connectingFrom) && !modalOpen,
       connectionSelected: Boolean(selectedConnectionId) && !modalOpen,
+      branchSelected: Boolean(selectedBranchId) && !modalOpen,
       remove: removeSelectedConnection,
     };
   });
@@ -244,11 +259,22 @@ function Editor({
     function onKeyDown(e: KeyboardEvent) {
       const k = connectKeysRef.current;
       const target = e.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      // 線のツールバーのカラーピッカーにフォーカスがあっても Esc で選択を外せるようにする
+      const inColorPicker = target?.matches("[role=toolbar] input[type=color]") ?? false;
+      if (
+        !inColorPicker &&
+        target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")
+      )
+        return;
       if (e.key === "Escape") {
         if (k.connecting) setConnectingFrom(null);
         if (k.connectionSelected) setSelectedConnectionId(null);
-      } else if ((e.key === "Delete" || e.key === "Backspace") && k.connectionSelected) {
+        if (k.branchSelected) setSelectedBranchId(null);
+      } else if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        k.connectionSelected &&
+        !inColorPicker
+      ) {
         e.preventDefault();
         k.remove();
       }
@@ -303,6 +329,7 @@ function Editor({
           apiRef={apiRef}
           selectedId={selectedId}
           selectedConnectionId={selectedConnectionId}
+          selectedBranchId={selectedBranchId}
           blockPanOnNodes
           showCounter
           positionOverrides={drag.view?.overrides}
@@ -318,20 +345,53 @@ function Editor({
               return;
             }
             setSelectedConnectionId(null);
+            setSelectedBranchId(null);
             setSelectedId(nodeId);
           }}
           onConnectionSelect={(connectionId) => {
             if (drag.consumeClick()) return;
             setConnectingFrom(null);
             setSelectedId(null);
+            setSelectedBranchId(null);
             setSelectedConnectionId(connectionId);
           }}
           renderConnectionOverlay={(connectionId, point) =>
             drag.isDragging ? null : (
               <ConnectionToolbar
+                key={connectionId}
                 point={point}
+                color={data.connections.find((c) => c.id === connectionId)?.color ?? null}
+                defaultColor={CONNECTION_COLOR}
                 disabled={isTempConnection(connectionId)}
+                onColorChange={(color) => {
+                  updateConnectionColor.mutate({ id: connectionId, body: { color } });
+                }}
                 onRemove={removeSelectedConnection}
+              />
+            )
+          }
+          onBranchSelect={(nodeId) => {
+            if (drag.consumeClick()) return;
+            if (connectingFrom) {
+              // つなぐ相手を選んでいる間に線を押したら、背景と同じく取り消す
+              setConnectingFrom(null);
+              return;
+            }
+            setSelectedId(null);
+            setSelectedConnectionId(null);
+            setSelectedBranchId(nodeId);
+          }}
+          renderBranchOverlay={(node, point) =>
+            drag.isDragging ? null : (
+              <BranchToolbar
+                key={node.id}
+                point={point}
+                color={nodes.find((n) => n.id === node.id)?.lineColor ?? null}
+                inheritedColor={inheritedColorFor(node.id)}
+                disabled={node.id.startsWith(TEMP_ID_PREFIX)}
+                onColorChange={(color) => {
+                  updateNode.mutate({ id: node.id, body: { lineColor: color } });
+                }}
               />
             )
           }

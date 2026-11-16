@@ -16,19 +16,20 @@ The Tree Editor canvas (lazy loading, drag, touch gestures), idea nodes of every
 - Drag nodes to reposition, or drop a node onto another node to move it there (re-parent) with its whole branch. Works with mouse on desktop and with touch on phones and tablets (long-press to pick up a node). The root can't be moved under another node, and no node can be moved under its own branch.
 - Deleting a node deletes its whole branch, permanently, after a confirmation that shows how many ideas are affected. The root can't be deleted (delete the tree instead).
 - A tree can have at most **2,000 nodes**.
-- **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04; "Inherit" removes it.
+- **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04, or in the Editor by clicking (or tapping) the line itself: the line is selected (thicker, with a light blue halo) and a small toolbar at its middle has a color swatch and "Inherit" (shown only when the idea has its own color). The color is saved on the idea the line goes into (`PATCH /api/nodes/:id` with `lineColor`). `Esc` or clicking the background deselects the line.
 - **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the brand green. Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
-- **Choosing colors:** line colors, card colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
+- **Choosing colors:** line colors, card colors, connection colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
 - **Line style:** lines are dashed S-shaped curves that meet each card at the middle of its facing edge (no end markers), drawn on a light notebook-style grid that pans and zooms with the canvas.
-- **Connections between ideas:** besides its parent → child branches, any two ideas in the same tree can be **connected**, for example two ideas in different branches that relate to each other. A connection is drawn as a thin dotted gray line, so it isn't mistaken for a branch, and it doesn't change the layout or the hierarchy. It has no direction. An idea can have any number of connections, and a tree up to **500**. Two ideas can be connected only once, an idea can't be connected to itself, and an idea can't be connected to its own parent or child (that line already exists). Connections are deleted with either of their ideas or with the tree. Visitors see them in the Tree Viewer too.
+- **Connections between ideas:** besides its parent → child branches, any two ideas in the same tree can be **connected**, for example two ideas in different branches that relate to each other. A connection is drawn as a thin dotted line (gray by default, or the color the owner picked), so it isn't mistaken for a branch, and it doesn't change the layout or the hierarchy. It has no direction. An idea can have any number of connections, and a tree up to **500**. Two ideas can be connected only once, an idea can't be connected to itself, and an idea can't be connected to its own parent or child (that line already exists). Connections are deleted with either of their ideas or with the tree. Visitors see them in the Tree Viewer too.
   - **Connect:** select an idea, press "Connect" in its toolbar, then click (or tap) the other idea. A banner says "Click another idea to connect it to “{title}”" with a Cancel button; `Esc` or clicking the background cancels.
   - **Remove:** click (or tap) a connection line in the Editor to select it, then press "Remove connection" in the small toolbar that appears. No confirmation (it's easy to redo).
+  - **Color:** the same toolbar has a color swatch that opens the color picker (any `#RRGGBB`, see Choosing colors). The line changes color at once and is saved when the picker settles; "Default" (shown only when a color is set) returns it to gray. Each connection has its own color; it isn't inherited.
 - **Opening links:** a `LINK` node's card has an "Open link" icon, the editor's node toolbar has "Open link", and the details view (M-12) has an "Open link" button. Links open in a new tab and only `http`/`https` URLs are opened.
 - **Canvas loading (lazy, like lazy-loaded images):**
   1. The whole tree's skeleton (each node's id, parent, type, title and position) loads in one request, so the layout and connecting lines can be drawn at once.
   2. Only nodes inside the visible area (plus a margin) are drawn. Zoomed out, nodes are shown as dots or short titles; zoomed in, as full cards.
   3. Each node's heavy content (note text, link preview, thumbnail, uploaded image, video embed) is fetched in batches when the node comes into view at a readable zoom level, and cached. Images also use `loading="lazy"`.
-- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections`, `DELETE /api/connections/:id`. **Tables:** `nodes`, `node_connections`.
+- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections`, `PATCH /api/connections/:id`, `DELETE /api/connections/:id`. **Tables:** `nodes`, `node_connections`.
 
 ### 3.6 Images & Link Previews
 
@@ -49,6 +50,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `PATCH /api/trees/:id/nodes/positions` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `DELETE /api/nodes/:id` | ❌ | ✅ Owner, tree not in Trash, not the root | ✅ Owner, tree not in Trash, not the root |
 | `POST /api/trees/:id/connections` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
+| `PATCH /api/connections/:id` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `DELETE /api/connections/:id` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `POST /api/uploads` | ❌ | ✅ | ✅ |
 | `POST /api/link-preview` | ❌ | ✅ | ✅ |
@@ -109,7 +111,8 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 - **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
 - **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
 - **NodeToolbar:** appears above the selected node: "+ Add" (M-05), "Edit" (M-04), "Connect" (connect mode, §3.5 Connections), "Delete" (M-06). Delete is hidden on the root.
-- **Connections:** dotted gray lines between connected ideas, under the cards. In the Editor, clicking one selects it and shows "Remove connection" next to it.
+- **Branch lines:** in the Editor, clicking a parent → child line selects it and shows its color swatch and "Inherit" at its middle (§3.5 Line colors per branch).
+- **Connections:** dotted lines between connected ideas (gray, or their own color), drawn over the branch lines and under the cards. In the Editor, clicking one selects it (thicker, with a light blue halo) and shows a color swatch, "Default" and "Remove connection" next to it.
 - **MiniMap:** a whole-tree overview showing the current viewport. Click it to jump there.
 - **ZoomControls / NodeCounter:** zoom out, zoom level, zoom in, fit to screen, and "142 / 2000" ideas used.
 
@@ -380,7 +383,7 @@ Only positions and order can be changed here. Content, type and parent are chang
 **Response（レスポンス）**
 
 - **Success: `201 Created`**
-  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId }`, with the IDs in stored (sorted) order.
+  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color }`, with the IDs in stored (sorted) order. `color` is `null` (default gray) for a new connection.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — A field is missing or isn't a string, or `nodeAId` equals `nodeBId`.
@@ -389,6 +392,42 @@ Only positions and order can be changed here. Content, type and parent are chang
   - `404` `NODE_NOT_FOUND` — One of the nodes doesn't exist or isn't in this tree.
   - `409` `INVALID_CONNECTION` — The ideas are already connected, or one is the other's parent.
   - `409` `CONNECTION_LIMIT_REACHED` — The tree already has 500 connections.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **PATCH /api/connections/:id**
+
+- **Summary（機能概要）:** Changes a connection's line color (§3.5 Connections).
+- **Authorization（認可）:** The owner of the connection's tree only (`USER` or `ADMIN` who owns it). Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Connection ID (cuid) |
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `color` | `String \| null` | ✅ | `#RRGGBB`, or `null` for the default gray |
+
+**Processing（処理）**
+
+- The color is saved and the tree's `updatedAt` is bumped, in one transaction (tree row locked, like the other node edits).
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color }`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — `color` is missing or isn't `#RRGGBB` / `null`, or the body has other fields.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `CONNECTION_NOT_FOUND` — The connection doesn't exist (or was already deleted with one of its ideas), its tree is in the Trash, or the caller doesn't own the tree.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -546,6 +585,7 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 | tree_id | TEXT | NOT NULL, FK→trees.id (CASCADE) | The tree both ideas belong to |
 | node_a_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the smaller ID |
 | node_b_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the larger ID |
+| color | VARCHAR(7) | NULL | Line color `#RRGGBB`; NULL = default gray |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
 
 Indexes: `UNIQUE (node_a_id, node_b_id)`, `(tree_id)` for loading a tree's connections, `(node_b_id)` for the cascade from `nodes`.

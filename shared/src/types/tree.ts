@@ -81,7 +81,13 @@ export type NodeSkeleton = {
  * アイデア同士のつながり（親子の枝とは別の線）。向きはなく、nodeAId < nodeBId の順で保存・返却する
  * （manifests/nodes.md §3.5 Connections）。
  */
-export type NodeConnection = { id: string; nodeAId: string; nodeBId: string };
+export type NodeConnection = {
+  id: string;
+  nodeAId: string;
+  nodeBId: string;
+  /** 線の色（#RRGGBB）。null は既定の灰色 */
+  color: string | null;
+};
 
 /** GET /api/trees/:id の data。tree.removedAt / removalReason は所有者以外には常に null */
 export type TreeDetailResponse = {

@@ -110,6 +110,7 @@ model NodeConnection {
   treeId    String   @map("tree_id")
   nodeAId   String   @map("node_a_id")
   nodeBId   String   @map("node_b_id")
+  color     String?  @db.VarChar(7)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)

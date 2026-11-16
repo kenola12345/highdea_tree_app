@@ -15,6 +15,7 @@ import { prisma } from "../lib/prisma.js";
 import { toPagination, toSkipTake } from "./common/pagination.js";
 import { visibleTreeWhere } from "./common/treeAccess.js";
 import { toOwnTreeItem, treeListSelect } from "./common/treeMapper.js";
+import { connectionSelect } from "./connection.service.js";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -162,7 +163,7 @@ export async function getDetail(
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       },
       connections: {
-        select: { id: true, nodeAId: true, nodeBId: true },
+        select: connectionSelect,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       },
     },
