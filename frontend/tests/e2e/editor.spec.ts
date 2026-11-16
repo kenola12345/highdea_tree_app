@@ -131,10 +131,9 @@ test("E2E-EDITOR-08 branch lines have no end dots, and View opens the Tree Viewe
 });
 
 /** つながりの線の中点（画面座標）。曲線の長さの半分の点を SVG から画面へ変換する */
-async function connectionMidpoint(page: Page) {
-  return page
-    .getByTestId("connection-line")
-    .first()
+/** 線（つながり・枝）の中点の画面座標。最後の path が見えている線 */
+async function lineMidpoint(line: Locator) {
+  return line
     .locator("path")
     .last()
     .evaluate((el) => {
@@ -145,6 +144,9 @@ async function connectionMidpoint(page: Page) {
       return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f };
     });
 }
+
+const connectionMidpoint = (page: Page) =>
+  lineMidpoint(page.getByTestId("connection-line").first());
 
 test("E2E-EDITOR-09 connect two ideas from different branches, see it in the Viewer, then remove it", async ({
   page,
@@ -190,4 +192,53 @@ test("E2E-EDITOR-10 Esc or clicking the background cancels connecting", async ({
   await page.getByTestId("connect-cancel").click();
   await expect(page.getByTestId("connect-banner")).toHaveCount(0);
   await expect(page.getByTestId("connection-line")).toHaveCount(0);
+});
+
+test("E2E-EDITOR-11 click a connection to change its color, kept after reload and shown in the Viewer", async ({
+  page,
+}) => {
+  await card(page, "Students").click();
+  await page.getByTestId("connect-node-button").click();
+  await card(page, "Ideas get lost in Slack").click();
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#64748b");
+
+  const mid = await connectionMidpoint(page);
+  await page.mouse.click(mid.x, mid.y);
+  await page.getByTestId("connection-color-picker").fill("#ef4444");
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#EF4444");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  await page.reload();
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#EF4444");
+  await page.getByRole("link", { name: "View", exact: true }).click();
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#EF4444");
+  await page.goBack();
+  await page.getByText("Fit").click();
+
+  // Default で灰色に戻す
+  const again = await connectionMidpoint(page);
+  await page.mouse.click(again.x, again.y);
+  await page.getByTestId("connection-color-default").click();
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#64748b");
+  await expect(page.getByTestId("connection-color-default")).toHaveCount(0);
+});
+
+test("E2E-EDITOR-12 click a branch line to change its color; the lines below it follow", async ({
+  page,
+}) => {
+  const problemId = (await nodesByTitle(page.request, treeId)).Problem?.id ?? "";
+  const branch = page.locator(`[data-testid=node-link][data-branch-id="${problemId}"]`);
+  const mid = await lineMidpoint(branch);
+  await page.mouse.click(mid.x, mid.y);
+  await expect(page.getByTestId("branch-toolbar")).toBeVisible();
+  await expect(branch).toHaveAttribute("data-selected", "true");
+
+  await page.getByTestId("branch-color-picker").fill("#ef4444");
+  await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("branch-toolbar")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
 });
