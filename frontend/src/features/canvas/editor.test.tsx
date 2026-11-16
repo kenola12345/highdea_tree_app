@@ -166,6 +166,7 @@ describe("optimistic add", () => {
       owner: { username: "alice", displayName: "Alice", avatarUrl: null },
       isOwner: true,
       nodes: [node("root", null, 0, 0)],
+      connections: [],
     };
     queryClient.setQueryData(queryKeys.tree("t1"), tree);
     let respond: (r: Response) => void = () => undefined;

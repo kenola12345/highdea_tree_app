@@ -32,7 +32,7 @@ Split by topic in `standards/` (general, frontend, backend, database, api, testi
 
 ## Status
 
-v1 is implemented: every task in `backend-tasks.md` and `frontend-tasks.md` is done, with API, unit and Playwright E2E tests. Still open: the production hosting setup (manifests/common.md §7.4, **[To confirm]**) and CI. New features or behavior changes go into the manifest first.
+v1 is implemented: every task in `backend-tasks.md` and `frontend-tasks.md` is done (later additions such as connections between ideas are tracked as extra Phases in `frontend-tasks.md`), with API, unit and Playwright E2E tests. Still open: the production hosting setup (manifests/common.md §7.4, **[To confirm]**) and CI. New features or behavior changes go into the manifest first.
 
 ## Stack (summary — see manifests/common.md §7)
 
@@ -135,10 +135,11 @@ model Tree {
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  owner      User           @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  removedBy  User?          @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
-  nodes      Node[]
-  categories TreeCategory[]
+  owner       User             @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  removedBy   User?            @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
+  nodes       Node[]
+  categories  TreeCategory[]
+  connections NodeConnection[]
 
   @@index([ownerId, deletedAt, updatedAt(sort: Desc)])
   @@index([deletedAt])
@@ -167,15 +168,36 @@ model Node {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  parent      Node?   @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Node[]  @relation("NodeChildren")
-  imageUpload Upload? @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  tree         Tree             @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  parent       Node?            @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Node[]           @relation("NodeChildren")
+  imageUpload  Upload?          @relation(fields: [imageUploadId], references: [id], onDelete: Restrict)
+  connectionsA NodeConnection[] @relation("ConnectionNodeA")
+  connectionsB NodeConnection[] @relation("ConnectionNodeB")
 
   @@index([treeId])
   @@index([parentId, sortOrder])
   @@index([imageUploadId])
   @@map("nodes")
+}
+
+// Extra line between two ideas of the same tree (besides parent → child). Undirected:
+// node_a_id < node_b_id (DB CHECK added with raw SQL in the migration), so each pair is stored once.
+model NodeConnection {
+  id        String   @id @default(cuid())
+  treeId    String   @map("tree_id")
+  nodeAId   String   @map("node_a_id")
+  nodeBId   String   @map("node_b_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  nodeA Node @relation("ConnectionNodeA", fields: [nodeAId], references: [id], onDelete: Cascade)
+  nodeB Node @relation("ConnectionNodeB", fields: [nodeBId], references: [id], onDelete: Cascade)
+
+  @@unique([nodeAId, nodeBId])
+  @@index([treeId])
+  @@index([nodeBId])
+  @@map("node_connections")
 }
 
 model Category {

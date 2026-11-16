@@ -200,6 +200,7 @@ stateDiagram-v2
   - `data.owner`: `username`, `displayName`, `avatarUrl`.
   - `data.isOwner`: `true` when the logged-in user owns the tree. The frontend uses it to decide between the editor and the read-only viewer.
   - `data.nodes`: the **skeleton** of every node in the tree (up to 2,000), as a flat list (not nested). The frontend builds the hierarchy from `parentId` with `d3-hierarchy`. Each node has only the light fields: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `updatedAt`. Exactly one node has `parentId` `null`: the root. Heavy content (`body`, `url`, link preview, `imageUrl`) isn't included; the canvas lazy-loads it with `GET /api/trees/:id/nodes?ids=` as nodes come into view. `updatedAt` tells the frontend when its cached details for a node are stale.
+  - `data.connections`: every connection between two ideas of the tree (up to 500), each `{ id, nodeAId, nodeBId }`, oldest first. The canvas draws them as dotted lines besides the parent → child lines ([nodes.md](./nodes.md) §3.5, Connections).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or the caller isn't allowed to see it (see Authorization).

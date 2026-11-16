@@ -12,7 +12,7 @@ export async function resetDb(): Promise<void> {
     throw new Error(`Refusing to reset a non-test database: ${env.DATABASE_URL}`);
   }
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "tree_categories", "nodes", "uploads", "categories", "trees", "users" CASCADE',
+    'TRUNCATE TABLE "tree_categories", "node_connections", "nodes", "uploads", "categories", "trees", "users" CASCADE',
   );
   await resetRateLimits();
 }

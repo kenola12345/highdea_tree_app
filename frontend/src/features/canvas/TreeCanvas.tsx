@@ -1,4 +1,4 @@
-import type { NodeSkeleton } from "@highdea/shared";
+import type { NodeConnection, NodeSkeleton } from "@highdea/shared";
 import clsx from "clsx";
 import {
   type MouseEvent,
@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 
+import { ConnectionLine, connectionMidpoint } from "./ConnectionLine";
 import { GridBackground } from "./GridBackground";
 import { cardSize, type LaidOutNode, layoutTree } from "./layout";
 import { MiniMap } from "./MiniMap";
@@ -37,6 +38,8 @@ export type CanvasApi = {
 type TreeCanvasProps = {
   treeId: string;
   nodes: NodeSkeleton[];
+  /** アイデア同士のつながり（枝とは別の点線） */
+  connections?: NodeConnection[];
   selectedId?: string | null;
   /** ノードのクリック・タップ（背景なら null） */
   onNodeSelect?: (id: string | null) => void;
@@ -59,7 +62,15 @@ type TreeCanvasProps = {
   /** ドラッグで持ち上げている枝のノード */
   liftedIds?: ReadonlySet<string>;
   apiRef?: RefObject<CanvasApi | null>;
+  /** 選択中のつながり（エディタ） */
+  selectedConnectionId?: string | null;
+  /** つながりの線を押したとき。渡したときだけ線を押せるようにする（エディタ用） */
+  onConnectionSelect?: (id: string) => void;
+  /** 選択中のつながりの中点に重ねて表示するもの（「Remove connection」）。point は画面座標 */
+  renderConnectionOverlay?: (id: string, point: { x: number; y: number }) => ReactNode;
 };
+
+const NO_CONNECTIONS: NodeConnection[] = [];
 
 const DOUBLE_TAP_MS = 300;
 /** 最初の表示の最小倍率（短い題名が読める倍率） */
@@ -73,6 +84,7 @@ const INITIAL_MIN_SCALE = 0.45;
 export function TreeCanvas({
   treeId,
   nodes,
+  connections = NO_CONNECTIONS,
   selectedId = null,
   onNodeSelect,
   onNodeOpen,
@@ -84,6 +96,9 @@ export function TreeCanvas({
   highlightId = null,
   liftedIds,
   apiRef,
+  selectedConnectionId = null,
+  onConnectionSelect,
+  renderConnectionOverlay,
 }: TreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -111,6 +126,20 @@ export function TreeCanvas({
   const links = useMemo(
     () => layout.links.filter((l) => visibleIds.has(l.source.id) || visibleIds.has(l.target.id)),
     [layout.links, visibleIds],
+  );
+  // つながりは両端のノードの位置（ドラッグ中の上書き込み）から描く。どちらかの端が見えていれば描く
+  const laidOutConnections = useMemo(
+    () =>
+      connections.flatMap((c) => {
+        const a = layout.byId.get(c.nodeAId);
+        const b = layout.byId.get(c.nodeBId);
+        return a && b ? [{ id: c.id, a, b }] : [];
+      }),
+    [connections, layout.byId],
+  );
+  const visibleConnections = useMemo(
+    () => laidOutConnections.filter((c) => visibleIds.has(c.a.id) || visibleIds.has(c.b.id)),
+    [laidOutConnections, visibleIds],
   );
   // 読める倍率のときだけ、見えているノードの中身を取りに行く
   useLoadNodeDetails(treeId, visible, level === "card");
@@ -173,6 +202,10 @@ export function TreeCanvas({
     target instanceof Element
       ? (target.closest("[data-node-id]")?.getAttribute("data-node-id") ?? null)
       : null;
+  const connectionIdOf = (target: EventTarget | null) =>
+    target instanceof Element
+      ? (target.closest("[data-connection-id]")?.getAttribute("data-connection-id") ?? null)
+      : null;
 
   const lastTap = useRef<{ id: string; at: number } | null>(null);
   function onPointerUp(e: PointerEvent<SVGSVGElement>) {
@@ -202,6 +235,16 @@ export function TreeCanvas({
       })()
     : null;
 
+  const selectedConnection = selectedConnectionId
+    ? laidOutConnections.find((c) => c.id === selectedConnectionId)
+    : undefined;
+  const connectionPoint = selectedConnection
+    ? (() => {
+        const p = connectionMidpoint(selectedConnection.a, selectedConnection.b, level);
+        return { x: p.x * transform.k + transform.x, y: p.y * transform.k + transform.y };
+      })()
+    : null;
+
   // キャンバス上（ツールバーやズームボタンの上も含む）では、ブラウザのページ拡大・スクロールを起こさない
   // （manifests/nodes.md「the browser doesn't scroll or zoom the page while the user works on the canvas」）
   return (
@@ -216,7 +259,11 @@ export function TreeCanvas({
           "absolute inset-0 h-full w-full touch-none select-none",
           "cursor-grab active:cursor-grabbing",
         )}
-        onClick={(e: MouseEvent<SVGSVGElement>) => onNodeSelect?.(nodeIdOf(e.target))}
+        onClick={(e: MouseEvent<SVGSVGElement>) => {
+          const connectionId = onConnectionSelect ? connectionIdOf(e.target) : null;
+          if (connectionId) onConnectionSelect?.(connectionId);
+          else onNodeSelect?.(nodeIdOf(e.target));
+        }}
         onDoubleClick={(e) => {
           const id = nodeIdOf(e.target);
           if (id) onNodeOpen?.(id);
@@ -231,6 +278,19 @@ export function TreeCanvas({
         <g
           transform={`translate(${String(transform.x)},${String(transform.y)}) scale(${String(transform.k)})`}
         >
+          <g>
+            {visibleConnections.map((c) => (
+              <ConnectionLine
+                key={c.id}
+                id={c.id}
+                a={c.a}
+                b={c.b}
+                level={level}
+                selected={c.id === selectedConnectionId}
+                selectable={Boolean(onConnectionSelect)}
+              />
+            ))}
+          </g>
           <g>
             {links.map((l) => (
               <NodeLink key={l.id} source={l.source} target={l.target} level={level} />
@@ -253,6 +313,9 @@ export function TreeCanvas({
       </svg>
 
       {selected && selectedRect && renderSelectedOverlay?.(selected, selectedRect)}
+      {selectedConnection &&
+        connectionPoint &&
+        renderConnectionOverlay?.(selectedConnection.id, connectionPoint)}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
         <div className="pointer-events-auto hidden sm:block">

@@ -2,6 +2,8 @@
 
 /** 1ツリーあたりのノード上限（manifests/nodes.md §3.5） */
 export const MAX_NODES_PER_TREE = 2000;
+/** 1ツリーあたりのアイデア同士のつながりの上限（manifests/nodes.md §3.5 Connections） */
+export const MAX_CONNECTIONS_PER_TREE = 500;
 /** 1ユーザーあたりのカテゴリ上限（manifests/trees.md §3.7） */
 export const MAX_CATEGORIES_PER_USER = 100;
 /** 1ツリーに付けられるカテゴリ数の上限（manifests/trees.md §3.3） */

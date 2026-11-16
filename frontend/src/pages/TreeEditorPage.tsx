@@ -1,9 +1,15 @@
 // P-05 Tree Editor
-import type { NodeDetails } from "@highdea/shared";
+import { MAX_CONNECTIONS_PER_TREE, type NodeDetails } from "@highdea/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 
+import {
+  isTempConnection,
+  sortPair,
+  useCreateConnection,
+  useDeleteConnection,
+} from "../api/connections";
 import { fetchNodeDetails } from "../api/nodeDetails";
 import {
   TEMP_ID_PREFIX,
@@ -17,6 +23,7 @@ import { useTree } from "../api/tree";
 import { ErrorState } from "../components/ErrorState";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../components/Toast";
+import { ConnectBanner, ConnectionToolbar } from "../features/canvas/ConnectOverlays";
 import { canReparent } from "../features/canvas/dropTarget";
 import { EditorToolbar } from "../features/canvas/EditorToolbar";
 import { DEFAULT_LINE_COLOR, layoutTree } from "../features/canvas/layout";
@@ -68,6 +75,9 @@ function Editor({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [trashing, setTrashing] = useState(false);
   const [media, setMedia] = useState<MediaNode | null>(null);
+  /** つなぐ元のアイデア。設定中は次に押したアイデアとつなぐ（manifests/nodes.md §3.5 Connections） */
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
 
   const nodes = data.nodes;
   const layout = useMemo(() => layoutTree(nodes), [nodes]);
@@ -75,6 +85,8 @@ function Editor({
   const updateNode = useUpdateNode(treeId);
   const deleteNode = useDeleteNode(treeId);
   const savePositions = useSavePositions(treeId);
+  const createConnection = useCreateConnection(treeId);
+  const deleteConnection = useDeleteConnection(treeId);
   const cachedDetails = (nodeId: string) =>
     queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(treeId, nodeId));
 
@@ -169,10 +181,86 @@ function Editor({
     );
   }
 
+  /**
+   * つなぐ相手が決まったとき。つなげない組（同じアイデア・親子・つなぎ済み・上限）はリクエストを送らずに知らせる
+   * （サーバーの 400 / 409 INVALID_CONNECTION / CONNECTION_LIMIT_REACHED と同じ条件）。
+   */
+  function connectTo(targetId: string) {
+    const fromId = connectingFrom;
+    setConnectingFrom(null);
+    if (!fromId) return;
+    const from = layout.byId.get(fromId);
+    const target = layout.byId.get(targetId);
+    if (!from || !target) return;
+    if (fromId === targetId) {
+      toast("Pick a different idea to connect to.", "info");
+      return;
+    }
+    if (from.parentId === targetId || target.parentId === fromId) {
+      toast("These ideas are already joined by a branch.", "info");
+      return;
+    }
+    const [nodeAId, nodeBId] = sortPair(fromId, targetId);
+    if (data.connections.some((c) => c.nodeAId === nodeAId && c.nodeBId === nodeBId)) {
+      toast("These ideas are already connected.", "info");
+      return;
+    }
+    if (data.connections.length >= MAX_CONNECTIONS_PER_TREE) {
+      toast(
+        `This tree has the most connections allowed (${String(MAX_CONNECTIONS_PER_TREE)}).`,
+        "error",
+      );
+      return;
+    }
+    if (fromId.startsWith(TEMP_ID_PREFIX) || targetId.startsWith(TEMP_ID_PREFIX)) {
+      toast("Wait until the new idea is saved, then connect it.", "info");
+      return;
+    }
+    createConnection.mutate({ nodeAId: fromId, nodeBId: targetId });
+    setSelectedId(targetId);
+  }
+
+  function removeSelectedConnection() {
+    const id = selectedConnectionId;
+    if (!id || isTempConnection(id)) return;
+    setSelectedConnectionId(null);
+    deleteConnection.mutate(id);
+  }
+
   const selected = selectedId ? layout.byId.get(selectedId) : undefined;
+  const connectingNode = connectingFrom ? layout.byId.get(connectingFrom) : undefined;
   const modalOpen = Boolean(addingTo ?? editing ?? deletingId ?? media) || settingsOpen || trashing;
+
+  // つなぐ相手を選んでいる間・つながりを選んでいる間のキー操作: Esc で取り消し、Delete/Backspace で選んだつながりを消す
+  const connectKeysRef = useRef({ connecting: false, connectionSelected: false, remove: () => {} });
+  useEffect(() => {
+    connectKeysRef.current = {
+      connecting: Boolean(connectingFrom) && !modalOpen,
+      connectionSelected: Boolean(selectedConnectionId) && !modalOpen,
+      remove: removeSelectedConnection,
+    };
+  });
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const k = connectKeysRef.current;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      if (e.key === "Escape") {
+        if (k.connecting) setConnectingFrom(null);
+        if (k.connectionSelected) setSelectedConnectionId(null);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && k.connectionSelected) {
+        e.preventDefault();
+        k.remove();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   useEditorKeys({
-    enabled: Boolean(selected) && !modalOpen,
+    enabled: Boolean(selected) && !modalOpen && !connectingFrom,
     onAdd: () => {
       if (selected && nodes.length < 2000) setAddingTo(selected.id);
     },
@@ -211,8 +299,10 @@ function Editor({
         <TreeCanvas
           treeId={treeId}
           nodes={nodes}
+          connections={data.connections}
           apiRef={apiRef}
           selectedId={selectedId}
+          selectedConnectionId={selectedConnectionId}
           blockPanOnNodes
           showCounter
           positionOverrides={drag.view?.overrides}
@@ -221,11 +311,33 @@ function Editor({
           onNodePointerDown={drag.onNodePointerDown}
           onNodeSelect={(nodeId) => {
             if (drag.consumeClick()) return;
+            if (connectingFrom) {
+              // つなぐ相手を選ぶモード: アイデアならつなぎ、背景なら取り消す
+              if (nodeId) connectTo(nodeId);
+              else setConnectingFrom(null);
+              return;
+            }
+            setSelectedConnectionId(null);
             setSelectedId(nodeId);
           }}
+          onConnectionSelect={(connectionId) => {
+            if (drag.consumeClick()) return;
+            setConnectingFrom(null);
+            setSelectedId(null);
+            setSelectedConnectionId(connectionId);
+          }}
+          renderConnectionOverlay={(connectionId, point) =>
+            drag.isDragging ? null : (
+              <ConnectionToolbar
+                point={point}
+                disabled={isTempConnection(connectionId)}
+                onRemove={removeSelectedConnection}
+              />
+            )
+          }
           onNodeOpen={(nodeId) => void openEditor(nodeId)}
           renderSelectedOverlay={(node, rect) =>
-            drag.isDragging ? null : (
+            drag.isDragging || connectingFrom ? null : (
               <NodeToolbar
                 treeId={treeId}
                 node={node}
@@ -239,10 +351,21 @@ function Editor({
                   setDeletingId(node.id);
                 }}
                 onView={() => void openMedia(node.id)}
+                onConnect={() => {
+                  setConnectingFrom(node.id);
+                }}
               />
             )
           }
         />
+        {connectingNode && (
+          <ConnectBanner
+            title={connectingNode.title}
+            onCancel={() => {
+              setConnectingFrom(null);
+            }}
+          />
+        )}
       </div>
 
       <AddBranchModal

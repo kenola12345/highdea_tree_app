@@ -20,12 +20,15 @@ The Tree Editor canvas (lazy loading, drag, touch gestures), idea nodes of every
 - **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the brand green. Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
 - **Choosing colors:** line colors, card colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
 - **Line style:** lines are dashed S-shaped curves that meet each card at the middle of its facing edge (no end markers), drawn on a light notebook-style grid that pans and zooms with the canvas.
+- **Connections between ideas:** besides its parent → child branches, any two ideas in the same tree can be **connected**, for example two ideas in different branches that relate to each other. A connection is drawn as a thin dotted gray line, so it isn't mistaken for a branch, and it doesn't change the layout or the hierarchy. It has no direction. An idea can have any number of connections, and a tree up to **500**. Two ideas can be connected only once, an idea can't be connected to itself, and an idea can't be connected to its own parent or child (that line already exists). Connections are deleted with either of their ideas or with the tree. Visitors see them in the Tree Viewer too.
+  - **Connect:** select an idea, press "Connect" in its toolbar, then click (or tap) the other idea. A banner says "Click another idea to connect it to “{title}”" with a Cancel button; `Esc` or clicking the background cancels.
+  - **Remove:** click (or tap) a connection line in the Editor to select it, then press "Remove connection" in the small toolbar that appears. No confirmation (it's easy to redo).
 - **Opening links:** a `LINK` node's card has an "Open link" icon, the editor's node toolbar has "Open link", and the details view (M-12) has an "Open link" button. Links open in a new tab and only `http`/`https` URLs are opened.
 - **Canvas loading (lazy, like lazy-loaded images):**
   1. The whole tree's skeleton (each node's id, parent, type, title and position) loads in one request, so the layout and connecting lines can be drawn at once.
   2. Only nodes inside the visible area (plus a margin) are drawn. Zoomed out, nodes are shown as dots or short titles; zoomed in, as full cards.
   3. Each node's heavy content (note text, link preview, thumbnail, uploaded image, video embed) is fetched in batches when the node comes into view at a readable zoom level, and cached. Images also use `loading="lazy"`.
-- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`. **Tables:** `nodes`.
+- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections`, `DELETE /api/connections/:id`. **Tables:** `nodes`, `node_connections`.
 
 ### 3.6 Images & Link Previews
 
@@ -45,6 +48,8 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `PATCH /api/nodes/:id` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `PATCH /api/trees/:id/nodes/positions` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `DELETE /api/nodes/:id` | ❌ | ✅ Owner, tree not in Trash, not the root | ✅ Owner, tree not in Trash, not the root |
+| `POST /api/trees/:id/connections` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
+| `DELETE /api/connections/:id` | ❌ | ✅ Owner, tree not in Trash | ✅ Owner, tree not in Trash |
 | `POST /api/uploads` | ❌ | ✅ | ✅ |
 | `POST /api/link-preview` | ❌ | ✅ | ✅ |
 
@@ -86,7 +91,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 |                            ╚═══════════════╝       │  (img)   │              |
 |                                   |                └──────────┘              |
 |                                   |                                          |
-|                     [NodeToolbar] [+ Add] [Edit] [Delete]   <- on selection  |
+|           [NodeToolbar] [+ Add] [Edit] [Connect] [Delete]   <- on selection  |
 |                            [NodeCard: VIDEO] ▶                               |
 |                                                                              |
 |   · · ·  (far nodes drawn as dots when zoomed out)                           |
@@ -103,7 +108,8 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 - **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy`, and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
 - **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
 - **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
-- **NodeToolbar:** appears above the selected node: "+ Add" (M-05), "Edit" (M-04), "Delete" (M-06). Delete is hidden on the root.
+- **NodeToolbar:** appears above the selected node: "+ Add" (M-05), "Edit" (M-04), "Connect" (connect mode, §3.5 Connections), "Delete" (M-06). Delete is hidden on the root.
+- **Connections:** dotted gray lines between connected ideas, under the cards. In the Editor, clicking one selects it and shows "Remove connection" next to it.
 - **MiniMap:** a whole-tree overview showing the current viewport. Click it to jump there.
 - **ZoomControls / NodeCounter:** zoom out, zoom level, zoom in, fit to screen, and "142 / 2000" ideas used.
 
@@ -111,6 +117,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 - **Lazy-loaded canvas (§3.3):** the Editor and Viewer fetch the skeleton once (`GET /api/trees/:id`, TanStack Query key `['tree', id]`). As the viewport changes, the canvas collects visible node IDs whose details aren't cached (or whose `updatedAt` changed) and fetches them in batches of up to 100 (`GET /api/trees/:id/nodes?ids=`), at most a few requests per second while panning. Details are cached per node ID. Images also use `loading="lazy"`.
 - **Drag moves save once, on drop:** while dragging a node or branch, positions update only in local state, so the drag stays smooth. On drop, one `PATCH /api/trees/:id/nodes/positions` request saves every moved node. Dropping onto another node re-parents it instead, with `PATCH /api/nodes/:id` (`parentId` plus the new position); a drop that would put a node under its own branch is refused in the UI before any request, matching `409 INVALID_MOVE`. If it fails, the nodes snap back and a toast says "Couldn't save the move".
+- **Connections are optimistic too:** a new connection appears at once and is removed again if `POST /api/trees/:id/connections` fails (`409 INVALID_CONNECTION` → "These ideas can't be connected", `409 CONNECTION_LIMIT_REACHED` → "This tree has the most connections allowed (500)"). The UI doesn't offer ideas that can't be connected: in connect mode, clicking the same idea, its parent or child, or an already connected idea shows a toast without a request. Deleting a node removes its connections from the canvas with it; re-parenting a node under an idea it's connected to removes that connection (the server does the same).
 - **Optimistic node edits with rollback:** adding a branch (M-05) shows the new node immediately with a temporary ID, then swaps in the real one. On `409 NODE_LIMIT_REACHED` the temporary node is removed and a "tree is full" message appears. Edits and deletes update the canvas first and roll back on error. The "Saving… / Saved ✓" indicator in the toolbar reflects pending requests.
 - **Link preview while typing (M-04):** the URL field waits 500 ms after the user stops typing before calling `POST /api/link-preview`, which keeps normal use far under the 30-per-minute limit. `422 PREVIEW_UNAVAILABLE` shows "No preview available" without blocking the save, and `400 URL_NOT_ALLOWED` shows an error under the URL field.
 - **Image uploads (M-04):** the upload shows progress, then the node is saved with the returned `imageUploadId`. If saving returns `404 UPLOAD_NOT_FOUND` (the cleanup job removed the image in between), the form keeps everything else and asks the user to upload the image again. `413` and `415` show "Max 5 MB" or "PNG, JPEG, WebP or GIF only" under the file field.
@@ -342,6 +349,78 @@ Only positions and order can be changed here. Content, type and parent are chang
   - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
 ---
 
+#### Connections
+
+---
+##### **POST /api/trees/:id/connections**
+
+- **Summary（機能概要）:** Connects two ideas of the same tree with an extra line, besides the parent → child branches (§3.5 Connections). Connections have no direction.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it), also in a tree an admin removed. Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `nodeAId` | `String` | ✅ | One of the two ideas. Must be in this tree |
+| `nodeBId` | `String` | ✅ | The other idea. Must be in this tree and differ from `nodeAId` |
+
+**Processing（処理）**
+
+- The two IDs are stored sorted (`node_a_id < node_b_id`), so connecting B to A is the same as A to B.
+- The tree row is locked (`SELECT ... FOR UPDATE`) while the limit and duplicates are checked and the row is inserted, and the tree's `updatedAt` is bumped in the same transaction.
+
+**Response（レスポンス）**
+
+- **Success: `201 Created`**
+  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId }`, with the IDs in stored (sorted) order.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — A field is missing or isn't a string, or `nodeAId` equals `nodeBId`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or the caller doesn't own it.
+  - `404` `NODE_NOT_FOUND` — One of the nodes doesn't exist or isn't in this tree.
+  - `409` `INVALID_CONNECTION` — The ideas are already connected, or one is the other's parent.
+  - `409` `CONNECTION_LIMIT_REACHED` — The tree already has 500 connections.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **DELETE /api/connections/:id**
+
+- **Summary（機能概要）:** Removes a connection. The two ideas aren't changed.
+- **Authorization（認可）:** The owner of the connection's tree only (`USER` or `ADMIN` who owns it). Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Connection ID (cuid) |
+
+**Processing（処理）**
+
+- The connection is deleted and the tree's `updatedAt` is bumped, in one transaction.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format: `{ "data": null }`.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `CONNECTION_NOT_FOUND` — The connection doesn't exist (or was already deleted with one of its ideas), its tree is in the Trash, or the caller doesn't own the tree.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
 #### Uploads
 
 ---
@@ -458,6 +537,24 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 - Preview fields are set only by the server after it fetches the link (`POST /api/link-preview` or when a `LINK` node is saved). Clients can't write them directly. Enforced in the **app layer**.
 - Deleting a node deletes its whole subtree. Enforced in the **DB** (self-FK `ON DELETE CASCADE`); the UI asks for confirmation first.
 - A tree can have at most 2,000 nodes. Enforced in the **app layer**: NodeService counts the tree's nodes and inserts the new one in the same transaction, locking the tree row (`SELECT ... FOR UPDATE`) so two simultaneous adds can't go over the limit.
+
+#### node_connections（アイデア同士のつながり）
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| id | TEXT | PK, DEFAULT cuid() | Connection ID |
+| tree_id | TEXT | NOT NULL, FK→trees.id (CASCADE) | The tree both ideas belong to |
+| node_a_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the smaller ID |
+| node_b_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the larger ID |
+| created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
+
+Indexes: `UNIQUE (node_a_id, node_b_id)`, `(tree_id)` for loading a tree's connections, `(node_b_id)` for the cascade from `nodes`.
+
+**Business rules and constraints**
+- A connection has no direction and each pair is stored once: `node_a_id < node_b_id`. Enforced in the **DB** (`CHECK (node_a_id COLLATE "C" < node_b_id COLLATE "C")`, byte order so it matches the app's string comparison, added with raw SQL in the migration, plus the unique index) and in the **app layer** (ConnectionService sorts the two IDs).
+- Both ideas belong to `tree_id`, and neither is the other's parent. Enforced in the **app layer** (ConnectionService). Re-parenting a node under an idea it's connected to deletes that connection (NodeService, same transaction).
+- A tree can have at most 500 connections. Enforced in the **app layer**: ConnectionService counts and inserts in one transaction with the tree row locked.
+- Deleting either idea, or the tree, deletes the connection. Enforced in the **DB** (`ON DELETE CASCADE`).
 
 #### uploads（アップロード画像）
 

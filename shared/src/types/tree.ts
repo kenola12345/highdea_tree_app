@@ -77,12 +77,20 @@ export type NodeSkeleton = {
   updatedAt: string;
 };
 
+/**
+ * アイデア同士のつながり（親子の枝とは別の線）。向きはなく、nodeAId < nodeBId の順で保存・返却する
+ * （manifests/nodes.md §3.5 Connections）。
+ */
+export type NodeConnection = { id: string; nodeAId: string; nodeBId: string };
+
 /** GET /api/trees/:id の data。tree.removedAt / removalReason は所有者以外には常に null */
 export type TreeDetailResponse = {
   tree: TreeSummary;
   owner: TreeOwnerRef;
   isOwner: boolean;
   nodes: NodeSkeleton[];
+  /** ツリー内のすべてのつながり（最大500件） */
+  connections: NodeConnection[];
 };
 
 /** ゴミ箱（GET /api/trash）の1件。purgeAt は完全削除される予定日時（deletedAt + 10日） */

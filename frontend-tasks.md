@@ -250,6 +250,21 @@
 
 ---
 
+## Phase 13: Connections Between Ideas（アイデア同士のつながり） 【直列】
+- Depends on: Phase 12; backend `node_connections` table (migration `add_node_connections`)
+- Main files: `backend/src/services/connection.service.ts`, `backend/src/{controllers,routes}/connections.*.ts`, `shared/src/schemas/connections.ts`, `frontend/src/api/connections.ts`, `frontend/src/features/canvas/{ConnectionLine,ConnectOverlays,TreeCanvas,NodeToolbar}.tsx`, `frontend/src/pages/{TreeEditorPage,TreeViewerPage}.tsx`
+- Screens: P-05, P-06
+- APIs: `GET /api/trees/:id` (now has `connections`), `POST /api/trees/:id/connections`, `DELETE /api/connections/:id`
+
+- [x] 13-1 Manifest first: Connections feature, endpoints, `node_connections` table, ER diagram, Prisma schema, error codes `INVALID_CONNECTION` / `CONNECTION_LIMIT_REACHED` / `CONNECTION_NOT_FOUND` (nodes.md, trees.md, common.md, index.md, CLAUDE.md)
+- [x] 13-2 Backend: table with sorted pair (`CHECK node_a_id < node_b_id`, unique pair), cascade with nodes and tree; create (same tree, not parent/child, no duplicates, 500 per tree, tree row locked) and delete; re-parenting under a connected idea removes that connection
+- [x] 13-3 Canvas draws connections as gray dotted S-curves under the cards (editor and viewer); a wide invisible hit area makes them easy to click or tap
+- [x] 13-4 Editor: "Connect" in the node toolbar → banner → click the other idea; `Esc`, Cancel or the background cancels; invalid pairs show a toast without a request
+- [x] 13-5 Editor: click a connection to select it → "Remove connection" (or `Delete`); optimistic create/remove with rollback; node delete and re-parent drop affected connections from the cache
+- [x] 13-6 Tests: API (15 cases: create, sorted IDs, duplicates, parent/child, validation, other tree, owner/admin/Trash 404, limit, delete, cascade, re-parent) and E2E (E2E-EDITOR-09 connect / viewer / remove, E2E-EDITOR-10 cancel)
+
+---
+
 ## 並列実装サマリー（Parallel Implementation Summary）
 
 | Phase | Type | Depends on | Backend Phases | Can run in parallel with | Reason (dependencies, shared files) |
@@ -297,4 +312,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 12 Phases, 137 tasks.
+Totals: 13 Phases, 143 tasks.
