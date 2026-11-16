@@ -119,3 +119,13 @@ test("E2E-EDITOR-07 a card color picked in M-04 colors that card, including the 
   await expect(card(page, "Startup ideas")).toHaveCSS("background-color", "rgb(30, 58, 138)");
   await expect(card(page, "Startup ideas")).toHaveCSS("color", "rgb(255, 255, 255)");
 });
+
+test("E2E-EDITOR-08 branch lines have no end dots, and Preview opens the Tree Viewer", async ({
+  page,
+}) => {
+  await expect(page.getByTestId("node-link").first()).toBeVisible();
+  await expect(page.getByTestId("node-link").locator("circle")).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Preview" }).click();
+  await expect(page).toHaveURL(new RegExp(`/trees/${treeId}$`));
+});

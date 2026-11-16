@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { loginAs, resetData } from "./helpers";
+import { loginAs, resetData, treeIdByTitle } from "./helpers";
 
 test.beforeAll(() => {
   resetData();
@@ -54,5 +54,40 @@ test.describe("My Trees and Trash", () => {
     await expect(
       page.getByTestId("tree-card").filter({ hasText: "Learning TypeScript" }),
     ).toBeVisible();
+  });
+
+  test("E2E-TREES-04 delete one tree forever from the Trash (M-13)", async ({ page }) => {
+    resetData();
+    await page.goto("/trash");
+    const item = page.getByTestId("trash-item").filter({ hasText: "Old brainstorm" });
+    await item.getByTestId("delete-forever-button").click();
+    const modal = page.getByTestId("delete-forever-modal");
+    await expect(modal).toContainText("“Old brainstorm” will be deleted permanently");
+    await expect(modal).toContainText("This can't be undone.");
+    await modal.getByTestId("confirm-button").click();
+
+    await expect(page.getByText("Trash is empty")).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("Trash is empty")).toBeVisible();
+  });
+
+  test("E2E-TREES-05 Empty Trash deletes every tree in the Trash (M-13)", async ({ page }) => {
+    resetData();
+    const id = await treeIdByTitle(page.request, "Personal goals");
+    expect((await page.request.delete(`/api/trees/${id}`)).status()).toBe(200);
+
+    await page.goto("/trash");
+    await expect(page.getByTestId("trash-item")).toHaveCount(2);
+    const emptyButton = page.getByTestId("empty-trash-button");
+    await expect(emptyButton).toHaveCSS("cursor", "pointer");
+    await emptyButton.click();
+    const modal = page.getByTestId("delete-forever-modal");
+    await expect(modal).toContainText("All 2 trees in the Trash will be deleted permanently.");
+    await modal.getByTestId("confirm-button").click();
+
+    await expect(page.getByText("Trash is empty")).toBeVisible();
+    const res = await page.request.get("/api/trash");
+    const body = (await res.json()) as { data: { pagination: { total: number } } };
+    expect(body.data.pagination.total).toBe(0);
   });
 });
