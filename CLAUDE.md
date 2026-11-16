@@ -32,7 +32,7 @@ Split by topic in `standards/` (general, frontend, backend, database, api, testi
 
 ## Status
 
-Design finished (manifest v1.0, 2026-11-13). No code yet. Don't scaffold or implement features unless asked.
+v1 is implemented: every task in `backend-tasks.md` and `frontend-tasks.md` is done, with API, unit and Playwright E2E tests. Still open: the production hosting setup (manifests/common.md §7.4, **[To confirm]**) and CI. New features or behavior changes go into the manifest first.
 
 ## Stack (summary — see manifests/common.md §7)
 
@@ -53,7 +53,25 @@ Design finished (manifest v1.0, 2026-11-13). No code yet. Don't scaffold or impl
 
 ## Commands
 
-TBD — added once the project is scaffolded (Phase 1).
+Run from the repo root (npm workspaces). Requires Node ≥ 26 and Docker.
+
+```bash
+npm install
+docker compose up -d --wait           # PostgreSQL (dev DB `highdea`; `highdea_test` is created on first start)
+cp backend/.env.example backend/.env  # first time only; set JWT_SECRET
+npm run prisma:migrate -w backend     # apply migrations (prisma migrate dev)
+npm run seed -w backend               # sample data; all seed users use password `password123`
+npm run make-admin -w backend -- you@example.com
+
+npm run dev        # backend http://localhost:3000 + frontend http://localhost:5173 (Vite proxies /api)
+npm test           # unit + API tests in every workspace (backend tests use backend/.env.test)
+npm run test:e2e   # Playwright, desktop + mobile; starts its own servers on :3100/:5174 with DB `highdea_e2e`
+npm run typecheck
+npm run lint
+npm run format
+```
+
+Seed accounts: `alice@example.com`, `bob@example.com` (USER), `admin@example.com` (ADMIN).
 
 ## Prisma Schema
 
