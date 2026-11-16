@@ -17,6 +17,8 @@ The Tree Editor canvas (lazy loading, drag, touch gestures), idea nodes of every
 - Deleting a node deletes its whole branch, permanently, after a confirmation that shows how many ideas are affected. The root can't be deleted (delete the tree instead).
 - A tree can have at most **2,000 nodes**.
 - **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04; "Inherit" removes it.
+- **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the brand green. Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
+- **Choosing colors:** line colors, card colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
 - **Line style:** lines are dashed S-shaped curves with a small connection dot where they meet each card, drawn on a light notebook-style grid that pans and zooms with the canvas.
 - **Opening links:** a `LINK` node's card has an "Open link" icon, the editor's node toolbar has "Open link", and the details view (M-12) has an "Open link" button. Links open in a new tab and only `http`/`https` URLs are opened.
 - **Canvas loading (lazy, like lazy-loaded images):**
@@ -58,7 +60,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | ID | Modal | Trigger | Main functions |
 |---|---|---|---|
-| M-04 | Node Editor | Double-click a node, or "Edit" in the node's toolbar (P-05). Also opens right after adding a node | Type tabs (Text / Link / Video / Image), title, note, URL with live preview card (`POST /api/link-preview`), image upload with progress (`POST /api/uploads`). Switching type keeps title and note. Line color (palette, or "Inherit"). Saves with `PATCH /api/nodes/:id` |
+| M-04 | Node Editor | Double-click a node, or "Edit" in the node's toolbar (P-05). Also opens right after adding a node | Type tabs (Text / Link / Video / Image), title, note, URL with live preview card (`POST /api/link-preview`), image upload with progress (`POST /api/uploads`). Switching type keeps title and note. Card color and line color (color pickers, with "Default" / "Inherit"). Saves with `PATCH /api/nodes/:id` |
 | M-05 | Add Branch | "+" button on a selected node's toolbar, or the `Tab` key on a selected node (P-05) | Pick a type and enter a title; creates the child node next to its parent (`POST /api/trees/:id/nodes`), then opens M-04 for the details. Disabled with "This tree is full (2,000 ideas)" at the limit |
 | M-06 | Delete Node | "Delete" in the node toolbar, or the `Delete` key on a selected node (P-05). Not shown for the center idea | Confirm: "Delete this idea and N ideas under it? This can't be undone." N is counted from the loaded skeleton (`DELETE /api/nodes/:id`) |
 | M-10 | Media Viewer | "View" in the node toolbar of an image or video node (P-05), or the image/video in the Node Details view (M-12, P-06) | Full-size image, or the embedded YouTube/Vimeo player. Close with `Esc` or the backdrop |
@@ -189,6 +191,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `positionY` | `Float` | | Canvas Y position. Default `0` |
 | `sortOrder` | `Int` | | Order among siblings. Default: after the parent's last child |
 | `lineColor` | `String \| null` | | Branch line color, `#RRGGBB`. Default `null` (inherit from the nearest ancestor) |
+| `cardColor` | `String \| null` | | Card color, `#RRGGBB`. Default `null` (white; brand green for the center idea) |
 
 **Processing（処理）**
 
@@ -198,7 +201,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `201 Created`**
-  Follows the common format `{ "data": {...} }`. `data.node` is the new node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `createdAt`, `updatedAt`.
+  Follows the common format `{ "data": {...} }`. `data.node` is the new node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `createdAt`, `updatedAt`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — A required field for the type is missing, a field doesn't apply to the type, or a rule above is broken (title length, body length, URL format, unsupported video site, preview fields sent).
@@ -239,6 +242,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `positionY` | `Float` | | Canvas Y position |
 | `sortOrder` | `Int` | | Order among siblings |
 | `lineColor` | `String \| null` | | Branch line color, `#RRGGBB`, or `null` to inherit. Allowed on any node, including the root |
+| `cardColor` | `String \| null` | | Card color, `#RRGGBB`, or `null` for the default. Allowed on any node, including the root |
 
 **Processing（処理）**
 
@@ -251,7 +255,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.node` is the updated node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `createdAt`, `updatedAt`.
+  Follows the common format `{ "data": {...} }`. `data.node` is the updated node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `createdAt`, `updatedAt`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — The body is empty, includes preview fields, has a field that doesn't apply to the node's resulting type, changes `type` without the fields the new type requires, or breaks a rule above (lengths, URL format, unsupported video site).
@@ -436,13 +440,14 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 | position_y | DOUBLE PRECISION | NOT NULL, DEFAULT 0 | Canvas Y position |
 | sort_order | INTEGER | NOT NULL, DEFAULT 0 | Order among siblings, used by the d3-hierarchy layout |
 | line_color | VARCHAR(7) | NULL | Branch line color `#RRGGBB`; `NULL` inherits from the nearest ancestor |
+| card_color | VARCHAR(7) | NULL | Card color `#RRGGBB`; `NULL` is the default (white, brand green for the root). Not inherited |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
 | updated_at | TIMESTAMPTZ(3) | NOT NULL | Updated at |
 
 **Business rules and constraints**
 - Each tree has exactly one root node (`parent_id IS NULL`). Enforced in the **app layer**: TreeService creates it with the tree, and NodeService rejects creating another root or deleting the root. Also enforced in the **DB** by a partial unique index added with raw SQL in the first migration (Prisma can't express partial indexes): `CREATE UNIQUE INDEX nodes_one_root_per_tree ON nodes(tree_id) WHERE parent_id IS NULL;`
 - A node's parent must belong to the same tree. Enforced in the **app layer** (NodeService).
-- `line_color` is `#RRGGBB` or `NULL`. Enforced in the **app layer** (Zod). Inheritance (nearest ancestor with a color, else gray) is computed by the frontend from the skeleton; the DB stores only the colors that were set.
+- `line_color` and `card_color` are `#RRGGBB` or `NULL`. Enforced in the **app layer** (Zod). Inheritance (nearest ancestor with a color, else gray) is computed by the frontend from the skeleton; the DB stores only the colors that were set.
 - A node can't be moved under itself or under one of its own descendants. Enforced in the **app layer** (NodeService walks up the ancestors when `parentId` changes). Moving a node (with its subtree) to another parent in the same tree is allowed; the root can't be moved.
 - A node's `type` can be changed. `title` and `body` are kept; fields that don't apply to the new type are cleared in the same update. Enforced in the **app layer** (NodeService).
 - Required fields depend on the type. Enforced in the **app layer** (a Zod discriminated union on `type`):

@@ -17,6 +17,7 @@ function skeleton(type: NodeSkeleton["type"], title: string): NodeSkeleton {
     positionY: 0,
     sortOrder: 0,
     lineColor: null,
+    cardColor: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }

@@ -5,6 +5,7 @@ import { memo } from "react";
 import { OpenLink } from "../../components/OpenLink";
 import { domainOf } from "../../lib/urls";
 import { toVideoEmbed } from "../../lib/videoEmbed";
+import { readableTextColor } from "../categories/CategoryChip";
 import { cardSize, type LaidOutNode } from "./layout";
 import { useNodeDetail } from "./useNodeDetails";
 import type { DetailLevel } from "./viewport";
@@ -19,6 +20,11 @@ type NodeCardProps = {
   /** ドラッグで持ち上げている枝 */
   lifted?: boolean;
 };
+
+/** カードの既定の色 */
+export const DEFAULT_CARD_COLOR = "#FFFFFF";
+/** 中心のアイデアの既定の色（brand-700。白い文字と十分なコントラストがある） */
+export const ROOT_CARD_COLOR = "#15803D";
 
 const TYPE_ICON: Record<LaidOutNode["type"], string> = {
   TEXT: "✎",
@@ -54,14 +60,18 @@ export const NodeCard = memo(function NodeCard({
         cy={node.y}
         r={node.isRoot ? 28 : 18}
         className={clsx(
-          node.isRoot ? "fill-brand-600" : "fill-slate-400",
+          !node.cardColor && (node.isRoot ? "fill-brand-600" : "fill-slate-400"),
           selected && "stroke-brand-700",
           highlighted && "stroke-amber-400",
         )}
+        style={node.cardColor ? { fill: node.cardColor } : undefined}
         strokeWidth={selected || highlighted ? 8 : 0}
       />
     );
   }
+
+  // カードの色: 設定があればそれ、なければ白（中心のアイデアはブランドの緑）。文字色はコントラストで選ぶ（manifests/nodes.md §3.5）
+  const cardBackground = node.cardColor ?? (node.isRoot ? ROOT_CARD_COLOR : DEFAULT_CARD_COLOR);
 
   return (
     <foreignObject
@@ -76,11 +86,9 @@ export const NodeCard = memo(function NodeCard({
         data-testid="node-card"
         data-node-type={node.type}
         aria-selected={selected}
+        style={{ backgroundColor: cardBackground, color: readableTextColor(cardBackground) }}
         className={clsx(
-          "flex h-full w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl border px-3 shadow-sm select-none",
-          node.isRoot
-            ? "bg-brand-700 border-brand-800 text-white"
-            : "border-slate-200 bg-white text-slate-900",
+          "flex h-full w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl border border-black/10 px-3 shadow-sm select-none",
           selected &&
             (node.isRoot ? "ring-brand-300 ring-4" : "ring-brand-500 border-brand-500 ring-2"),
           highlighted && "ring-4 ring-amber-400",
@@ -141,11 +149,11 @@ function CardContent({ treeId, node }: { treeId: string; node: LaidOutNode }) {
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-sm leading-snug font-semibold">{node.title}</p>
         {subtitle ? (
-          <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>
+          <p className="mt-0.5 truncate text-xs opacity-75">{subtitle}</p>
         ) : (
           !details &&
           node.type !== "TEXT" && (
-            <p className="mt-1 h-2 w-2/3 animate-pulse rounded bg-slate-100" />
+            <p className="mt-1 h-2 w-2/3 animate-pulse rounded bg-current opacity-15" />
           )
         )}
       </div>
@@ -153,7 +161,7 @@ function CardContent({ treeId, node }: { treeId: string; node: LaidOutNode }) {
         <OpenLink
           url={details?.url}
           testId="card-open-link"
-          className="text-brand-700 hover:bg-brand-50 -mr-1 size-8 shrink-0 justify-center self-start rounded-lg text-base"
+          className="-mr-1 size-8 shrink-0 justify-center self-start rounded-lg text-base hover:bg-black/10"
         >
           <span aria-hidden="true">↗</span>
           <span className="sr-only">Open link</span>

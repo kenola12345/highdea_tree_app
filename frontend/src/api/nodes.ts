@@ -60,6 +60,7 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     positionY: node.positionY,
     sortOrder: node.sortOrder,
     lineColor: node.lineColor,
+    cardColor: node.cardColor,
     updatedAt: node.updatedAt,
   };
   const details: NodeDetails = {
@@ -131,6 +132,7 @@ export function useCreateNode(treeId: string) {
           positionY: body.positionY ?? 0,
           sortOrder: body.sortOrder ?? Number.MAX_SAFE_INTEGER,
           lineColor: body.lineColor ?? null,
+          cardColor: body.cardColor ?? null,
           updatedAt: new Date().toISOString(),
         },
       ]);
@@ -180,6 +182,7 @@ export function useUpdateNode(treeId: string) {
                 ...(body.positionX !== undefined && { positionX: body.positionX }),
                 ...(body.positionY !== undefined && { positionY: body.positionY }),
                 ...(body.lineColor !== undefined && { lineColor: body.lineColor }),
+                ...(body.cardColor !== undefined && { cardColor: body.cardColor }),
               }
             : n,
         ),

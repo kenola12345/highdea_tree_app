@@ -261,6 +261,7 @@ model Node {
   positionY          Float     @default(0) @map("position_y")
   sortOrder          Int       @default(0) @map("sort_order")
   lineColor          String?   @map("line_color") @db.VarChar(7)
+  cardColor          String?   @map("card_color") @db.VarChar(7)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 

@@ -12,6 +12,8 @@ export type NodeFormValues = {
   newUploadId: string | null;
   /** 枝の線の色（null は祖先の色を受け継ぐ） */
   lineColor: string | null;
+  /** カードの色（null は既定の色） */
+  cardColor: string | null;
 };
 
 export type BuildResult =
@@ -23,7 +25,12 @@ export type BuildResult =
  * 新しい種類に必要な項目（LINK/VIDEO の URL、IMAGE の画像）が無ければエラーにする。
  */
 export function buildUpdateBody(
-  original: { type: NodeType; url: string | null; lineColor: string | null },
+  original: {
+    type: NodeType;
+    url: string | null;
+    lineColor: string | null;
+    cardColor: string | null;
+  },
   values: NodeFormValues,
 ): BuildResult {
   const typeChanged = values.type !== original.type;
@@ -33,6 +40,7 @@ export function buildUpdateBody(
     ...(typeChanged && { type: values.type }),
     // 線の色は変えたときだけ送る
     ...(values.lineColor !== original.lineColor && { lineColor: values.lineColor }),
+    ...(values.cardColor !== original.cardColor && { cardColor: values.cardColor }),
   };
   if (values.type === "LINK" || values.type === "VIDEO") {
     const url = values.url.trim();

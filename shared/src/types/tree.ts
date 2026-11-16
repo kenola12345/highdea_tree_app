@@ -50,6 +50,7 @@ export type RootNodeItem = {
   positionY: number;
   sortOrder: number;
   lineColor: null;
+  cardColor: null;
   createdAt: string;
   updatedAt: string;
 };
@@ -71,6 +72,8 @@ export type NodeSkeleton = {
   sortOrder: number;
   /** 枝の線の色（#RRGGBB）。null は最も近い祖先の色を受け継ぐ */
   lineColor: string | null;
+  /** カードの色（#RRGGBB）。null は既定（白、中心のアイデアはブランドの緑）。受け継がない */
+  cardColor: string | null;
   updatedAt: string;
 };
 

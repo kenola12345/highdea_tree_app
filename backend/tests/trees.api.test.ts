@@ -187,6 +187,7 @@ describe("POST /api/trees", () => {
       positionY: 0,
       sortOrder: 0,
       lineColor: null,
+      cardColor: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -311,6 +312,7 @@ describe("GET /api/trees/:id", () => {
     for (const node of res.body.data.nodes) {
       expect(Object.keys(node).sort()).toEqual(
         [
+          "cardColor",
           "id",
           "lineColor",
           "parentId",

@@ -97,7 +97,7 @@ test("E2E-EDITOR-06 a branch line color colors that branch and is kept after rel
   page,
 }) => {
   await card(page, "Problem").dblclick();
-  await page.getByTestId("line-color-#EF4444").click();
+  await page.locator("#line-color").fill("#EF4444");
   await page.getByTestId("node-save").click();
   await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
 
@@ -105,4 +105,17 @@ test("E2E-EDITOR-06 a branch line color colors that branch and is kept after rel
   await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
   const nodes = await nodesByTitle(page.request, treeId);
   expect(nodes.Problem).toBeDefined();
+});
+
+test("E2E-EDITOR-07 a card color picked in M-04 colors that card, including the center idea", async ({
+  page,
+}) => {
+  await card(page, "Startup ideas").dblclick();
+  await page.locator("#card-color").fill("#1E3A8A");
+  await page.getByTestId("node-save").click();
+  await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
+
+  await page.reload();
+  await expect(card(page, "Startup ideas")).toHaveCSS("background-color", "rgb(30, 58, 138)");
+  await expect(card(page, "Startup ideas")).toHaveCSS("color", "rgb(255, 255, 255)");
 });

@@ -7,9 +7,10 @@ import { useUpdateNode } from "../../api/nodes";
 import { FormField, inputClassName } from "../../components/FormField";
 import { Modal } from "../../components/Modal";
 import { toVideoEmbed } from "../../lib/videoEmbed";
+import { DEFAULT_CARD_COLOR, ROOT_CARD_COLOR } from "../canvas/NodeCard";
 import { ImageUploadField } from "./ImageUploadField";
-import { LineColorField } from "./LineColorField";
 import { LinkPreviewCard } from "./LinkPreviewCard";
+import { NodeColorFields } from "./NodeColorFields";
 import { buildUpdateBody, type NodeFormValues, type NodeType } from "./nodeForm";
 import { TypeTabs } from "./TypeTabs";
 
@@ -56,6 +57,7 @@ function NodeEditorForm({
     url: details?.url ?? "",
     newUploadId: null,
     lineColor: node.lineColor,
+    cardColor: node.cardColor,
   });
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<"title" | "body" | "url" | "image", string>>>(
@@ -77,7 +79,12 @@ function NodeEditorForm({
       nextErrors.url = "Enter a YouTube or Vimeo URL";
     if (preview.status === "notAllowed") nextErrors.url = preview.message;
     const built = buildUpdateBody(
-      { type: node.type, url: details?.url ?? null, lineColor: node.lineColor },
+      {
+        type: node.type,
+        url: details?.url ?? null,
+        lineColor: node.lineColor,
+        cardColor: node.cardColor,
+      },
       { ...values, title: values.title.trim() },
     );
     if (!built.ok) nextErrors[built.field] = built.message;
@@ -196,12 +203,17 @@ function NodeEditorForm({
         )}
       </FormField>
 
-      <LineColorField
-        value={values.lineColor}
-        inheritedColor={inheritedLineColor}
+      <NodeColorFields
+        lineColor={values.lineColor}
+        cardColor={values.cardColor}
+        inheritedLineColor={inheritedLineColor}
+        defaultCardColor={node.parentId === null ? ROOT_CARD_COLOR : DEFAULT_CARD_COLOR}
         isRoot={node.parentId === null}
-        onChange={(color) => {
+        onLineColorChange={(color) => {
           set("lineColor", color);
+        }}
+        onCardColorChange={(color) => {
+          set("cardColor", color);
         }}
       />
 

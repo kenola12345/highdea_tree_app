@@ -1,6 +1,7 @@
 import type { NodeSkeleton, TreeDetailResponse } from "@highdea/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +9,7 @@ import { PREVIEW_DEBOUNCE_MS, useLinkPreview } from "../../api/linkPreview";
 import { useCreateNode } from "../../api/nodes";
 import { createQueryClient } from "../../api/queryClient";
 import { queryKeys } from "../../api/queryKeys";
+import { ColorField } from "../../components/ColorField";
 import { OpenLink } from "../../components/OpenLink";
 import { ToastProvider } from "../../components/Toast";
 import { buildUpdateBody } from "../nodes/nodeForm";
@@ -26,6 +28,7 @@ function node(id: string, parentId: string | null, x: number, y: number): NodeSk
     positionY: y,
     sortOrder: 0,
     lineColor: null,
+    cardColor: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }
@@ -89,11 +92,15 @@ describe("M-04 type switch", () => {
     url: "",
     newUploadId: null,
     lineColor: null,
+    cardColor: null,
   };
 
   it("keeps title and note when switching to Link, and requires the URL", () => {
     expect(
-      buildUpdateBody({ type: "TEXT", url: null, lineColor: null }, { ...values, type: "LINK" }),
+      buildUpdateBody(
+        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        { ...values, type: "LINK" },
+      ),
     ).toEqual({
       ok: false,
       field: "url",
@@ -101,7 +108,7 @@ describe("M-04 type switch", () => {
     });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null },
+        { type: "TEXT", url: null, lineColor: null, cardColor: null },
         { ...values, type: "LINK", url: "https://example.com" },
       ),
     ).toEqual({
@@ -112,7 +119,7 @@ describe("M-04 type switch", () => {
 
   it("doesn't send the old type's fields, so the server clears them", () => {
     const result = buildUpdateBody(
-      { type: "LINK", url: "https://example.com", lineColor: null },
+      { type: "LINK", url: "https://example.com", lineColor: null, cardColor: null },
       { ...values, type: "TEXT", url: "https://example.com" },
     );
 
@@ -124,11 +131,14 @@ describe("M-04 type switch", () => {
 
   it("requires an uploaded image when switching to Image", () => {
     expect(
-      buildUpdateBody({ type: "TEXT", url: null, lineColor: null }, { ...values, type: "IMAGE" }),
+      buildUpdateBody(
+        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        { ...values, type: "IMAGE" },
+      ),
     ).toMatchObject({ ok: false, field: "image" });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null },
+        { type: "TEXT", url: null, lineColor: null, cardColor: null },
         { ...values, type: "IMAGE", newUploadId: "up1" },
       ),
     ).toMatchObject({
@@ -270,8 +280,15 @@ describe("line colors", () => {
   });
 
   it("M-04 sends lineColor only when it changed, and null to inherit again", () => {
-    const original = { type: "TEXT" as const, url: null, lineColor: "#EF4444" };
-    const values = { type: "TEXT" as const, title: "T", body: "", url: "", newUploadId: null };
+    const original = { type: "TEXT" as const, url: null, lineColor: "#EF4444", cardColor: null };
+    const values = {
+      type: "TEXT" as const,
+      title: "T",
+      body: "",
+      url: "",
+      newUploadId: null,
+      cardColor: null,
+    };
 
     expect(buildUpdateBody(original, { ...values, lineColor: "#EF4444" })).toEqual({
       ok: true,
@@ -309,5 +326,52 @@ describe("open link", () => {
 
     rerender(<OpenLink url="javascript:alert(1)" />);
     expect(screen.queryByTestId("open-link")).not.toBeInTheDocument();
+  });
+});
+
+describe("card colors and color picker", () => {
+  it("M-04 sends cardColor only when it changed", () => {
+    const original = { type: "TEXT" as const, url: null, lineColor: null, cardColor: null };
+    const values = {
+      type: "TEXT" as const,
+      title: "T",
+      body: "",
+      url: "",
+      newUploadId: null,
+      lineColor: null,
+    };
+
+    expect(buildUpdateBody(original, { ...values, cardColor: null })).toEqual({
+      ok: true,
+      body: { title: "T", body: null },
+    });
+    expect(buildUpdateBody(original, { ...values, cardColor: "#FDE68A" })).toEqual({
+      ok: true,
+      body: { title: "T", body: null, cardColor: "#FDE68A" },
+    });
+  });
+
+  it("ColorField accepts a typed hex color, ignores half-typed values, and resets to Default", async () => {
+    const onChange = vi.fn();
+    render(
+      <ColorField
+        id="card-color"
+        value="#FFFFFF"
+        onChange={onChange}
+        fallbackColor="#FFFFFF"
+        fallbackLabel="Default"
+      />,
+    );
+    const user = userEvent.setup();
+    const input = screen.getByRole("textbox");
+
+    await user.clear(input);
+    await user.type(input, "#12");
+    expect(onChange).not.toHaveBeenCalledWith("#12");
+    await user.type(input, "ab34");
+    expect(onChange).toHaveBeenLastCalledWith("#12AB34");
+
+    await user.click(screen.getByTestId("card-color-default"));
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 });

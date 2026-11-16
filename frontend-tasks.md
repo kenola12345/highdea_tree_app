@@ -229,7 +229,7 @@
 
 ---
 
-## Phase 12: Canvas Look, Line Colors, Links and View-mode Details（キャンバスの見た目・線の色・リンク・閲覧時の詳細） 【直列】
+## Phase 12: Canvas Look, Line and Card Colors, Links and View-mode Details（キャンバスの見た目・線とカードの色・リンク・閲覧時の詳細） 【直列】
 - Depends on: Phases 7, 8, 10; backend `nodes.line_color` column (migration `add_node_line_color`)
 - Main files: `frontend/src/features/canvas/{NodeLink,GridBackground,layout,NodeCard,NodeToolbar,TreeCanvas}.tsx`, `frontend/src/features/nodes/{LineColorField,NodeDetailsPanel,NodeEditorModal,nodeForm}.ts(x)`, `frontend/src/components/OpenLink.tsx`, `frontend/src/pages/TreeViewerPage.tsx`
 - Screens: P-05, P-06, M-04, M-12 (new)
@@ -244,6 +244,9 @@
 - [x] 12-7 Open links: ↗ on LINK cards, "Open link" in the editor toolbar and in M-12 (new tab, `noopener noreferrer`, http/https only)
 - [x] 12-8 M-12 Node Details in the viewer: click an idea to see its note, link preview, video or image (→ M-10); side panel on desktop, full-screen sheet on phones, `Esc` closes
 - [x] 12-9 Tests: unit (color inheritance, S-curve geometry, lineColor body, OpenLink safety, M-12 panel) and E2E (E2E-EDITOR-06 branch color, E2E-EXPLORE-04 details and link)
+- [x] 12-10 Card colors: `card_color` column and migration (`add_node_card_color`), `cardColor` in the shared schemas, skeleton and node responses; any idea including the center idea; not inherited; text switches dark/white for contrast
+- [x] 12-11 Color pickers instead of fixed palettes for line, card and category colors (`components/ColorField.tsx`: system picker + `#RRGGBB` field + Default/Inherit)
+- [x] 12-12 Tests: API (card color save/clear/validation), unit (cardColor body, ColorField input), E2E (E2E-EDITOR-07 card color on the center idea; E2E-EDITOR-06 now types the line color)
 
 ---
 
@@ -294,4 +297,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 12 Phases, 134 tasks.
+Totals: 12 Phases, 137 tasks.
