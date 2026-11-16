@@ -48,11 +48,10 @@ export function EditorToolbar({ treeId, tree, onOpenSettings }: EditorToolbarPro
           </button>
           <Link
             to={`/trees/${treeId}`}
-            aria-label="View as visitor"
             title="View as visitor"
-            className="flex size-11 items-center justify-center rounded-lg text-lg hover:bg-slate-100 md:size-9"
+            className="flex h-11 items-center justify-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 md:h-9"
           >
-            👁
+            Preview
           </Link>
         </div>
       </div>

@@ -19,7 +19,7 @@ The Tree Editor canvas (lazy loading, drag, touch gestures), idea nodes of every
 - **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04; "Inherit" removes it.
 - **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the brand green. Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
 - **Choosing colors:** line colors, card colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
-- **Line style:** lines are dashed S-shaped curves with a small connection dot where they meet each card, drawn on a light notebook-style grid that pans and zooms with the canvas.
+- **Line style:** lines are dashed S-shaped curves that meet each card at the middle of its facing edge (no end markers), drawn on a light notebook-style grid that pans and zooms with the canvas.
 - **Opening links:** a `LINK` node's card has an "Open link" icon, the editor's node toolbar has "Open link", and the details view (M-12) has an "Open link" button. Links open in a new tab and only `http`/`https` URLs are opened.
 - **Canvas loading (lazy, like lazy-loaded images):**
   1. The whole tree's skeleton (each node's id, parent, type, title and position) loads in one request, so the layout and connecting lines can be drawn at once.
@@ -72,7 +72,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | [AppHeader]  Highdea Tree   Explore   My Trees   Trash   Settings   (avatar) |
 +------------------------------------------------------------------------------+
 | [EditorToolbar]                                                              |
-|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [👁] |
+|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [Preview] |
 +------------------------------------------------------------------------------+
 | [TreeCanvas]  (SVG, pan = drag background, zoom = wheel / pinch)             |
 |                                                                              |
@@ -99,7 +99,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 ```
 
 - **AppHeader:** shared navigation on every page.
-- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "View as visitor" (👁, opens the Tree Viewer).
+- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "Preview" (text button, tooltip "View as visitor"; opens the Tree Viewer).
 - **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy`, and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
 - **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
 - **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
