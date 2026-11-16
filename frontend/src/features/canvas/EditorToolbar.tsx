@@ -51,7 +51,7 @@ export function EditorToolbar({ treeId, tree, onOpenSettings }: EditorToolbarPro
             title="View as visitor"
             className="flex h-11 items-center justify-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 md:h-9"
           >
-            Preview
+            View
           </Link>
         </div>
       </div>

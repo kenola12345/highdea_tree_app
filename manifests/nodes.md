@@ -72,7 +72,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | [AppHeader]  Highdea Tree   Explore   My Trees   Trash   Settings   (avatar) |
 +------------------------------------------------------------------------------+
 | [EditorToolbar]                                                              |
-|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [Preview] |
+|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [View] |
 +------------------------------------------------------------------------------+
 | [TreeCanvas]  (SVG, pan = drag background, zoom = wheel / pinch)             |
 |                                                                              |
@@ -99,7 +99,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 ```
 
 - **AppHeader:** shared navigation on every page.
-- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "Preview" (text button, tooltip "View as visitor"; opens the Tree Viewer).
+- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "View" (text button, tooltip "View as visitor"; opens the Tree Viewer).
 - **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy`, and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
 - **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
 - **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
