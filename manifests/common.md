@@ -84,7 +84,7 @@ Routing rules:
 
 - **Field-level errors:** every form (P-02, P-03, P-10, M-01, M-02, M-04, M-05, M-07, M-09, M-11) uses the same Zod schemas as the backend for instant checks, and maps the API's `details` (`{ field, message }`) to the matching field when the server rejects a request.
 - **Session handling:** on app load, `GET /api/auth/me` decides guest or logged in (`401` = guest, not an error). Any `401` during use (e.g. the 7-day token expired) clears the cached user and sends the user to `/login?next=<current url>`, keeping their place. `role` from `/me` controls admin-only buttons; the API still checks the role on every request.
-- **Cache invalidation after changes:** creating, editing, trashing or restoring a tree invalidates `['trees']` (My Trees), `['trash']`, `['categories']` (tree counts) and, for public trees, `['explore']` and the owner's profile. Category edits also invalidate every cached tree that shows that category.
+- **Cache invalidation after changes:** creating, editing, trashing, restoring or permanently deleting a tree invalidates `['trees']` (My Trees), `['trash']`, `['categories']` (tree counts) and, for public trees, `['explore']` and the owner's profile. Category edits also invalidate every cached tree that shows that category.
 - **Business rules visible in the UI:** the center idea has no Delete action; "+ Add" is disabled at 2,000 ideas; a removed tree's visibility switch is disabled with the admin's reason shown; the Trash shows "X days left" from `purgeAt`; delete confirmations state how many ideas (M-06) or trees (M-08) are affected.
 - **Not-found instead of forbidden:** any `404` for a page's main resource (tree, user profile) shows P-11 with the same message, whether the item doesn't exist, is private, removed or deleted, so the UI doesn't reveal private content either.
 
@@ -159,7 +159,7 @@ Table definitions are in the domain files: `users` → [users.md](./users.md); `
 | Resource | Policy | Implementation | Related data | Notes |
 |---|---|---|---|---|
 | User | Deactivate (soft delete) | `users.deleted_at` | Trees, categories and uploads are kept but hidden from everyone | The user deletes their account with `POST /api/users/me/deactivate` (password required). Email and username stay taken. No reactivation in v1 |
-| Tree (owner deletes) | Soft delete → Trash, then hard delete after 10 days | `trees.deleted_at`, then a daily purge job | In the Trash: nodes and tags kept, so restore brings everything back. On purge: nodes and tags deleted (CASCADE); uploaded images become unused and are removed by the uploads cleanup job | Restore with `POST /api/trees/:id/restore` |
+| Tree (owner deletes) | Soft delete → Trash, then hard delete after 10 days (or sooner when the owner deletes it forever / empties the Trash) | `trees.deleted_at`, then a daily purge job or `DELETE /api/trash[/:id]` | In the Trash: nodes and tags kept, so restore brings everything back. On purge or permanent delete: nodes and tags deleted (CASCADE); uploaded images become unused and are removed by the uploads cleanup job | Restore with `POST /api/trees/:id/restore` |
 | Tree (admin removes) | Hide from public | `trees.removed_at`, `removed_by_id`, `removal_reason`; `visibility` set to `PRIVATE` | Owner keeps private access | Kept separate from `deleted_at`, so moderation actions stay auditable |
 | Node | Hard delete | `DELETE` | Whole subtree deleted (DB CASCADE). The image file stays until cleanup | Nodes have no history, so a soft delete isn't needed |
 | Category | Hard delete | `DELETE` | Its `tree_categories` rows are deleted (CASCADE). Trees stay | |
@@ -338,7 +338,7 @@ Policies:
 | Auth | `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | Users | `GET /api/users/:username`, `PATCH /api/users/me`, `PATCH /api/users/me/account` (email, username), `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` (delete account) |
 | Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
-| Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore` |
+| Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` (delete one forever), `DELETE /api/trash` (empty the Trash) |
 | Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (all drag moves), `DELETE /api/nodes/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`), `GET /api/explore/categories` (category names for the filter) |
@@ -370,7 +370,7 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id` |
 | `PARENT_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `ROUTE_NOT_FOUND` | `404` | Any request to an `/api` path that has no endpoint (not listed in the endpoint specs) |
-| `TREE_NOT_FOUND` | `404` | 8 endpoints |
+| `TREE_NOT_FOUND` | `404` | 9 endpoints |
 | `UPLOAD_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `USER_NOT_FOUND` | `404` | `GET /api/users/:username` |
 | `CANNOT_DELETE_ROOT` | `409` | `DELETE /api/nodes/:id` |
@@ -380,7 +380,7 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `INVALID_MOVE` | `409` | `PATCH /api/nodes/:id` |
 | `NODE_LIMIT_REACHED` | `409` | `POST /api/trees/:id/nodes` |
 | `TREE_ALREADY_REMOVED` | `409` | `POST /api/admin/trees/:id/remove` |
-| `TREE_NOT_IN_TRASH` | `409` | `POST /api/trees/:id/restore` |
+| `TREE_NOT_IN_TRASH` | `409` | `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` |
 | `TREE_REMOVED` | `409` | `PATCH /api/trees/:id` |
 | `USERNAME_TAKEN` | `409` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
 | `FILE_TOO_LARGE` | `413` | `POST /api/uploads` |

@@ -9,6 +9,13 @@ import { validate } from "../middleware/validate.js";
 export const trashRouter = Router();
 
 trashRouter.get("/trash", requireAuth, validate({ query: paginationQuerySchema }), trash.list);
+trashRouter.delete("/trash", requireAuth, trash.empty);
+trashRouter.delete(
+  "/trash/:id",
+  requireAuth,
+  validate({ params: idParamSchema }),
+  trash.deleteForever,
+);
 trashRouter.post(
   "/trees/:id/restore",
   requireAuth,

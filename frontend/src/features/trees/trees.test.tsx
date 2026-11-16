@@ -133,4 +133,65 @@ describe("P-09 Trash", () => {
     );
     expect(trashCalls).toBe(2);
   });
+
+  it("deletes one tree forever after confirming (M-13)", async () => {
+    let trashCalls = 0;
+    const { fetchMock } = renderApp("/trash", {
+      "GET /api/auth/me": me,
+      "GET /api/trash": () => {
+        trashCalls++;
+        return trashCalls === 1
+          ? list([
+              { ...tree(), deletedAt: "2026-11-11T12:00:00Z", purgeAt: "2026-11-21T12:00:00Z" },
+            ])
+          : list([]);
+      },
+      "DELETE /api/trash/t1": { status: 200, body: { data: null } },
+    });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId("delete-forever-button"));
+    const modal = screen.getByTestId("delete-forever-modal");
+    expect(modal).toHaveTextContent("This can't be undone.");
+    await user.click(within(modal).getByTestId("confirm-button"));
+
+    expect(await screen.findByText("Trash is empty")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/trash/t1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("empties the whole Trash after confirming, showing the tree count (M-13)", async () => {
+    let trashCalls = 0;
+    const { fetchMock } = renderApp("/trash", {
+      "GET /api/auth/me": me,
+      "GET /api/trash": () => {
+        trashCalls++;
+        return trashCalls === 1
+          ? list([
+              { ...tree(), deletedAt: "2026-11-11T12:00:00Z", purgeAt: "2026-11-21T12:00:00Z" },
+              {
+                ...tree({ id: "t2", title: "Second" }),
+                deletedAt: "2026-11-10T12:00:00Z",
+                purgeAt: "2026-11-20T12:00:00Z",
+              },
+            ])
+          : list([]);
+      },
+      "DELETE /api/trash": { status: 200, body: { data: { deletedCount: 2 } } },
+    });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId("empty-trash-button"));
+    const modal = screen.getByTestId("delete-forever-modal");
+    expect(modal).toHaveTextContent("All 2 trees in the Trash will be deleted permanently.");
+    await user.click(within(modal).getByTestId("confirm-button"));
+
+    expect(await screen.findByText("Trash is empty")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/trash",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
 });

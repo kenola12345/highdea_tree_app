@@ -31,3 +31,25 @@ export function useRestoreTree() {
       }),
   });
 }
+
+/**
+ * ゴミ箱のツリーを完全削除する（取り消し不可）。ゴミ箱のツリーはマイツリー・Explore には出ないが、
+ * カテゴリのツリー数などをそろえるため、ほかのツリー変更と同じキャッシュを無効化する。
+ */
+export function useDeleteTreeForever() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<null>(`/trash/${id}`, { method: "DELETE" }),
+    // 失敗（すでに完全削除・復元済み）でも一覧を最新にする
+    onSettled: () => invalidateAfterTreeChange(queryClient, { visibility: "PRIVATE" }),
+  });
+}
+
+/** ゴミ箱を空にする（自分のゴミ箱のツリーをすべて完全削除、取り消し不可） */
+export function useEmptyTrash() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<{ deletedCount: number }>("/trash", { method: "DELETE" }),
+    onSettled: () => invalidateAfterTreeChange(queryClient, { visibility: "PRIVATE" }),
+  });
+}

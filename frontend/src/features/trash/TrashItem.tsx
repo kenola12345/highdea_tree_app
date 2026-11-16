@@ -3,10 +3,16 @@ import type { TrashItem as TrashItemData } from "@highdea/shared";
 import { daysLeft, formatDate } from "../../lib/dates";
 import { CategoryChip } from "../categories/CategoryChip";
 
-type TrashItemProps = { tree: TrashItemData; onRestore: () => void; restoring: boolean };
+type TrashItemProps = {
+  tree: TrashItemData;
+  onRestore: () => void;
+  restoring: boolean;
+  /** 完全削除の確認（M-13）を開く */
+  onDeleteForever: () => void;
+};
 
-/** ゴミ箱の1件。完全削除までの残り日数（purgeAt から計算）と復元ボタン（manifests/trees.md P-09） */
-export function TrashItem({ tree, onRestore, restoring }: TrashItemProps) {
+/** ゴミ箱の1件。完全削除までの残り日数（purgeAt から計算）、復元ボタン、完全削除ボタン（manifests/trees.md P-09） */
+export function TrashItem({ tree, onRestore, restoring, onDeleteForever }: TrashItemProps) {
   const left = daysLeft(tree.purgeAt);
   return (
     <li
@@ -32,15 +38,26 @@ export function TrashItem({ tree, onRestore, restoring }: TrashItemProps) {
           </div>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onRestore}
-        disabled={restoring}
-        data-testid="restore-button"
-        className="self-start rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-60 sm:self-center"
-      >
-        {restoring ? "Restoring…" : "Restore"}
-      </button>
+      <div className="flex shrink-0 gap-2 self-start sm:self-center">
+        <button
+          type="button"
+          onClick={onRestore}
+          disabled={restoring}
+          data-testid="restore-button"
+          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-60"
+        >
+          {restoring ? "Restoring…" : "Restore"}
+        </button>
+        <button
+          type="button"
+          onClick={onDeleteForever}
+          disabled={restoring}
+          data-testid="delete-forever-button"
+          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+        >
+          Delete forever
+        </button>
+      </div>
     </li>
   );
 }
