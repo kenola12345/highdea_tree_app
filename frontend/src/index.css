@@ -15,3 +15,25 @@
 body {
   @apply bg-white font-sans text-slate-900 antialiased;
 }
+
+/*
+ * ボタンにはポインターのカーソルを出す。Tailwind v4 は既定でボタンを cursor: default にするため戻す。
+ * base レイヤーに置くので、cursor-grab などのユーティリティクラスを付けた要素はそちらが優先される。
+ */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="tab"],
+  select:not(:disabled),
+  summary,
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
