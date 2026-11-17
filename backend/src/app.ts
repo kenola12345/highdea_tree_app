@@ -12,6 +12,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { categoriesRouter } from "./routes/categories.routes.js";
 import { connectionsRouter } from "./routes/connections.routes.js";
 import { exploreRouter } from "./routes/explore.routes.js";
+import { groupsRouter } from "./routes/groups.routes.js";
 import { linkPreviewRouter } from "./routes/linkPreview.routes.js";
 import { nodesRouter } from "./routes/nodes.routes.js";
 import { trashRouter } from "./routes/trash.routes.js";
@@ -27,6 +28,7 @@ const API_ROUTERS: Router[] = [
   trashRouter,
   nodesRouter,
   connectionsRouter,
+  groupsRouter,
   categoriesRouter,
   exploreRouter,
   uploadsRouter,

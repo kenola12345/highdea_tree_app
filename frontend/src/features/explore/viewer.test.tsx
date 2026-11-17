@@ -53,7 +53,16 @@ function treeReply(isOwner: boolean, extra: Record<string, unknown> = {}) {
             updatedAt: "2026-11-01T00:00:00Z",
           },
         ],
+        canvas: {
+          gridStyle: "DOTS",
+          gridColor: null,
+          gridOpacity: 100,
+          gridSpacing: 24,
+          backgroundColor: null,
+          nodeStyle: "MINIMAL",
+        },
         connections: [],
+        groups: [],
       },
     },
   };
@@ -71,7 +80,9 @@ describe("P-06 Tree viewer buttons", () => {
     });
 
     expect(await screen.findByTestId("viewer-title")).toHaveTextContent("Startup ideas");
-    expect(screen.queryByTestId("viewer-edit")).not.toBeInTheDocument();
+    // 所有者が選んだキャンバスの見た目（点の方眼）を訪問者にも見せる
+    expect(screen.getByTestId("grid-background")).toHaveAttribute("data-grid-style", "DOTS");
+    expect(screen.queryByTestId("mode-edit")).not.toBeInTheDocument();
     expect(screen.queryByTestId("viewer-remove")).not.toBeInTheDocument();
   });
 
@@ -81,7 +92,7 @@ describe("P-06 Tree viewer buttons", () => {
       "GET /api/trees/t1": treeReply(true),
     });
 
-    expect(await screen.findByTestId("viewer-edit")).toHaveAttribute("href", "/trees/t1/edit");
+    expect(await screen.findByTestId("mode-edit")).toHaveAttribute("href", "/trees/t1/edit");
     expect(screen.queryByTestId("viewer-remove")).not.toBeInTheDocument();
   });
 
@@ -92,7 +103,7 @@ describe("P-06 Tree viewer buttons", () => {
     });
 
     expect(await screen.findByTestId("viewer-remove")).toBeInTheDocument();
-    expect(screen.queryByTestId("viewer-edit")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mode-edit")).not.toBeInTheDocument();
   });
 
   it("shows Not Found for a tree the caller can't see", async () => {

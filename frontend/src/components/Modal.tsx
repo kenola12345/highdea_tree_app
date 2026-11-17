@@ -76,7 +76,11 @@ export function Modal({ open, title, onClose, children, footer, testId }: ModalP
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-center md:p-6">
-      <div className="absolute inset-0 bg-slate-900/50" aria-hidden="true" onClick={onClose} />
+      <div
+        className="bg-ink/25 animate-fade-in absolute inset-0 backdrop-blur-[2px]"
+        aria-hidden="true"
+        onClick={onClose}
+      />
       <div
         ref={panelRef}
         role="dialog"
@@ -84,26 +88,24 @@ export function Modal({ open, title, onClose, children, footer, testId }: ModalP
         aria-labelledby={titleId}
         tabIndex={-1}
         data-testid={testId}
-        className="relative flex w-full flex-col bg-white shadow-xl outline-none md:max-h-[90vh] md:max-w-lg md:rounded-2xl"
+        className="bg-surface animate-sheet-in md:animate-pop-in relative flex w-full flex-col shadow-xl outline-none md:max-h-[90vh] md:max-w-lg md:rounded-3xl"
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 md:px-6">
-          <h2 id={titleId} className="text-lg font-semibold">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 md:px-6 md:pt-5">
+          <h2 id={titleId} className="text-xl font-extrabold">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-2 flex size-11 items-center justify-center rounded-lg text-2xl leading-none text-slate-500 hover:bg-slate-100"
+            className="hover:text-ink -mr-2 flex size-11 items-center justify-center rounded-full text-2xl leading-none text-slate-400 hover:bg-slate-100 md:size-9"
           >
             ×
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 md:px-6">
-            {footer}
-          </div>
+          <div className="flex justify-end gap-2 px-4 pt-2 pb-4 md:px-6 md:pb-5">{footer}</div>
         )}
       </div>
     </div>,

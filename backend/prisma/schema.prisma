@@ -24,6 +24,52 @@ enum NodeType {
   IMAGE
 }
 
+enum NodeShape {
+  ROUNDED
+  RECTANGLE
+  PILL
+  ELLIPSE
+}
+
+enum GridStyle {
+  LINES
+  DOTS
+  NONE
+}
+
+enum NodeRole {
+  CORE
+  SUPPORTING
+  IMPORTANT
+  EXAMPLE
+  QUESTION
+}
+
+enum NodeStylePreset {
+  MINIMAL
+  MIDNIGHT
+  ORGANIC
+  EDITORIAL
+}
+
+enum ConnectionKind {
+  RELATED
+  SEQUENCE
+  DEPENDENCY
+  CONTRAST
+}
+
+enum ConnectionArrow {
+  A_TO_B
+  B_TO_A
+}
+
+enum GroupKind {
+  BOX
+  NOTE
+  LABEL
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique @db.VarChar(255)
@@ -45,23 +91,31 @@ model User {
 }
 
 model Tree {
-  id            String         @id @default(cuid())
-  ownerId       String         @map("owner_id")
-  title         String         @db.VarChar(100)
-  description   String?        @db.VarChar(500)
-  visibility    TreeVisibility @default(PRIVATE)
-  removedAt     DateTime?      @map("removed_at") @db.Timestamptz(3)
-  removedById   String?        @map("removed_by_id")
-  removalReason String?        @map("removal_reason") @db.VarChar(500)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  id              String          @id @default(cuid())
+  ownerId         String          @map("owner_id")
+  title           String          @db.VarChar(100)
+  description     String?         @db.VarChar(500)
+  visibility      TreeVisibility  @default(PRIVATE)
+  removedAt       DateTime?       @map("removed_at") @db.Timestamptz(3)
+  removedById     String?         @map("removed_by_id")
+  removalReason   String?         @map("removal_reason") @db.VarChar(500)
+  // Canvas look (manifests/nodes.md §3.5 Canvas look). NULL colors = the frontend's defaults
+  gridStyle       GridStyle       @default(LINES) @map("grid_style")
+  gridColor       String?         @map("grid_color") @db.VarChar(7)
+  gridOpacity     Int             @default(100) @map("grid_opacity")
+  gridSpacing     Int             @default(24) @map("grid_spacing")
+  nodeStyle       NodeStylePreset @default(MINIMAL) @map("node_style")
+  backgroundColor String?         @map("background_color") @db.VarChar(7)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
 
   owner       User             @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   removedBy   User?            @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
   nodes       Node[]
   categories  TreeCategory[]
   connections NodeConnection[]
+  groups      NodeGroup[]
 
   @@index([ownerId, deletedAt, updatedAt(sort: Desc)])
   @@index([deletedAt])
@@ -87,6 +141,14 @@ model Node {
   sortOrder          Int       @default(0) @map("sort_order")
   lineColor          String?   @map("line_color") @db.VarChar(7)
   cardColor          String?   @map("card_color") @db.VarChar(7)
+  shape              NodeShape @default(ROUNDED)
+  // Card size in canvas units; NULL = the frontend's default size
+  width              Int?
+  height             Int?
+  // Text size (px, for the note) and color; NULL = default size / automatic contrast
+  fontSize           Int?      @map("font_size")
+  textColor          String?   @map("text_color") @db.VarChar(7)
+  role               NodeRole?
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -106,12 +168,14 @@ model Node {
 // Extra line between two ideas of the same tree (besides parent → child). Undirected:
 // node_a_id < node_b_id (DB CHECK added with raw SQL in the migration), so each pair is stored once.
 model NodeConnection {
-  id        String   @id @default(cuid())
-  treeId    String   @map("tree_id")
-  nodeAId   String   @map("node_a_id")
-  nodeBId   String   @map("node_b_id")
-  color     String?  @db.VarChar(7)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id        String           @id @default(cuid())
+  treeId    String           @map("tree_id")
+  nodeAId   String           @map("node_a_id")
+  nodeBId   String           @map("node_b_id")
+  color     String?          @db.VarChar(7)
+  kind      ConnectionKind   @default(RELATED)
+  arrow     ConnectionArrow?
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
   nodeA Node @relation("ConnectionNodeA", fields: [nodeAId], references: [id], onDelete: Cascade)
@@ -121,6 +185,28 @@ model NodeConnection {
   @@index([treeId])
   @@index([nodeBId])
   @@map("node_connections")
+}
+
+// Canvas item placed with the Add menu: a box around ideas, a sticky note or a text label
+// (manifests/nodes.md §3.5). Box membership isn't stored: an idea is in a box when its center is inside it.
+model NodeGroup {
+  id        String    @id @default(cuid())
+  treeId    String    @map("tree_id")
+  kind      GroupKind @default(BOX)
+  title     String    @default("Group") @db.VarChar(100)
+  body      String?   @db.VarChar(2000)
+  color     String?   @db.VarChar(7)
+  positionX Float     @map("position_x")
+  positionY Float     @map("position_y")
+  width     Int
+  height    Int
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@index([treeId])
+  @@map("node_groups")
 }
 
 model Category {

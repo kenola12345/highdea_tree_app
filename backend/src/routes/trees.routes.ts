@@ -2,6 +2,7 @@ import {
   createTreeSchema,
   idParamSchema,
   listTreesQuerySchema,
+  updateTreeCanvasSchema,
   updateTreeSchema,
 } from "@highdea/shared";
 import { Router } from "express";
@@ -22,5 +23,11 @@ treesRouter.patch(
   requireAuth,
   validate({ params: idParamSchema, body: updateTreeSchema }),
   trees.update,
+);
+treesRouter.patch(
+  "/trees/:id/canvas",
+  requireAuth,
+  validate({ params: idParamSchema, body: updateTreeCanvasSchema }),
+  trees.updateCanvas,
 );
 treesRouter.delete("/trees/:id", requireAuth, validate({ params: idParamSchema }), trees.remove);

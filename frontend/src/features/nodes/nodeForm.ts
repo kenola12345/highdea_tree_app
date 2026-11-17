@@ -1,4 +1,4 @@
-import type { NodeSkeleton, UpdateNodeBody } from "@highdea/shared";
+import type { NodeShape, NodeSkeleton, UpdateNodeBody } from "@highdea/shared";
 
 export type NodeType = NodeSkeleton["type"];
 
@@ -14,6 +14,17 @@ export type NodeFormValues = {
   lineColor: string | null;
   /** カードの色（null は既定の色） */
   cardColor: string | null;
+  /** カードの形 */
+  shape: NodeShape;
+  /** カードの幅・高さ（null は既定の大きさ） */
+  width: number | null;
+  height: number | null;
+  /** メモの文字の大きさ（null は既定） */
+  fontSize: number | null;
+  /** 文字の色（null は自動） */
+  textColor: string | null;
+  /** アイデアの種類（null は種類なし） */
+  role: NodeSkeleton["role"];
 };
 
 export type BuildResult =
@@ -30,6 +41,12 @@ export function buildUpdateBody(
     url: string | null;
     lineColor: string | null;
     cardColor: string | null;
+    shape: NodeShape;
+    width: number | null;
+    height: number | null;
+    fontSize: number | null;
+    textColor: string | null;
+    role: NodeSkeleton["role"];
   },
   values: NodeFormValues,
 ): BuildResult {
@@ -41,6 +58,13 @@ export function buildUpdateBody(
     // 線の色は変えたときだけ送る
     ...(values.lineColor !== original.lineColor && { lineColor: values.lineColor }),
     ...(values.cardColor !== original.cardColor && { cardColor: values.cardColor }),
+    // 形と大きさも変えたときだけ送る
+    ...(values.shape !== original.shape && { shape: values.shape }),
+    ...(values.width !== original.width && { width: values.width }),
+    ...(values.height !== original.height && { height: values.height }),
+    ...(values.fontSize !== original.fontSize && { fontSize: values.fontSize }),
+    ...(values.textColor !== original.textColor && { textColor: values.textColor }),
+    ...(values.role !== original.role && { role: values.role }),
   };
   if (values.type === "LINK" || values.type === "VIDEO") {
     const url = values.url.trim();

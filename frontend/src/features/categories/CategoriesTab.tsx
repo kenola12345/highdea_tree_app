@@ -22,7 +22,7 @@ export function CategoriesTab() {
         setEditing("new");
       }}
       data-testid="new-category-button"
-      className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white"
+      className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium"
     >
       + New category
     </button>

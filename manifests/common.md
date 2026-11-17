@@ -63,7 +63,14 @@ Each feature lists its business rules and where it lives: pages (P-xx) and modal
 ## 4. Screens & Navigation（画面遷移・構成）
 
 
-A React SPA (React Router). Every page shares a header with the logo, Explore, and either "Log in / Sign up" (guests) or My Trees, Trash, Settings and Log out (logged-in users). The main screen is the **Tree Editor**.
+A React SPA (React Router). Every page shares one simple header (AppHeader), in three parts:
+- **Left:** the logo (links to `/`).
+- **Center:** a dark pill with "☰ Menu" and the light/dark switch (moon / sun). "Menu" opens a rounded panel under the pill (the pill then shows "✕ Close") with large links, Explore plus either Log in / Sign up (guests) or My Trees, Trash and Settings (logged-in users), and an Account section (the user's profile and Log out). `Esc`, clicking outside or opening a page closes it. On phones the panel keeps the page's 16 px side margins.
+- **Right:** the account icon (the avatar, linking to the user's profile; for guests a person icon linking to Log in), then a pill: on a tree's Editor or Viewer that the user owns, an **Edit | View** switch (`/trees/:id/edit` ↔ `/trees/:id`); for guests elsewhere, "Sign up".
+
+**Light and dark mode:** the whole app, including the canvas, has a light and a dark look. It follows the device setting (`prefers-color-scheme`) until the user presses the switch; the choice is then kept in this browser (`localStorage` key `theme`, not sent to the server) and applied before the first paint. In dark mode the ink and surface colors swap (light ink on a dark green page) for the app around the canvas: header, menu, panels, toolbars and modals. **The canvas itself doesn't change with the theme:** its background, grid, cards, lines and center idea are decided by the tree's owner (or are the tree's defaults), so they look the same in light and dark mode.
+
+The main screen is the **Tree Editor**.
 
 Access values below: **Anyone** (guests and logged-in users), **Not logged in** (guests only; logged-in users are redirected to `/me`), `USER` / `ADMIN` (logged-in roles from §2), and **Owner** (the logged-in user who owns the tree).
 
@@ -109,6 +116,7 @@ erDiagram
   USERS ||--o{ UPLOADS : "uploads"
   TREES ||--o{ NODES : "contains"
   NODES ||--o{ NODES : "parent of"
+  TREES ||--o{ NODE_GROUPS : "contains"
   TREES ||--o{ NODE_CONNECTIONS : "contains"
   NODES ||--o{ NODE_CONNECTIONS : "connected (a / b)"
   UPLOADS ||--o{ NODES : "shown in (IMAGE)"
@@ -126,6 +134,7 @@ erDiagram
     text id PK
     text owner_id FK
     TreeVisibility visibility
+    GridStyle grid_style
     text removed_by_id FK
     timestamptz removed_at
     timestamptz deleted_at
@@ -135,7 +144,13 @@ erDiagram
     text tree_id FK
     text parent_id FK
     NodeType type
+    NodeShape shape
     text image_upload_id FK
+  }
+  NODE_GROUPS {
+    text id PK
+    text tree_id FK
+    varchar title
   }
   NODE_CONNECTIONS {
     text id PK
@@ -210,6 +225,52 @@ enum NodeType {
   IMAGE
 }
 
+enum NodeShape {
+  ROUNDED
+  RECTANGLE
+  PILL
+  ELLIPSE
+}
+
+enum GridStyle {
+  LINES
+  DOTS
+  NONE
+}
+
+enum NodeRole {
+  CORE
+  SUPPORTING
+  IMPORTANT
+  EXAMPLE
+  QUESTION
+}
+
+enum NodeStylePreset {
+  MINIMAL
+  MIDNIGHT
+  ORGANIC
+  EDITORIAL
+}
+
+enum ConnectionKind {
+  RELATED
+  SEQUENCE
+  DEPENDENCY
+  CONTRAST
+}
+
+enum ConnectionArrow {
+  A_TO_B
+  B_TO_A
+}
+
+enum GroupKind {
+  BOX
+  NOTE
+  LABEL
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique @db.VarChar(255)
@@ -231,23 +292,31 @@ model User {
 }
 
 model Tree {
-  id            String         @id @default(cuid())
-  ownerId       String         @map("owner_id")
-  title         String         @db.VarChar(100)
-  description   String?        @db.VarChar(500)
-  visibility    TreeVisibility @default(PRIVATE)
-  removedAt     DateTime?      @map("removed_at") @db.Timestamptz(3)
-  removedById   String?        @map("removed_by_id")
-  removalReason String?        @map("removal_reason") @db.VarChar(500)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  id              String          @id @default(cuid())
+  ownerId         String          @map("owner_id")
+  title           String          @db.VarChar(100)
+  description     String?         @db.VarChar(500)
+  visibility      TreeVisibility  @default(PRIVATE)
+  removedAt       DateTime?       @map("removed_at") @db.Timestamptz(3)
+  removedById     String?         @map("removed_by_id")
+  removalReason   String?         @map("removal_reason") @db.VarChar(500)
+  // Canvas look (manifests/nodes.md §3.5 Canvas look). NULL colors = the frontend's defaults
+  gridStyle       GridStyle       @default(LINES) @map("grid_style")
+  gridColor       String?         @map("grid_color") @db.VarChar(7)
+  gridOpacity     Int             @default(100) @map("grid_opacity")
+  gridSpacing     Int             @default(24) @map("grid_spacing")
+  nodeStyle       NodeStylePreset @default(MINIMAL) @map("node_style")
+  backgroundColor String?         @map("background_color") @db.VarChar(7)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
 
   owner       User             @relation("TreeOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   removedBy   User?            @relation("TreeRemovedBy", fields: [removedById], references: [id], onDelete: Restrict)
   nodes       Node[]
   categories  TreeCategory[]
   connections NodeConnection[]
+  groups      NodeGroup[]
 
   @@index([ownerId, deletedAt, updatedAt(sort: Desc)])
   @@index([deletedAt])
@@ -273,6 +342,14 @@ model Node {
   sortOrder          Int       @default(0) @map("sort_order")
   lineColor          String?   @map("line_color") @db.VarChar(7)
   cardColor          String?   @map("card_color") @db.VarChar(7)
+  shape              NodeShape @default(ROUNDED)
+  // Card size in canvas units; NULL = the frontend's default size
+  width              Int?
+  height             Int?
+  // Text size (px, for the note) and color; NULL = default size / automatic contrast
+  fontSize           Int?      @map("font_size")
+  textColor          String?   @map("text_color") @db.VarChar(7)
+  role               NodeRole?
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -292,12 +369,14 @@ model Node {
 // Extra line between two ideas of the same tree (besides parent → child). Undirected:
 // node_a_id < node_b_id (DB CHECK added with raw SQL in the migration), so each pair is stored once.
 model NodeConnection {
-  id        String   @id @default(cuid())
-  treeId    String   @map("tree_id")
-  nodeAId   String   @map("node_a_id")
-  nodeBId   String   @map("node_b_id")
-  color     String?  @db.VarChar(7)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id        String           @id @default(cuid())
+  treeId    String           @map("tree_id")
+  nodeAId   String           @map("node_a_id")
+  nodeBId   String           @map("node_b_id")
+  color     String?          @db.VarChar(7)
+  kind      ConnectionKind   @default(RELATED)
+  arrow     ConnectionArrow?
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tree  Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
   nodeA Node @relation("ConnectionNodeA", fields: [nodeAId], references: [id], onDelete: Cascade)
@@ -307,6 +386,28 @@ model NodeConnection {
   @@index([treeId])
   @@index([nodeBId])
   @@map("node_connections")
+}
+
+// Canvas item placed with the Add menu: a box around ideas, a sticky note or a text label
+// (manifests/nodes.md §3.5). Box membership isn't stored: an idea is in a box when its center is inside it.
+model NodeGroup {
+  id        String    @id @default(cuid())
+  treeId    String    @map("tree_id")
+  kind      GroupKind @default(BOX)
+  title     String    @default("Group") @db.VarChar(100)
+  body      String?   @db.VarChar(2000)
+  color     String?   @db.VarChar(7)
+  positionX Float     @map("position_x")
+  positionY Float     @map("position_y")
+  width     Int
+  height    Int
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@index([treeId])
+  @@map("node_groups")
 }
 
 model Category {
@@ -370,9 +471,10 @@ Policies:
 |---|---|
 | Auth | `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | Users | `GET /api/users/:username`, `PATCH /api/users/me`, `PATCH /api/users/me/account` (email, username), `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` (delete account) |
-| Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash) |
+| Trees | `GET /api/trees` (mine), `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `DELETE /api/trees/:id` (move to Trash), `PATCH /api/trees/:id/canvas` (canvas look) |
 | Trash | `GET /api/trash` (my deleted trees), `POST /api/trees/:id/restore`, `DELETE /api/trash/:id` (delete one forever), `DELETE /api/trash` (empty the Trash) |
 | Nodes | `GET /api/trees/:id/nodes?ids=` (lazy-load node details), `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions` (all drag moves), `DELETE /api/nodes/:id` |
+| Boxes | `POST /api/trees/:id/groups`, `PATCH /api/groups/:id`, `DELETE /api/groups/:id` |
 | Connections | `POST /api/trees/:id/connections` (connect two ideas), `PATCH /api/connections/:id` (line color), `DELETE /api/connections/:id` |
 | Categories | `GET /api/categories`, `POST /api/categories`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
 | Explore | `GET /api/explore` (public trees, paginated, `?category=&q=`), `GET /api/explore/categories` (category names for the filter) |
@@ -396,21 +498,23 @@ Index of every error `code` used in the endpoint specs (generated from them; eac
 | `USERNAME_RESERVED` | `400` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
 | `VALIDATION_ERROR` | `400` | most endpoints |
 | `INVALID_CREDENTIALS` | `401` | `POST /api/auth/login` |
-| `UNAUTHENTICATED` | `401` | 23 endpoints (most authenticated endpoints) |
+| `UNAUTHENTICATED` | `401` | 27 endpoints (most authenticated endpoints) |
 | `ALREADY_AUTHENTICATED` | `403` | `POST /api/auth/signup`, `POST /api/auth/login` |
 | `FORBIDDEN` | `403` | `POST /api/admin/trees/:id/remove` |
 | `WRONG_PASSWORD` | `403` | `PATCH /api/users/me/account`, `PATCH /api/users/me/password`, `POST /api/users/me/deactivate` |
 | `CATEGORY_NOT_FOUND` | `404` | `GET /api/trees`, `POST /api/trees`, `PATCH /api/trees/:id`, `PATCH /api/categories/:id`, `DELETE /api/categories/:id` |
+| `GROUP_NOT_FOUND` | `404` | `PATCH /api/groups/:id`, `DELETE /api/groups/:id`, `PATCH /api/trees/:id/nodes/positions` |
 | `CONNECTION_NOT_FOUND` | `404` | `PATCH /api/connections/:id`, `DELETE /api/connections/:id` |
 | `NODE_NOT_FOUND` | `404` | `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections` |
 | `PARENT_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `ROUTE_NOT_FOUND` | `404` | Any request to an `/api` path that has no endpoint (not listed in the endpoint specs) |
-| `TREE_NOT_FOUND` | `404` | 10 endpoints |
+| `TREE_NOT_FOUND` | `404` | 12 endpoints |
 | `UPLOAD_NOT_FOUND` | `404` | `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id` |
 | `USER_NOT_FOUND` | `404` | `GET /api/users/:username` |
 | `CANNOT_DELETE_ROOT` | `409` | `DELETE /api/nodes/:id` |
 | `CATEGORY_LIMIT_REACHED` | `409` | `POST /api/categories` |
 | `CATEGORY_NAME_TAKEN` | `409` | `POST /api/categories`, `PATCH /api/categories/:id` |
+| `GROUP_LIMIT_REACHED` | `409` | `POST /api/trees/:id/groups` |
 | `CONNECTION_LIMIT_REACHED` | `409` | `POST /api/trees/:id/connections` |
 | `EMAIL_TAKEN` | `409` | `POST /api/auth/signup`, `PATCH /api/users/me/account` |
 | `INVALID_CONNECTION` | `409` | `POST /api/trees/:id/connections` |
@@ -438,7 +542,8 @@ TypeScript everywhere (`strict: true`), in an npm-workspaces monorepo: `frontend
 | Build tool / dev server | Vite | 8.3 | Dev server proxies `/api` and `/uploads` to the backend, so the cookie is same-origin (§9) |
 | Routing | React Router (`react-router`) | 8.5 | Routes in §4.1 |
 | Server state | TanStack Query | 5.107 | Query keys and invalidation in §4.3 |
-| Styling | Tailwind CSS | 4.3 | |
+| Styling | Tailwind CSS | 4.3 | Look and feel: cute and minimal. One ink color (dark green `#1C3A2A`) is used at different opacities for text (100 / 64 / 48 %), borders and hover fills instead of separate grays, on a soft green-white page (`#F4F7F3`) with white surfaces, soft rounded corners, pill-shaped main buttons and one small yellow accent (`#F6C945`, the logo). **Motion:** short and soft (about 150–360 ms, one ease-out): buttons sink slightly when pressed and filled main buttons lift on mouse hover; pop-ups animate in (modals pop in, or slide up as phone sheets; dropdowns and banners drop in; node and line toolbars and the Canvas panel pop in; the details panel slides in; toasts bounce up); the header menu icon morphs between ☰ and ✕, "Menu" slides into "Close", and the menu panel grows from the pill with its links rising in one after another (and animates closed). Only `transform` and `opacity` are animated, and everything is turned off with `prefers-reduced-motion`. Tokens live in `frontend/src/index.css` |
+| Font | Nunito (variable, self-hosted with `@fontsource-variable/nunito`) | 5 | Rounded sans-serif for the friendly look; no request to a font CDN |
 | Tree layout | `d3-hierarchy` | 3.1 | Builds the hierarchy from the flat node list (`parentId`) |
 | Pan / zoom | `d3-zoom`, `d3-selection` | 3.0, 3.0 | `d3-selection` is required by `d3-zoom`. **Added in final review** |
 | Gestures | Pointer Events (browser API) | — | One code path for mouse, touch and pen (§4.3) |

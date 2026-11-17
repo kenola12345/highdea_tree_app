@@ -12,14 +12,14 @@ type ViewerHeaderProps = {
 
 /**
  * ツリービューア（P-06）の見出し: 題名・所有者・カテゴリ・説明。
- * 所有者には「Edit」、管理者には公開中のツリーに限り「Remove」（M-09）を出す（manifests/explore.md P-06）。
+ * 管理者には公開中のツリーに限り「Remove」（M-09）を出す。所有者のエディタへの切り替えはヘッダーの「Edit | View」（manifests/explore.md P-06）。
  * 所有者が自分の非公開化されたツリーを見ているときは理由を示す。
  */
 export function ViewerHeader({ data, isAdmin, onRemove }: ViewerHeaderProps) {
   const { tree, owner, isOwner } = data;
   const canRemove = isAdmin && tree.visibility === "PUBLIC" && !tree.removedAt;
   return (
-    <div className="border-b border-slate-200 bg-white">
+    <div className="bg-surface border-b border-slate-200">
       <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-3 px-4 py-3 md:px-8">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold break-words" data-testid="viewer-title">
@@ -46,15 +46,6 @@ export function ViewerHeader({ data, isAdmin, onRemove }: ViewerHeaderProps) {
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          {isOwner && (
-            <Link
-              to={`/trees/${tree.id}/edit`}
-              data-testid="viewer-edit"
-              className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white"
-            >
-              Edit
-            </Link>
-          )}
           {canRemove && (
             <button
               type="button"

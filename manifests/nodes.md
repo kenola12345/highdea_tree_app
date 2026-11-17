@@ -16,20 +16,40 @@ The Tree Editor canvas (lazy loading, drag, touch gestures), idea nodes of every
 - Drag nodes to reposition, or drop a node onto another node to move it there (re-parent) with its whole branch. Works with mouse on desktop and with touch on phones and tablets (long-press to pick up a node). The root can't be moved under another node, and no node can be moved under its own branch.
 - Deleting a node deletes its whole branch, permanently, after a confirmation that shows how many ideas are affected. The root can't be deleted (delete the tree instead).
 - A tree can have at most **2,000 nodes**.
-- **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04, or in the Editor by clicking (or tapping) the line itself: the line is selected (thicker, with a light blue halo) and a small toolbar at its middle has a color swatch and "Inherit" (shown only when the idea has its own color). The color is saved on the idea the line goes into (`PATCH /api/nodes/:id` with `lineColor`). `Esc` or clicking the background deselects the line.
-- **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the brand green. Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
-- **Choosing colors:** line colors, card colors, connection colors and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
-- **Line style:** lines are dashed S-shaped curves that meet each card at the middle of its facing edge (no end markers), drawn on a light notebook-style grid that pans and zooms with the canvas.
+- **Line colors per branch:** any idea can have a line color. The line into that idea and every line below it use the color, until a sub-branch sets its own. Ideas without a color use the nearest ancestor's color, or gray if none has one. The center idea's color therefore sets the default for the whole tree. Set in M-04, or in the Editor by clicking (or tapping) the line itself: the line is selected (thicker, with a soft yellow halo) and a small toolbar at its middle has a color swatch and "Inherit" (shown only when the idea has its own color). The color is saved on the idea the line goes into (`PATCH /api/nodes/:id` with `lineColor`). `Esc` or clicking the background deselects the line.
+- **Idea kinds (visual hierarchy):** any idea except the center idea can be given a **kind**, so important ideas stand out and the rest recede: **Core** (key concept: larger, heavier title and a stronger border), **Supporting** (detail: softer card and lighter title), **Important** (something to remember: an accent bar and tint), **Example** (worked example: the note is monospace, with a dashed border), **Question** (to review: a "?" badge and accent). Ideas without a kind look like plain cards. Each kind shows a small label at the top of the card. The kind's look comes from the tree's node style preset (see Node style presets); the idea's own card and text colors still override it. Set in M-04.
+- **Sections in the note:** a note can optionally be split into labeled sections by starting a line with `What:`, `Why:`, `Example:`, `Remember:`, `Mistakes:` or `Note:` (case doesn't matter). Cards and the details view show each section with a small label and a divider between sections. Text between ` ``` ` lines is shown as a monospace code block. Notes without these markers show as plain text.
+- **Expandable cards:** a card that fits its content shows short notes in full. When the note is long (more than about 6 lines at the card's width), the card shows a compact preview with **Show more**; pressing it expands the card to the whole note with its sections and code (up to about 30 lines), and **Show less** collapses it again. Whether a card is expanded is kept only for the current visit (not saved). Cards the owner resized keep their size and don't show the toggle.
+- **Center idea and parent ideas:** the center idea is drawn larger (at least 280 × 110), with a heavier, larger title, the preset's center color and its note shown as a short description under the title. Ideas that have children get a slightly heavier title than leaf ideas, so the structure reads at a glance without making every card prominent.
+- **Node style presets (per tree):** the owner picks how cards look for the whole tree: **Minimal** (clean and neutral: white cards, the default), **Midnight** (dark and technical: slate cards with light text), **Organic** (natural: soft sage cards with deep green text) or **Editorial** (warm and structured: white cards with warm brown text and serif titles). A preset sets the default card, text, border, center idea and kind accent colors. It doesn't touch the canvas (background and grid stay as the owner set them), and every card keeps an opaque background and border so it stays readable on any canvas. Set in the Canvas panel's **Nodes** section; undoable.
+- **Card colors:** any idea, including the center idea, can have its own card color. It isn't inherited. Ideas without one are white, and the center idea defaults to the dark green (`#1C3A2A`). Text on a colored card switches between dark and white for contrast. Set in M-04; "Default" removes it.
+- **Card shape and size:** any idea, including the center idea, can have its own shape and size. Shapes: **Rounded** (default, rounded corners), **Square** (square corners), **Pill** (fully rounded ends) and **Circle** (a circle when width equals height, otherwise an oval). Size: width 60–800 and height 40–600 (canvas units, whole numbers); **without a size the card fits its content** so it's readable: it measures the title, the note and any image, video or link preview and grows to show them (wider for long notes, up to 300 wide; images, videos and link previews with a picture are shown as a picture across the top; at most about 10 note lines, the rest ends with "…"; never smaller than 200 × 84, the center idea 240 × 96). It updates when the details load or change. Resizing gives the card a fixed size, which can be smaller (or larger) than the fitted one; text and picture then shrink to fit, with "…". Set the shape and size in M-04 ("Auto" clears the size, so the card fits its content again), or in the Editor by dragging one of the four corner handles of the selected card: the opposite corner stays in place, holding `Shift` keeps the proportions, and the new size (`PATCH /api/nodes/:id`) and position (`PATCH /api/trees/:id/nodes/positions`) are saved once on release. Lines meet each card at the middle of its facing edge whatever its shape. On pills and circles the inner padding follows the curve (it grows with the size of the rounded ends), so text never runs into the rounded edges; fitted pills and circles are made larger by that padding. The title shows as many lines as fit the card. Visitors see the same shapes and sizes.
+- **Text size and color:** any idea can have its own **text size** (10–28 px for the note, the title is 2 px larger and bold; the center idea's title 3 px larger; default 13 px) and **text color** (`#RRGGBB`; default "Auto": dark or white, whichever contrasts with the card). The note is shown at 85 % strength under the title so they read as heading and body. Set in M-04. Visitors see the same.
+- **Add menu and canvas items (free-form editing):** the Editor's **+ Add** button (above the zoom controls) opens a menu of things to place on the canvas. After picking one, a banner says "Click on the canvas to place it" (boxes: "Click, or drag to draw the box"), with Cancel; `Esc` cancels.
+  - **Ideas:** Text, Link, Video or Image. Clicking places the new idea there: M-05 opens with that type chosen, and the idea is created at that spot under the center idea (drag it onto another idea to re-parent it). M-04 then opens for the details, as usual.
+  - **Canvas items** (not ideas; stored in `node_groups` with a `kind`; up to **100** per tree):
+    - **Box:** a rounded frame with a header strip (an icon and a title, default "Group") and an optional color, to group ideas into sections. Click for a 360 × 240 box or drag to draw it. An idea is *in* a box when its center is inside it, so dragging an idea into or out of a box adds or removes it, and boxes can sit inside bigger boxes (subsections). The body doesn't block the canvas (panning and clicking the ideas inside work as usual); only the header is grabbed. Dragging the header moves the box with every idea and box inside it, saved once on release.
+    - **Sticky note:** a colored note (default soft yellow `#FDE68A`) with free text (up to 2,000 characters), for comments and reminders. Default 220 × 160.
+    - **Text label:** large free text with no frame (the item's title, up to 100 characters), for headings and annotations on the canvas. Default 280 × 60.
+  - **Editing items:** click a box's header, or anywhere on a note or label, to select it. A toolbar above it has its text (title field for boxes and labels, a text area for notes), a color swatch with "Default" and Delete; corner handles resize it (at least 160 × 100 for boxes, 120 × 48 for notes and labels). Notes and labels are moved by dragging them; they don't carry ideas. `Delete` removes the selected item and `Esc` deselects it. Deleting an item never changes any idea.
+  - Visitors see items in the Tree Viewer (not editable). Placing, moving, resizing, recoloring, editing and deleting items can be undone. "Tidy up" refits each box around the ideas that were in it (notes and labels stay where they are).
+- **Tidy up (Editor):** the "Tidy up" button above the zoom controls lays out the whole tree again so no cards overlap, using each card's real size (fitted or resized). The center idea stays where it is; its branches are split, keeping their order, to the right and left like a mind map, at the point where both sides are about equally tall, each level placed past the widest card of the level before, and siblings spaced by their heights. All positions are saved in one `PATCH /api/trees/:id/nodes/positions` request, it's one undo step ("Tidy up"), and the view then fits the tree.
+- **Undo and redo (Editor):** like Photoshop, every change made in the Editor can be undone and redone, many steps deep: adding, editing (M-04), moving, re-parenting, resizing and deleting ideas (a deleted branch comes back with its ideas, notes, links, images and connections), connecting, removing and recoloring connections, branch line colors and the canvas look. `⌘Z` / `Ctrl+Z` undoes, `⇧⌘Z` / `Ctrl+Shift+Z` / `Ctrl+Y` redoes (not while typing in a field or with a modal open). The EditorToolbar has ↶ / ↷ buttons whose tooltips name the step ("Undo Move idea"), and a **History** list of the steps; clicking a step undoes or redoes everything up to it. A new change after undoing clears the redo steps. History is kept in the browser for the current Editor session only (up to 100 steps), not saved; leaving the Editor clears it. An undo is just another change sent to the API (so other tabs and visitors see it); a restored idea or connection gets a new ID. If an undo can't be applied (for example the idea was deleted elsewhere), a toast says so and the step stays.
+- **Canvas look (per tree):** the owner can change the canvas background of each tree: grid **style** (Lines, the default notebook grid; Dots; or None), grid **color** (default soft sage `#D3E0D5`), grid **opacity** (0–100 %, default 100 %), grid **spacing** (12–64, default 24 canvas units between lines or dots) and **background color** (default `#F6F9F5`). Set in the Editor with the "Canvas" button above the zoom controls, which opens a small panel; changes show at once and are saved shortly after the last change (`PATCH /api/trees/:id/canvas`), with "Reset" back to the defaults. Visitors see the same canvas look in the Tree Viewer.
+- **Choosing colors:** line colors, card colors, connection colors, grid and background colors, and category colors are chosen with a color picker (any `#RRGGBB`) plus a hex field, not from a fixed palette.
+- **Line style:** branch lines (parent → child) are calm solid S-shaped curves that meet each card at the middle of its facing edge (no end markers), drawn on a grid (by default a light notebook-style grid, see Canvas look) that pans and zooms with the canvas. Connections are drawn by their relationship type (see Connections).
 - **Connections between ideas:** besides its parent → child branches, any two ideas in the same tree can be **connected**, for example two ideas in different branches that relate to each other. A connection is drawn as a thin dotted line (gray by default, or the color the owner picked), so it isn't mistaken for a branch, and it doesn't change the layout or the hierarchy. It has no direction. An idea can have any number of connections, and a tree up to **500**. Two ideas can be connected only once, an idea can't be connected to itself, and an idea can't be connected to its own parent or child (that line already exists). Connections are deleted with either of their ideas or with the tree. Visitors see them in the Tree Viewer too.
   - **Connect:** select an idea, press "Connect" in its toolbar, then click (or tap) the other idea. A banner says "Click another idea to connect it to “{title}”" with a Cancel button; `Esc` or clicking the background cancels.
   - **Remove:** click (or tap) a connection line in the Editor to select it, then press "Remove connection" in the small toolbar that appears. No confirmation (it's easy to redo).
+  - **Relationship type:** each connection has a type, chosen in the same toolbar: **Related** (subtle dotted line, the default), **Sequence** (solid line with an arrow: one step leads to the next), **Depends on** (dashed line with an arrow: one idea needs the other) and **Contrast** (dash-dot line with a small "vs" mark: ideas that differ). Sequence and Depends on have a direction; a new one points from the idea you started connecting from, and **Swap direction** turns it around. 
+  - **Focus on selection:** selecting an idea (in the Editor or the Viewer) highlights it, its parent, its children and the ideas it's connected to, with their lines, and dims the rest of the map until the selection is cleared.
   - **Color:** the same toolbar has a color swatch that opens the color picker (any `#RRGGBB`, see Choosing colors). The line changes color at once and is saved when the picker settles; "Default" (shown only when a color is set) returns it to gray. Each connection has its own color; it isn't inherited.
 - **Opening links:** a `LINK` node's card has an "Open link" icon, the editor's node toolbar has "Open link", and the details view (M-12) has an "Open link" button. Links open in a new tab and only `http`/`https` URLs are opened.
 - **Canvas loading (lazy, like lazy-loaded images):**
   1. The whole tree's skeleton (each node's id, parent, type, title and position) loads in one request, so the layout and connecting lines can be drawn at once.
   2. Only nodes inside the visible area (plus a margin) are drawn. Zoomed out, nodes are shown as dots or short titles; zoomed in, as full cards.
   3. Each node's heavy content (note text, link preview, thumbnail, uploaded image, video embed) is fetched in batches when the node comes into view at a readable zoom level, and cached. Images also use `loading="lazy"`.
-- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections`, `PATCH /api/connections/:id`, `DELETE /api/connections/:id`. **Tables:** `nodes`, `node_connections`.
+- **Pages/modals:** P-05, P-06, M-04, M-05, M-06, M-10. **API:** `GET /api/trees/:id`, `GET /api/trees/:id/nodes`, `POST /api/trees/:id/groups`, `PATCH /api/groups/:id`, `DELETE /api/groups/:id`, `POST /api/trees/:id/nodes`, `PATCH /api/nodes/:id`, `PATCH /api/trees/:id/nodes/positions`, `DELETE /api/nodes/:id`, `POST /api/trees/:id/connections`, `PATCH /api/connections/:id`, `DELETE /api/connections/:id`, `PATCH /api/trees/:id/canvas`. **Tables:** `nodes`, `node_connections`, `node_groups`, `trees` (canvas look columns).
 
 ### 3.6 Images & Link Previews
 
@@ -67,19 +87,19 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | ID | Modal | Trigger | Main functions |
 |---|---|---|---|
-| M-04 | Node Editor | Double-click a node, or "Edit" in the node's toolbar (P-05). Also opens right after adding a node | Type tabs (Text / Link / Video / Image), title, note, URL with live preview card (`POST /api/link-preview`), image upload with progress (`POST /api/uploads`). Switching type keeps title and note. Card color and line color (color pickers, with "Default" / "Inherit"). Saves with `PATCH /api/nodes/:id` |
+| M-04 | Node Editor | Double-click a node, or "Edit" in the node's toolbar (P-05). Also opens right after adding a node | Type tabs (Text / Link / Video / Image), title, note, URL with live preview card (`POST /api/link-preview`), image upload with progress (`POST /api/uploads`). Switching type keeps title and note. Card color and line color (color pickers, with "Default" / "Inherit"). Shape (Rounded / Square / Pill / Circle) and size (width and height fields, "Auto" for the default size). Text size (slider, "Default") and text color (color picker, "Auto"). Kind (None / Core / Supporting / Important / Example / Question; not for the center idea). Saves with `PATCH /api/nodes/:id` |
 | M-05 | Add Branch | "+" button on a selected node's toolbar, or the `Tab` key on a selected node (P-05) | Pick a type and enter a title; creates the child node next to its parent (`POST /api/trees/:id/nodes`), then opens M-04 for the details. Disabled with "This tree is full (2,000 ideas)" at the limit |
-| M-06 | Delete Node | "Delete" in the node toolbar, or the `Delete` key on a selected node (P-05). Not shown for the center idea | Confirm: "Delete this idea and N ideas under it? This can't be undone." N is counted from the loaded skeleton (`DELETE /api/nodes/:id`) |
+| M-06 | Delete Node | "Delete" in the node toolbar, or the `Delete` key on a selected node (P-05). Not shown for the center idea | Confirm: "Delete this idea and N ideas under it? You can undo this with ⌘Z / Ctrl+Z." N is counted from the loaded skeleton (`DELETE /api/nodes/:id`) |
 | M-10 | Media Viewer | "View" in the node toolbar of an image or video node (P-05), or the image/video in the Node Details view (M-12, P-06) | Full-size image, or the embedded YouTube/Vimeo player. Close with `Esc` or the backdrop |
 
 #### Main Screen Layout (Tree Editor, P-05)
 
 ```
 +------------------------------------------------------------------------------+
-| [AppHeader]  Highdea Tree   Explore   My Trees   Trash   Settings   (avatar) |
+| [AppHeader]  [H]             ( ☰ Menu | ☾ )             (avatar) [Edit|View] |
 +------------------------------------------------------------------------------+
 | [EditorToolbar]                                                              |
-|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  | Saved ✓ |  [⚙] [View] |
+|  < My Trees | "Startup ideas" [PRIVATE] [#work][#side]  |      Saved ✓  |  [⚙] |
 +------------------------------------------------------------------------------+
 | [TreeCanvas]  (SVG, pan = drag background, zoom = wheel / pinch)             |
 |                                                                              |
@@ -106,13 +126,17 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 ```
 
 - **AppHeader:** shared navigation on every page.
-- **EditorToolbar:** back link, tree title, visibility badge, category chips, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), Tree Settings (⚙, opens M-02) and "View" (text button, tooltip "View as visitor"; opens the Tree Viewer).
-- **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy`, and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
-- **NodeCard:** looks different per type: TEXT (title, first line of the note), LINK (thumbnail, page title, domain), VIDEO (thumbnail with ▶), IMAGE (image). Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
+- **EditorToolbar:** back link, tree title, visibility badge, category chips, Undo / Redo (↶ ↷) and History, save status ("Saving…" / "Saved ✓" / "Couldn't save – retry"), and Tree Settings (⚙, opens M-02). Switching to the Tree Viewer is the "Edit | View" pill on the right of the AppHeader ([common.md](./common.md) §4).
+- **TreeCanvas:** the SVG canvas. Nodes are laid out from `parentId` with `d3-hierarchy` (siblings spaced by their card heights), and saved positions override the layout. Lines connect each node to its parent. Only nodes in the visible area plus a margin are drawn.
+- **NodeCard:** looks different per type: TEXT (title and note), LINK (thumbnail, title, and the note or else the page title and domain), VIDEO (thumbnail with ▶, title, note or domain), IMAGE (image, title, note). When there is a note, a thin line separates it from the title. Text wraps onto as many lines as fit the card (the title up to 3 lines when there is a note, the note takes the rest, paragraph breaks kept), and the last line that fits ends with "…". The lines are measured from the card, so resizing a card shows more or less of the note. Cards show placeholders until their details are lazy-loaded. Zoomed out, cards become short titles and then dots.
 - **CENTER IDEA:** the root node, larger and highlighted. It can't be deleted or moved under another node.
+- **Resize handles:** four small squares on the corners of the selected card (Editor only, at card zoom). Drag one to resize the card (§3.5 Card shape and size); on phones the touch area of each handle is at least 44 × 44 px.
+- **Add button:** "+ Add" next to Tidy up (Editor only; §3.5 Add menu): Text, Link, Video, Image ideas, Box, Sticky note, Text label.
+- **Tidy up button:** next to the Canvas button (Editor only; §3.5 Tidy up).
+- **Canvas button:** above the zoom controls (Editor only). Opens the Canvas panel: grid style (Lines / Dots / None), grid color, grid opacity slider, background color and "Reset" (§3.5 Canvas look). On phones the panel keeps the page's 16 px side margin.
 - **NodeToolbar:** appears above the selected node: "+ Add" (M-05), "Edit" (M-04), "Connect" (connect mode, §3.5 Connections), "Delete" (M-06). Delete is hidden on the root.
 - **Branch lines:** in the Editor, clicking a parent → child line selects it and shows its color swatch and "Inherit" at its middle (§3.5 Line colors per branch).
-- **Connections:** dotted lines between connected ideas (gray, or their own color), drawn over the branch lines and under the cards. In the Editor, clicking one selects it (thicker, with a light blue halo) and shows a color swatch, "Default" and "Remove connection" next to it.
+- **Connections:** lines between connected ideas drawn by relationship type (dotted, solid with an arrow, dashed with an arrow, dash-dot with "vs"), gray or their own color, drawn over the branch lines and under the cards. In the Editor, clicking one selects it (thicker, with a soft yellow halo) and shows the relationship type, Swap direction, a color swatch, "Default" and "Remove connection" next to it.
 - **MiniMap:** a whole-tree overview showing the current viewport. Click it to jump there.
 - **ZoomControls / NodeCounter:** zoom out, zoom level, zoom in, fit to screen, and "142 / 2000" ideas used.
 
@@ -120,6 +144,8 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 - **Lazy-loaded canvas (§3.3):** the Editor and Viewer fetch the skeleton once (`GET /api/trees/:id`, TanStack Query key `['tree', id]`). As the viewport changes, the canvas collects visible node IDs whose details aren't cached (or whose `updatedAt` changed) and fetches them in batches of up to 100 (`GET /api/trees/:id/nodes?ids=`), at most a few requests per second while panning. Details are cached per node ID. Images also use `loading="lazy"`.
 - **Drag moves save once, on drop:** while dragging a node or branch, positions update only in local state, so the drag stays smooth. On drop, one `PATCH /api/trees/:id/nodes/positions` request saves every moved node. Dropping onto another node re-parents it instead, with `PATCH /api/nodes/:id` (`parentId` plus the new position); a drop that would put a node under its own branch is refused in the UI before any request, matching `409 INVALID_MOVE`. If it fails, the nodes snap back and a toast says "Couldn't save the move".
+- **Resizing saves once, on release:** while dragging a resize handle, the size and position change only in local state. On release, `PATCH /api/nodes/:id` (`width`, `height`) and `PATCH /api/trees/:id/nodes/positions` (the new center) are sent; if either fails, the card snaps back and a toast says so.
+- **Canvas look is optimistic:** the Canvas panel changes the canvas at once and saves 300 ms after the last change, so dragging the opacity slider or the color picker sends one request. On failure the canvas goes back to the saved look and a toast says "Couldn't save the canvas look".
 - **Connections are optimistic too:** a new connection appears at once and is removed again if `POST /api/trees/:id/connections` fails (`409 INVALID_CONNECTION` → "These ideas can't be connected", `409 CONNECTION_LIMIT_REACHED` → "This tree has the most connections allowed (500)"). The UI doesn't offer ideas that can't be connected: in connect mode, clicking the same idea, its parent or child, or an already connected idea shows a toast without a request. Deleting a node removes its connections from the canvas with it; re-parenting a node under an idea it's connected to removes that connection (the server does the same).
 - **Optimistic node edits with rollback:** adding a branch (M-05) shows the new node immediately with a temporary ID, then swaps in the real one. On `409 NODE_LIMIT_REACHED` the temporary node is removed and a "tree is full" message appears. Edits and deletes update the canvas first and roll back on error. The "Saving… / Saved ✓" indicator in the toolbar reflects pending requests.
 - **Link preview while typing (M-04):** the URL field waits 500 ms after the user stops typing before calling `POST /api/link-preview`, which keeps normal use far under the 30-per-minute limit. `422 PREVIEW_UNAVAILABLE` shows "No preview available" without blocking the save, and `400 URL_NOT_ALLOWED` shows an error under the URL field.
@@ -164,7 +190,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.nodes` has one entry per requested node that belongs to this tree, with `id`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl` and `updatedAt`. `imageUrl` is the public URL of the uploaded image for `IMAGE` nodes (built from `uploads.storage_key`) and `null` otherwise. IDs that don't exist or belong to another tree (e.g. a node deleted a moment ago) are left out instead of failing the whole batch.
+  Follows the common format `{ "data": {...} }`. `data.nodes` has one entry per requested node that belongs to this tree, with `id`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `imageUploadId` and `updatedAt`. `imageUrl` is the public URL of the uploaded image for `IMAGE` nodes (built from `uploads.storage_key`) and `null` otherwise; `imageUploadId` is that upload's ID (`null` otherwise), used by the Editor's undo to restore a deleted image idea. Only the upload's owner can attach it to a node, so returning it reveals nothing usable. IDs that don't exist or belong to another tree (e.g. a node deleted a moment ago) are left out instead of failing the whole batch.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — `ids` is missing or empty, or has more than 100 IDs.
@@ -201,7 +227,13 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `positionY` | `Float` | | Canvas Y position. Default `0` |
 | `sortOrder` | `Int` | | Order among siblings. Default: after the parent's last child |
 | `lineColor` | `String \| null` | | Branch line color, `#RRGGBB`. Default `null` (inherit from the nearest ancestor) |
-| `cardColor` | `String \| null` | | Card color, `#RRGGBB`. Default `null` (white; brand green for the center idea) |
+| `cardColor` | `String \| null` | | Card color, `#RRGGBB`. Default `null` (white; dark green for the center idea) |
+| `shape` | `"ROUNDED" \| "RECTANGLE" \| "PILL" \| "ELLIPSE"` | | Card shape. Default `ROUNDED` |
+| `width` | `Int \| null` | | Card width, 60–800. Default `null` (default size) |
+| `height` | `Int \| null` | | Card height, 40–600. Default `null` (default size) |
+| `fontSize` | `Int \| null` | | Note text size in px, 10–28. Default `null` (13) |
+| `textColor` | `String \| null` | | Text color, `#RRGGBB`. Default `null` (Auto: contrast with the card) |
+| `role` | `"CORE" \| "SUPPORTING" \| "IMPORTANT" \| "EXAMPLE" \| "QUESTION" \| null` | | Idea kind; `null` for none. Not allowed on the root (`400`) |
 
 **Processing（処理）**
 
@@ -211,7 +243,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `201 Created`**
-  Follows the common format `{ "data": {...} }`. `data.node` is the new node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `createdAt`, `updatedAt`.
+  Follows the common format `{ "data": {...} }`. `data.node` is the new node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `imageUploadId`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `shape`, `width`, `height`, `fontSize`, `textColor`, `role`, `createdAt`, `updatedAt`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — A required field for the type is missing, a field doesn't apply to the type, or a rule above is broken (title length, body length, URL format, unsupported video site, preview fields sent).
@@ -253,6 +285,12 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 | `sortOrder` | `Int` | | Order among siblings |
 | `lineColor` | `String \| null` | | Branch line color, `#RRGGBB`, or `null` to inherit. Allowed on any node, including the root |
 | `cardColor` | `String \| null` | | Card color, `#RRGGBB`, or `null` for the default. Allowed on any node, including the root |
+| `shape` | `"ROUNDED" \| "RECTANGLE" \| "PILL" \| "ELLIPSE"` | | Card shape. Allowed on any node, including the root |
+| `width` | `Int \| null` | | Card width, 60–800, or `null` for the default size |
+| `height` | `Int \| null` | | Card height, 40–600, or `null` for the default size |
+| `fontSize` | `Int \| null` | | Note text size in px, 10–28, or `null` for the default |
+| `textColor` | `String \| null` | | Text color, `#RRGGBB`, or `null` for Auto |
+| `role` | `"CORE" \| "SUPPORTING" \| "IMPORTANT" \| "EXAMPLE" \| "QUESTION" \| null` | | Idea kind; `null` for none. Not allowed on the root (`400`) |
 
 **Processing（処理）**
 
@@ -265,7 +303,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.node` is the updated node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `createdAt`, `updatedAt`.
+  Follows the common format `{ "data": {...} }`. `data.node` is the updated node with both skeleton and detail fields: `id`, `parentId`, `type`, `title`, `body`, `url`, `previewTitle`, `previewDescription`, `previewImageUrl`, `imageUrl`, `imageUploadId`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `shape`, `width`, `height`, `fontSize`, `textColor`, `role`, `createdAt`, `updatedAt`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — The body is empty, includes preview fields, has a field that doesn't apply to the node's resulting type, changes `type` without the fields the new type requires, or breaks a rule above (lengths, URL format, unsupported video site).
@@ -280,7 +318,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 ---
 ##### **PATCH /api/trees/:id/nodes/positions**
 
-- **Summary（機能概要）:** Saves the positions (and optionally sibling order) of one or more nodes in one request. The Tree Editor uses it for every drag move (one node or a whole branch) and after an auto-layout. `PATCH /api/nodes/:id` sets positions only when re-parenting a node.
+- **Summary（機能概要）:** Saves the positions (and optionally sibling order) of one or more nodes, and the positions and sizes of boxes, in one request. The Tree Editor uses it for every drag move (one node or a whole branch) and after an auto-layout. `PATCH /api/nodes/:id` sets positions only when re-parenting a node.
 - **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it). The owner can still do this in a tree an admin removed. Anyone else gets `404`. Trees in the Trash can't be edited.
 
 **Request（リクエスト）**
@@ -295,13 +333,17 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `nodes` | `Array` | ✅ | 1–2,000 items (the per-tree node limit). Each node ID may appear only once |
+| `nodes` | `Array` | | 0–2,000 items (the per-tree node limit). Each node ID may appear only once. Default `[]` |
 | `nodes[].id` | `String` | ✅ | Node ID. Must belong to this tree |
 | `nodes[].positionX` | `Float` | ✅ | New canvas X position |
 | `nodes[].positionY` | `Float` | ✅ | New canvas Y position |
 | `nodes[].sortOrder` | `Int` | | New order among siblings |
+| `groups` | `Array` | | 0–100 canvas items (moving a box moves the ideas inside it in the same request). Each ID once. Default `[]`. `nodes` and `groups` can't both be empty |
+| `groups[].id` | `String` | ✅ | Box ID. Must belong to this tree |
+| `groups[].positionX` / `positionY` | `Float` | ✅ | New top-left corner |
+| `groups[].width` / `height` | `Int` | | New size (120–6,000 × 48–6,000) |
 
-Only positions and order can be changed here. Content, type and parent are changed with `PATCH /api/nodes/:id`.
+Only positions, sizes and order can be changed here. Content, type and parent are changed with `PATCH /api/nodes/:id`.
 
 **Processing（処理）**
 
@@ -311,13 +353,14 @@ Only positions and order can be changed here. Content, type and parent are chang
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.nodes` lists each updated node with `id`, `positionX`, `positionY`, `sortOrder` and `updatedAt` (unchanged by this endpoint).
+  Follows the common format `{ "data": {...} }`. `data.nodes` lists each updated node with `id`, `positionX`, `positionY`, `sortOrder` and `updatedAt` (unchanged by this endpoint); `data.groups` lists each updated box.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
-  - `400` `VALIDATION_ERROR` — `nodes` is missing, empty, or has more than 2,000 items; an ID appears twice; a position isn't a number; or an item has a field other than the ones above.
+  - `400` `VALIDATION_ERROR` — `nodes` and `groups` are both empty, or `nodes` has more than 2,000 items; an ID appears twice; a position isn't a number; or an item has a field other than the ones above.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or isn't owned by the caller.
   - `404` `NODE_NOT_FOUND` — At least one node ID doesn't exist or belongs to another tree. Nothing is saved.
+  - `404` `GROUP_NOT_FOUND` — At least one box ID doesn't exist or belongs to another tree. Nothing is saved.
   - `500` `INTERNAL_ERROR` — Unexpected server error. The transaction is rolled back.
 ---
 
@@ -374,6 +417,7 @@ Only positions and order can be changed here. Content, type and parent are chang
 |---|---|---|---|
 | `nodeAId` | `String` | ✅ | One of the two ideas. Must be in this tree |
 | `nodeBId` | `String` | ✅ | The other idea. Must be in this tree and differ from `nodeAId` |
+| `kind` | `"RELATED" \| "SEQUENCE" \| "DEPENDENCY" \| "CONTRAST"` | | Relationship type. Default `RELATED` |
 
 **Processing（処理）**
 
@@ -383,7 +427,7 @@ Only positions and order can be changed here. Content, type and parent are chang
 **Response（レスポンス）**
 
 - **Success: `201 Created`**
-  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color }`, with the IDs in stored (sorted) order. `color` is `null` (default gray) for a new connection.
+  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color, kind, arrow }`, with the IDs in stored (sorted) order. A new connection has `color` `null` (default gray), `kind` from the body (default `RELATED`) and, for `SEQUENCE` / `DEPENDENCY`, an `arrow` pointing from the first idea sent (`nodeAId` in the body) to the second.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `400` `VALIDATION_ERROR` — A field is missing or isn't a string, or `nodeAId` equals `nodeBId`.
@@ -398,7 +442,7 @@ Only positions and order can be changed here. Content, type and parent are chang
 ---
 ##### **PATCH /api/connections/:id**
 
-- **Summary（機能概要）:** Changes a connection's line color (§3.5 Connections).
+- **Summary（機能概要）:** Changes a connection's line color, relationship type or direction (§3.5 Connections).
 - **Authorization（認可）:** The owner of the connection's tree only (`USER` or `ADMIN` who owns it). Anyone else gets `404`. Not allowed while the tree is in the Trash.
 
 **Request（リクエスト）**
@@ -413,19 +457,23 @@ Only positions and order can be changed here. Content, type and parent are chang
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `color` | `String \| null` | ✅ | `#RRGGBB`, or `null` for the default gray |
+| `color` | `String \| null` | | `#RRGGBB`, or `null` for the default gray |
+| `kind` | `"RELATED" \| "SEQUENCE" \| "DEPENDENCY" \| "CONTRAST"` | | Relationship type |
+| `arrow` | `"A_TO_B" \| "B_TO_A" \| null` | | Direction of the arrow between `nodeAId` and `nodeBId` (`null`: no arrow). Shown only for `SEQUENCE` and `DEPENDENCY` |
+
+  Send only the fields to change; at least one is required.
 
 **Processing（処理）**
 
-- The color is saved and the tree's `updatedAt` is bumped, in one transaction (tree row locked, like the other node edits).
+- The changes are saved and the tree's `updatedAt` is bumped, in one transaction (tree row locked, like the other node edits).
 
 **Response（レスポンス）**
 
 - **Success: `200 OK`**
-  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color }`.
+  Follows the common format `{ "data": {...} }`. `data.connection`: `{ id, nodeAId, nodeBId, color, kind, arrow }`.
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
-  - `400` `VALIDATION_ERROR` — `color` is missing or isn't `#RRGGBB` / `null`, or the body has other fields.
+  - `400` `VALIDATION_ERROR` — The body is empty, a value isn't allowed, or the body has other fields.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `404` `CONNECTION_NOT_FOUND` — The connection doesn't exist (or was already deleted with one of its ideas), its tree is in the Trash, or the caller doesn't own the tree.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
@@ -457,6 +505,83 @@ Only positions and order can be changed here. Content, type and parent are chang
   Follows the common format `{ "error": { "code", "message" } }`.
   - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
   - `404` `CONNECTION_NOT_FOUND` — The connection doesn't exist (or was already deleted with one of its ideas), its tree is in the Trash, or the caller doesn't own the tree.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+#### Boxes
+
+---
+##### **POST /api/trees/:id/groups**
+
+- **Summary（機能概要）:** Adds a canvas item — a box, sticky note or text label (§3.5 Add menu and canvas items) — to the tree.
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it), also in a tree an admin removed. Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters:** `id` — Tree ID (cuid)
+- **Body**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `kind` | `"BOX" \| "NOTE" \| "LABEL"` | | Default `BOX` |
+| `title` | `String` | | Trimmed. 1–100 characters. Default `"Group"` (box), `"Note"` (note), `"Text"` (label). The label's text |
+| `body` | `String \| null` | | Note text, up to 2,000 characters. Only for `NOTE` |
+| `color` | `String \| null` | | `#RRGGBB`, or `null` for the default (the node style's text color) |
+| `positionX` / `positionY` | `Float` | ✅ | Top-left corner |
+| `width` / `height` | `Int` | ✅ | 120–6,000 × 48–6,000 (a box at least 160 × 100) |
+
+**Processing（処理）**
+
+- The tree row is locked while the 100-item limit is checked and the box is inserted; the tree's `updatedAt` is bumped in the same transaction.
+
+**Response（レスポンス）**
+
+- **Success: `201 Created`** — `data.group`: `{ id, kind, title, body, color, positionX, positionY, width, height }`.
+- **Error Responses**
+  - `400` `VALIDATION_ERROR` — A field is missing or breaks a rule above.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated.
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or isn't owned by the caller.
+  - `409` `GROUP_LIMIT_REACHED` — The tree already has 100 canvas items.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **PATCH /api/groups/:id**
+
+- **Summary（機能概要）:** Changes a canvas item's title, note text, color, position or size (its kind can't change).
+- **Authorization（認可）:** The owner of the box's tree only. Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters:** `id` — Box ID (cuid)
+- **Body:** any of `title`, `body`, `color`, `positionX`, `positionY`, `width`, `height` (same rules as when creating); at least one.
+
+**Processing（処理）**
+
+- The box is updated and the tree's `updatedAt` is bumped, in one transaction (tree row locked).
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`** — `data.group` after the change.
+- **Error Responses**
+  - `400` `VALIDATION_ERROR` — The body is empty, has another field, or breaks a rule.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated.
+  - `404` `GROUP_NOT_FOUND` — The box doesn't exist, its tree is in the Trash, or the caller doesn't own the tree.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **DELETE /api/groups/:id**
+
+- **Summary（機能概要）:** Deletes a canvas item. No idea is changed.
+- **Authorization（認可）:** The owner of the box's tree only. Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`** — `{ "data": null }`.
+- **Error Responses**
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated.
+  - `404` `GROUP_NOT_FOUND` — The box doesn't exist, its tree is in the Trash, or the caller doesn't own the tree.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -558,13 +683,22 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 | position_y | DOUBLE PRECISION | NOT NULL, DEFAULT 0 | Canvas Y position |
 | sort_order | INTEGER | NOT NULL, DEFAULT 0 | Order among siblings, used by the d3-hierarchy layout |
 | line_color | VARCHAR(7) | NULL | Branch line color `#RRGGBB`; `NULL` inherits from the nearest ancestor |
-| card_color | VARCHAR(7) | NULL | Card color `#RRGGBB`; `NULL` is the default (white, brand green for the root). Not inherited |
+| card_color | VARCHAR(7) | NULL | Card color `#RRGGBB`; `NULL` is the default (white, dark green for the root). Not inherited |
+| shape | NodeShape | NOT NULL, DEFAULT 'ROUNDED' | `ROUNDED` / `RECTANGLE` / `PILL` / `ELLIPSE` |
+| width | INTEGER | NULL | Card width (canvas units, 60–800); `NULL` is the default size |
+| height | INTEGER | NULL | Card height (canvas units, 40–600); `NULL` is the default size |
+| font_size | INTEGER | NULL | Note text size in px (10–28); `NULL` is the default (13) |
+| text_color | VARCHAR(7) | NULL | Text color `#RRGGBB`; `NULL` is Auto (contrast with the card) |
+| role | NodeRole | NULL | Idea kind: `CORE` / `SUPPORTING` / `IMPORTANT` / `EXAMPLE` / `QUESTION`; `NULL` is none. Always `NULL` on the root |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
 | updated_at | TIMESTAMPTZ(3) | NOT NULL | Updated at |
 
 **Business rules and constraints**
 - Each tree has exactly one root node (`parent_id IS NULL`). Enforced in the **app layer**: TreeService creates it with the tree, and NodeService rejects creating another root or deleting the root. Also enforced in the **DB** by a partial unique index added with raw SQL in the first migration (Prisma can't express partial indexes): `CREATE UNIQUE INDEX nodes_one_root_per_tree ON nodes(tree_id) WHERE parent_id IS NULL;`
 - A node's parent must belong to the same tree. Enforced in the **app layer** (NodeService).
+- `role` is `NULL` on the root. Enforced in the **app layer** (NodeService, `400 VALIDATION_ERROR`).
+- `font_size` is 10–28 or `NULL`, and `text_color` is `#RRGGBB` or `NULL`. Enforced in the **app layer** (Zod).
+- `width` is 60–800 and `height` 40–600, or `NULL`. Enforced in the **app layer** (Zod). `NULL` means "fit the content": the frontend computes the size from the title and the lazily loaded details, so it isn't stored.
 - `line_color` and `card_color` are `#RRGGBB` or `NULL`. Enforced in the **app layer** (Zod). Inheritance (nearest ancestor with a color, else gray) is computed by the frontend from the skeleton; the DB stores only the colors that were set.
 - A node can't be moved under itself or under one of its own descendants. Enforced in the **app layer** (NodeService walks up the ancestors when `parentId` changes). Moving a node (with its subtree) to another parent in the same tree is allowed; the root can't be moved.
 - A node's `type` can be changed. `title` and `body` are kept; fields that don't apply to the new type are cleared in the same update. Enforced in the **app layer** (NodeService).
@@ -586,6 +720,8 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 | node_a_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the smaller ID |
 | node_b_id | TEXT | NOT NULL, FK→nodes.id (CASCADE) | The idea with the larger ID |
 | color | VARCHAR(7) | NULL | Line color `#RRGGBB`; NULL = default gray |
+| kind | ConnectionKind | NOT NULL, DEFAULT 'RELATED' | `RELATED` / `SEQUENCE` / `DEPENDENCY` / `CONTRAST` |
+| arrow | ConnectionArrow | NULL | `A_TO_B` / `B_TO_A`; NULL = no direction |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
 
 Indexes: `UNIQUE (node_a_id, node_b_id)`, `(tree_id)` for loading a tree's connections, `(node_b_id)` for the cascade from `nodes`.
@@ -595,6 +731,28 @@ Indexes: `UNIQUE (node_a_id, node_b_id)`, `(tree_id)` for loading a tree's conne
 - Both ideas belong to `tree_id`, and neither is the other's parent. Enforced in the **app layer** (ConnectionService). Re-parenting a node under an idea it's connected to deletes that connection (NodeService, same transaction).
 - A tree can have at most 500 connections. Enforced in the **app layer**: ConnectionService counts and inserts in one transaction with the tree row locked.
 - Deleting either idea, or the tree, deletes the connection. Enforced in the **DB** (`ON DELETE CASCADE`).
+
+#### node_groups（キャンバスの項目: ボックス・付箋・文字）
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| id | TEXT | PK, DEFAULT cuid() | Box ID |
+| tree_id | TEXT | NOT NULL, FK→trees.id (CASCADE) | The tree |
+| kind | GroupKind | NOT NULL, DEFAULT 'BOX' | `BOX` / `NOTE` / `LABEL` |
+| title | VARCHAR(100) | NOT NULL, DEFAULT 'Group' | Box header title, or the label's text |
+| body | VARCHAR(2000) | NULL | Sticky note text (`NOTE` only) |
+| color | VARCHAR(7) | NULL | `#RRGGBB`; NULL = the node style's text color |
+| position_x / position_y | DOUBLE PRECISION | NOT NULL | Top-left corner (canvas units) |
+| width / height | INTEGER | NOT NULL | Size (120–6,000 × 48–6,000; boxes at least 160 × 100) |
+| created_at / updated_at | TIMESTAMPTZ(3) | NOT NULL | Created / updated at |
+
+Index: `(tree_id)`.
+
+**Business rules and constraints**
+- `body` is only used for `NOTE`; only `BOX` items carry ideas when moved. Enforced in the **app layer** (Zod / GroupService).
+- Which ideas are in a box isn't stored: it's the ideas whose center is inside the rectangle (computed by the frontend). Deleting a box doesn't change any idea.
+- A tree can have at most 100 canvas items. Enforced in the **app layer**: GroupService counts and inserts in one transaction with the tree row locked.
+- Sizes and the title length are enforced in the **app layer** (Zod). Deleting the tree deletes its boxes (`ON DELETE CASCADE`).
 
 #### uploads（アップロード画像）
 

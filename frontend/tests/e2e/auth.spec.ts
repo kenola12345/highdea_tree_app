@@ -55,6 +55,7 @@ test.describe("auth", () => {
   test("E2E-AUTH-05 log out returns to the landing page as a guest", async ({ page }) => {
     await loginAs(page, "alice@example.com");
     await page.goto("/settings");
+    await page.getByTestId("menu-button").click();
     await page.getByTestId("logout-button").click();
 
     await expect(page).toHaveURL(/\/$/);

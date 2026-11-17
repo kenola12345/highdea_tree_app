@@ -6,6 +6,7 @@ import { OpenLink } from "../../components/OpenLink";
 import { Spinner } from "../../components/Spinner";
 import { domainOf } from "../../lib/urls";
 import { toVideoEmbed } from "../../lib/videoEmbed";
+import { parseNote } from "../canvas/noteSections";
 import type { MediaNode } from "./MediaViewerModal";
 import { NODE_TYPES } from "./TypeTabs";
 
@@ -54,7 +55,7 @@ export function NodeDetailsPanel({ treeId, node, onClose, onOpenMedia }: NodeDet
       aria-modal="false"
       aria-labelledby="node-details-title"
       data-testid="node-details"
-      className="fixed inset-0 z-50 flex flex-col bg-white md:absolute md:inset-y-0 md:right-0 md:left-auto md:w-96 md:border-l md:border-slate-200 md:shadow-xl"
+      className="bg-surface animate-sheet-in md:animate-slide-in-right fixed inset-0 z-50 flex flex-col md:absolute md:inset-y-0 md:right-0 md:left-auto md:w-96 md:border-l md:border-slate-200 md:shadow-xl"
     >
       <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
@@ -103,7 +104,7 @@ export function NodeDetailsPanel({ treeId, node, onClose, onOpenMedia }: NodeDet
                 </div>
                 <OpenLink
                   url={details.url}
-                  className="bg-brand-700 hover:bg-brand-800 min-h-11 justify-center rounded-lg px-4 text-sm font-medium text-white"
+                  className="bg-brand-700 hover:bg-brand-800 text-surface min-h-11 justify-center rounded-full px-4 text-sm font-medium"
                 />
               </div>
             )}
@@ -143,12 +144,30 @@ export function NodeDetailsPanel({ treeId, node, onClose, onOpenMedia }: NodeDet
               </button>
             )}
             {details.body ? (
-              <p
-                className="text-sm break-words whitespace-pre-wrap text-slate-700"
-                data-testid="details-note"
-              >
-                {details.body}
-              </p>
+              // メモの見出し（Why: など）とコード（```）は、カードと同じくかたまりに分けて出す
+              <div className="space-y-3" data-testid="details-note">
+                {parseNote(details.body).map((block, i) => (
+                  <div
+                    key={i}
+                    className={i > 0 && block.label ? "border-t border-slate-200 pt-3" : ""}
+                  >
+                    {block.label && (
+                      <p className="mb-1 text-[11px] font-extrabold tracking-[0.08em] text-slate-500 uppercase">
+                        {block.label}
+                      </p>
+                    )}
+                    {block.kind === "code" ? (
+                      <pre className="overflow-x-auto rounded-lg bg-slate-100 px-3 py-2 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-slate-800">
+                        {block.text}
+                      </pre>
+                    ) : (
+                      <p className="text-sm break-words whitespace-pre-wrap text-slate-700">
+                        {block.text}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : (
               node.type === "TEXT" && <p className="text-sm text-slate-500">No note.</p>
             )}

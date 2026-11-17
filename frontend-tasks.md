@@ -277,6 +277,49 @@
 - [x] 14-4 Editor: selecting a connection shows Color / Default / Remove connection; clicking a branch line selects it and shows Color / Inherit (saves the child's `lineColor`); picker changes are batched before saving; `Esc` deselects
 - [x] 14-5 E2E-EDITOR-11 (connection color), E2E-EDITOR-12 (branch color by clicking the line)
 
+## Phase 15: Card Shape and Size, Canvas Look（カードの形と大きさ・キャンバスの見た目） 【直列】
+- Depends on: Phase 14; backend migration `add_node_shape_size_and_canvas_look`
+- Main files: `shared/src/schemas/{nodes,trees}.ts`, `backend/src/services/{node,tree}.service.ts`, `frontend/src/features/canvas/{layout.ts,NodeCard,ResizeHandles,GridBackground,CanvasPanel,TreeCanvas}.tsx`, `frontend/src/features/nodes/{NodeShapeFields,NodeEditorModal}.tsx`, `frontend/src/pages/{TreeEditorPage,TreeViewerPage}.tsx`
+- APIs: `PATCH /api/nodes/:id` (`shape`, `width`, `height`), `PATCH /api/trees/:id/nodes/positions`, `PATCH /api/trees/:id/canvas` (new), `GET /api/trees/:id` (`data.canvas`, skeleton `shape` / `width` / `height`)
+
+- [x] 15-1 Manifest first: card shape and size, canvas look, `PATCH /api/trees/:id/canvas`, new columns and enums (nodes.md, trees.md, common.md, CLAUDE.md)
+- [x] 15-2 Backend: `nodes.shape/width/height`, `trees.grid_style/grid_color/grid_opacity/background_color`; validation (60–800 × 40–600, opacity 0–100); canvas endpoint; API tests
+- [x] 15-3 Canvas: `cardSize()` uses each node's size (lines, hit tests, bounds follow); cards drawn as Rounded / Square / Pill / Circle; titles show as many lines as fit
+- [x] 15-4 Editor: corner resize handles on the selected card (opposite corner fixed, `Shift` keeps the ratio, size label, saves once on release); M-04 Shape and Size fields with "Auto"
+- [x] 15-5 Canvas panel (Lines / Dots / None, grid color, opacity, background, Reset), live preview with batched save; Viewer shows the same look
+- [x] 15-6 Unit tests (size, resize math, size fields, M-04 body) and E2E-EDITOR-13/14/15
+
+## Phase 16: Look and Feel, Menu Header, Light / Dark Mode（見た目・メニューのヘッダー・ライト／ダーク） 【直列】
+- Depends on: Phase 15
+- Main files: `frontend/src/index.css`, `frontend/src/lib/theme.ts`, `frontend/index.html`, `frontend/src/components/{AppHeader,icons,Modal}.tsx`, `frontend/src/pages/LandingPage.tsx`, `frontend/src/features/canvas/canvasTheme.ts`
+
+- [x] 16-1 Manifest first: look and feel (one dark green ink at opacities, Nunito, yellow accent), new AppHeader, light/dark mode (common.md, nodes.md, explore.md, trees.md, standards/frontend.md)
+- [x] 16-2 Tokens: grays and brand become the ink at fixed opacities; `surface` / `page` / `sun` / `deep`; rounder corners, soft shadows, pill main buttons; self-hosted Nunito
+- [x] 16-3 AppHeader: logo, center "☰ Menu" pill with the theme switch and a menu panel (big links, Account), avatar, "Edit | View" pill on owned trees (moved from the editor toolbar and viewer header)
+- [x] 16-4 Dark mode: `.dark` tokens, follows the device until switched, kept in `localStorage`, applied before first paint; the canvas keeps the owner's colors in both themes
+- [x] 16-5 Landing page restyle; tests updated for the menu (unit + E2E), theme and Edit | View tests (E2E-EDITOR-16)
+- [x] 16-9 Cards without a size fit their content (`cardContent.ts` autoCardSize: title, note and picture measured with the real font; wider for long notes, up to 300 × 460, 10 note lines; picture on top for images, videos and link previews, small thumbnail when shrunk); siblings spaced by card height; resizing still gives a fixed (smaller or larger) size; unit tests
+- [x] 16-8 Text size (10–28, title +2 / root +3) and text color (Auto = contrast) per idea: `nodes.font_size` / `text_color` (migration `add_node_text_style`), M-04 fields, card rendering; notes 13 px at 85 %; API tests and E2E-EDITOR-17
+- [x] 16-7 Cards: title, divider and note that wraps to fill the card (measured, "…" on the last line that fits); cleaner padding
+- [x] 16-6 Motion: menu icon morph, label swap, menu panel open/close with staggered links (kept mounted, `inert` when closed); button press / hover lift; pop-up entrance animations (modals, sheets, dropdowns, toolbars, panels, toasts); theme icon spin; `prefers-reduced-motion` turns it all off
+
+## Phase 17: Undo / Redo and Visual Hierarchy（元に戻す・やり直す、見た目の強弱） 【直列】
+- Depends on: Phase 16; backend migration `add_roles_relationships_presets`; `imageUploadId` in node details
+- Main files: `frontend/src/features/history/*`, `frontend/src/features/canvas/{nodeStyles,noteSections,expandedStore,cardContent}.ts`, `frontend/src/features/canvas/{NodeCard,ConnectionLine,NodeLink,TreeCanvas,CanvasPanel,ConnectOverlays}.tsx`, `frontend/src/features/nodes/NodeKindField.tsx`
+- APIs: `PATCH /api/nodes/:id` (`role`), `POST` / `PATCH /api/connections` (`kind`, `arrow`), `PATCH /api/trees/:id/canvas` (`gridSpacing`, `nodeStyle`), `GET /api/trees/:id/nodes` (`imageUploadId`)
+
+- [x] 17-1 Undo / redo: per-tree session history (100 steps) recorded by the mutation hooks after success; replay through the same hooks with ID remapping; grouped steps (re-parent, resize); ⌘Z / ⇧⌘Z / Ctrl+Y; ↶ ↷ buttons and a History list; deleted branches come back with notes, links, images and connections; E2E-EDITOR-18/19/20
+- [x] 17-2 Card padding follows the curve on pills and circles
+- [x] 17-3 Idea kinds (Core / Supporting / Important / Example / Question) with labels and treatments; M-04 Kind picker; not on the root
+- [x] 17-4 Note sections (What / Why / Example / Remember / Mistakes / Note) and ``` code blocks on cards and in the details view; long notes collapse with Show more / Show less (session only)
+- [x] 17-5 Center idea larger with description; parent ideas get heavier titles
+- [x] 17-6 Relationship types (Related / Sequence / Depends on / Contrast) with arrows, "vs" mark and Swap direction; branch lines are calm solid curves; focus on selection dims unrelated ideas and lines
+- [x] 17-7 Node style presets (Minimal / Midnight / Organic / Editorial) per tree in the Canvas panel's Nodes section, independent of the canvas; grid spacing; Reset canvas keeps the preset
+- [x] 17-8 Unit tests (sections, presets, kinds, expansion) and E2E-EDITOR-21/22/23
+- [x] 17-11 Free-form editing: "+ Add" menu (Text / Link / Video / Image ideas placed where you click; Box by click or drag-to-draw; Sticky note; Text label), placement banner and layer; canvas items have a kind (`BOX` / `NOTE` / `LABEL`, migration `add_canvas_item_kinds`) with note text; kind-aware toolbar and resize limits; removed "Box" from the idea toolbar and Shift+click grouping; E2E-EDITOR-25/26 rewritten
+- [x] 17-10 Boxes: `node_groups` (migration `add_node_groups`), `POST /api/trees/:id/groups`, `PATCH` / `DELETE /api/groups/:id`, boxes in the positions endpoint; free rectangles (an idea is inside when its center is), nested boxes, header to select / drag with contents, corner resize, title / color / delete toolbar, "Box" for a branch and Shift+click "Group"; undo for all; Tidy up refits boxes; viewer shows them; API, unit and E2E tests (E2E-EDITOR-25/26)
+- [x] 17-9 Tidy up: re-lays out the tree with real card sizes (balanced left/right, no overlaps), one positions request, one undo step, then fits the view; unit test (no overlaps) and E2E-EDITOR-24
+
 ## 並列実装サマリー（Parallel Implementation Summary）
 
 | Phase | Type | Depends on | Backend Phases | Can run in parallel with | Reason (dependencies, shared files) |
@@ -324,4 +367,4 @@ Parallel Phases never edit the same file. Shared files (`router.tsx`, `App.tsx`,
 
 **要確認 (to confirm):** none blocking. Every screen operation has a matching endpoint. The production hosting setup (manifest §7.4) still needs a decision before deployment; it doesn't affect these tasks because the frontend always calls `/api` on its own origin.
 
-Totals: 14 Phases, 148 tasks.
+Totals: 17 Phases, 174 tasks.

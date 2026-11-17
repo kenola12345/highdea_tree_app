@@ -43,7 +43,16 @@ describe("POST /api/trees/:id/connections", () => {
     expect(res.status).toBe(201);
     const [nodeAId, nodeBId] = sorted(b.id, c.id);
     expect(res.body).toEqual({
-      data: { connection: { id: expect.any(String), nodeAId, nodeBId, color: null } },
+      data: {
+        connection: {
+          id: expect.any(String),
+          nodeAId,
+          nodeBId,
+          color: null,
+          kind: "RELATED",
+          arrow: null,
+        },
+      },
     });
     const after = await prisma.tree.findUniqueOrThrow({ where: { id: tree.id } });
     expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
@@ -363,5 +372,61 @@ describe("connections and node changes", () => {
 
     expect(res.status).toBe(200);
     expect(await prisma.nodeConnection.count()).toBe(0);
+  });
+});
+
+describe("relationship types (manifests/nodes.md §3.5 Connections)", () => {
+  it("creates a directed connection pointing from the first idea sent, in either stored order", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const [first] = sorted(b.id, c.id);
+
+    const forward = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({
+        nodeAId: first === b.id ? b.id : c.id,
+        nodeBId: first === b.id ? c.id : b.id,
+        kind: "SEQUENCE",
+      });
+
+    expect(forward.status).toBe(201);
+    expect(forward.body.data.connection).toMatchObject({ kind: "SEQUENCE", arrow: "A_TO_B" });
+  });
+
+  it("points B_TO_A when the first idea sent is stored second", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const [, second] = sorted(b.id, c.id);
+    const other = second === b.id ? c.id : b.id;
+
+    const res = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({ nodeAId: second, nodeBId: other, kind: "DEPENDENCY" });
+
+    expect(res.body.data.connection).toMatchObject({ kind: "DEPENDENCY", arrow: "B_TO_A" });
+  });
+
+  it("changes the kind and direction with PATCH, and rejects an empty body or unknown kind", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({ nodeAId: b.id, nodeBId: c.id });
+    const id = created.body.data.connection.id as string;
+
+    const res = await request(app)
+      .patch(`/api/connections/${id}`)
+      .set("Cookie", cookie)
+      .send({ kind: "CONTRAST", arrow: null });
+    expect(res.status).toBe(200);
+    expect(res.body.data.connection).toMatchObject({ kind: "CONTRAST", arrow: null, color: null });
+
+    for (const body of [{}, { kind: "OPPOSITE" }, { arrow: "UP" }]) {
+      const bad = await request(app)
+        .patch(`/api/connections/${id}`)
+        .set("Cookie", cookie)
+        .send(body);
+      expect(bad.status).toBe(400);
+    }
   });
 });

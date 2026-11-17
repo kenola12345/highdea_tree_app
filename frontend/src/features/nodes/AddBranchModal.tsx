@@ -11,22 +11,42 @@ type AddBranchModalProps = {
   onClose: () => void;
   /** 種類と題名を受け取って追加する（呼び出し側が作成し、続けて M-04 を開く） */
   onSubmit: (values: { type: NodeType; title: string }) => void;
+  /** 「+ Add」で種類を選んでから開いたときの種類 */
+  initialType?: NodeType;
 };
 
 /**
  * M-05 枝の追加: 種類と題名だけを決めて子ノードを作り、続けて M-04 で詳細（URL・画像・メモ）を入れる（manifests/nodes.md M-05）。
  * リンク・動画・画像は作成時に URL や画像が必須なため、まずテキストとして作り、M-04 で選んだ種類に切り替えて保存する。
  */
-export function AddBranchModal({ open, parentTitle, onClose, onSubmit }: AddBranchModalProps) {
+export function AddBranchModal({
+  open,
+  parentTitle,
+  initialType,
+  onClose,
+  onSubmit,
+}: AddBranchModalProps) {
   return (
     <Modal open={open} title="Add a branch" onClose={onClose} testId="add-branch-modal">
-      {open && <AddBranchForm parentTitle={parentTitle} onClose={onClose} onSubmit={onSubmit} />}
+      {open && (
+        <AddBranchForm
+          parentTitle={parentTitle}
+          initialType={initialType}
+          onClose={onClose}
+          onSubmit={onSubmit}
+        />
+      )}
     </Modal>
   );
 }
 
-function AddBranchForm({ parentTitle, onClose, onSubmit }: Omit<AddBranchModalProps, "open">) {
-  const [type, setType] = useState<NodeType>("TEXT");
+function AddBranchForm({
+  parentTitle,
+  initialType,
+  onClose,
+  onSubmit,
+}: Omit<AddBranchModalProps, "open">) {
+  const [type, setType] = useState<NodeType>(initialType ?? "TEXT");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | undefined>();
 
@@ -75,7 +95,7 @@ function AddBranchForm({ parentTitle, onClose, onSubmit }: Omit<AddBranchModalPr
         <button
           type="submit"
           data-testid="branch-submit"
-          className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white"
+          className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium"
         >
           Add
         </button>

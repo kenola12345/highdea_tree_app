@@ -12,7 +12,14 @@ import { sortPair } from "./common/connectionPair.js";
 import { lockOwnedActiveTree, touchTree } from "./node.service.js";
 
 /** レスポンスに返す列 */
-export const connectionSelect = { id: true, nodeAId: true, nodeBId: true, color: true } as const;
+export const connectionSelect = {
+  id: true,
+  nodeAId: true,
+  nodeBId: true,
+  color: true,
+  kind: true,
+  arrow: true,
+} as const;
 
 /**
  * 同じツリーの2つのアイデアをつなぐ（manifests/nodes.md POST /api/trees/:id/connections）。
@@ -43,8 +50,12 @@ export async function create(
     const count = await tx.nodeConnection.count({ where: { treeId } });
     if (count >= MAX_CONNECTIONS_PER_TREE) throw new AppError("CONNECTION_LIMIT_REACHED");
 
+    // 向きのある種類（順番・依存）は、つなぎ始めたアイデア（本文の nodeAId）から相手へ向ける
+    const kind = body.kind ?? "RELATED";
+    const directed = kind === "SEQUENCE" || kind === "DEPENDENCY";
+    const arrow = directed ? (body.nodeAId === nodeAId ? "A_TO_B" : "B_TO_A") : null;
     const connection = await tx.nodeConnection.create({
-      data: { treeId, nodeAId, nodeBId },
+      data: { treeId, nodeAId, nodeBId, kind, arrow },
       select: connectionSelect,
     });
     await touchTree(tx, treeId);
@@ -67,7 +78,7 @@ async function findOwnedTreeId(
 }
 
 /**
- * つながりの線の色を変える（manifests/nodes.md PATCH /api/connections/:id）。null で既定の灰色に戻す。
+ * つながりの線の色・種類・向きを変える（manifests/nodes.md PATCH /api/connections/:id）。色の null は既定の灰色。
  * ノード編集と同じくツリー行をロックして直列にし、ツリーの updatedAt も更新する。
  */
 export async function update(
@@ -80,7 +91,7 @@ export async function update(
     await lockOwnedActiveTree(tx, userId, treeId);
     const { count } = await tx.nodeConnection.updateMany({
       where: { id: connectionId },
-      data: { color: body.color },
+      data: { color: body.color, kind: body.kind, arrow: body.arrow },
     });
     // ロック待ちの間に、別のリクエストがつながり（かノード）を消していた
     if (count === 0) throw new AppError("CONNECTION_NOT_FOUND");

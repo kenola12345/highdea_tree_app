@@ -168,6 +168,7 @@ export function useMoveTreeToTrash() {
 
 ### 2.4 Styling (Tailwind CSS 4)
 
+- Colors: use the ink tokens (`text-ink`, or `text-slate-*` / `border-slate-*` / `bg-slate-*`, which are the ink at fixed opacities) instead of new hex grays. The only accent is `sun` (yellow).
 - Tailwind utility classes only. No CSS modules, no inline `style`, except values computed at runtime (canvas `transform`, node positions).
 - Tailwind 4 is configured in CSS (`@import "tailwindcss";` + `@theme`), in `src/index.css`. There is no `tailwind.config.js`. Colors, fonts and spacing used in more than one place are `@theme` tokens.
 - **Mobile side gutter:** text sits at least `px-4` (16 px) from the screen edge on phones. The page container defines this once (e.g. `components/PageContainer.tsx`: `mx-auto max-w-6xl px-4 md:px-8`). Use the container; don't invent another padding value. When adding or moving text, check it at a phone width.
@@ -179,10 +180,12 @@ export function useMoveTreeToTrash() {
 @import "tailwindcss";
 
 @theme {
-  --color-brand-500: #16a34a;
-  --color-brand-600: #15803d;
-  --color-canvas: #f8fafc;
-  --font-sans: "Inter", system-ui, sans-serif;
+  /* One ink color at different opacities instead of separate grays (manifests/common.md §7 Styling) */
+  --color-ink: #1c3a2a;
+  --color-slate-600: rgb(28 58 42 / 0.64);
+  --color-brand-700: #1c3a2a;
+  --color-canvas: #f6f9f5;
+  --font-sans: "Nunito Variable", ui-rounded, system-ui, sans-serif;
 }
 ```
 

@@ -1,5 +1,8 @@
+import type { ConnectionKind, NodeConnection } from "@highdea/shared";
 import clsx from "clsx";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+
+import { KIND_LABEL } from "./ConnectionLine";
 
 /**
  * つなぐ相手を選んでいる間の案内（manifests/nodes.md §3.5 Connections「Click another idea to connect it to “{title}”」）。
@@ -10,14 +13,14 @@ export function ConnectBanner({ title, onCancel }: { title: string; onCancel: ()
     <div
       role="status"
       data-testid="connect-banner"
-      className="absolute inset-x-4 top-3 z-10 mx-auto flex max-w-md items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900 shadow-sm"
+      className="bg-surface animate-drop-in absolute inset-x-4 top-3 z-10 mx-auto flex max-w-md items-center gap-3 rounded-full border border-slate-200 py-1.5 pr-1.5 pl-5 text-sm font-semibold shadow-md"
     >
       <p className="min-w-0 flex-1 break-words">Click another idea to connect it to “{title}”</p>
       <button
         type="button"
         onClick={onCancel}
         data-testid="connect-cancel"
-        className="min-h-11 shrink-0 rounded-lg px-3 font-medium hover:bg-blue-100 md:min-h-9"
+        className="hover:text-ink min-h-11 shrink-0 rounded-full px-4 font-bold text-slate-600 hover:bg-slate-100 md:min-h-9"
       >
         Cancel
       </button>
@@ -46,7 +49,7 @@ type LineColorControlProps = {
  * 線の色の見本ボタン（押すと OS のカラーピッカー）と「Default / Inherit」ボタン（manifests/nodes.md §3.5 Choosing colors）。
  * ピッカーはドラッグ中に何度も変更を出すので、見本はすぐ変え、保存はまとめて少し後に1回送る。閉じる（選択を外す）ときは待たずに送る。
  */
-function LineColorControl({
+export function LineColorControl({
   testId,
   label,
   value,
@@ -135,7 +138,7 @@ function LineColorControl({
 }
 
 /** 線の中点の上に出す小さなツールバーの枠 */
-function LineToolbar({
+export function LineToolbar({
   point,
   label,
   testId,
@@ -151,7 +154,7 @@ function LineToolbar({
       role="toolbar"
       aria-label={label}
       data-testid={testId}
-      className="absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+      className="bg-surface animate-pop-in absolute z-10 flex w-max max-w-[calc(100vw-2rem)] origin-bottom -translate-x-1/2 -translate-y-full flex-wrap items-center justify-center gap-0.5 rounded-xl border border-slate-200 p-1 shadow-lg"
       style={{ left: point.x, top: Math.max(point.y - 8, 56) }}
     >
       {children}
@@ -167,20 +170,66 @@ export function ConnectionToolbar({
   point,
   color,
   defaultColor,
+  kind,
+  arrow,
   disabled,
   onColorChange,
+  onKindChange,
+  onSwap,
   onRemove,
 }: {
   point: { x: number; y: number };
   color: string | null;
   defaultColor: string;
+  kind: ConnectionKind;
+  arrow: NodeConnection["arrow"];
   /** 保存中（一時ID）のつながりはまだ変えられない・消せない */
   disabled: boolean;
   onColorChange: (color: string | null) => void;
+  /** 種類を変える。向きのある種類にしたとき向きがなければ A→B にする */
+  onKindChange: (kind: ConnectionKind, arrow: NodeConnection["arrow"]) => void;
+  onSwap: () => void;
   onRemove: () => void;
 }) {
+  const directed = kind === "SEQUENCE" || kind === "DEPENDENCY";
   return (
     <LineToolbar point={point} label="Connection actions" testId="connection-toolbar">
+      <label className="relative flex min-h-11 items-center rounded-lg px-1 text-sm font-medium text-slate-700 hover:bg-slate-100 md:min-h-9">
+        <span className="sr-only">Relationship type</span>
+        <select
+          value={kind}
+          disabled={disabled}
+          onChange={(e) => {
+            const next = e.target.value as ConnectionKind;
+            const nextDirected = next === "SEQUENCE" || next === "DEPENDENCY";
+            onKindChange(next, nextDirected ? (arrow ?? "A_TO_B") : null);
+          }}
+          data-testid="connection-kind"
+          className="cursor-pointer appearance-none bg-transparent py-1 pr-5 pl-2 font-semibold outline-none disabled:cursor-not-allowed"
+        >
+          {(Object.keys(KIND_LABEL) as ConnectionKind[]).map((k) => (
+            <option key={k} value={k}>
+              {KIND_LABEL[k]}
+            </option>
+          ))}
+        </select>
+        <span aria-hidden="true" className="pointer-events-none absolute right-2 text-xs">
+          ▾
+        </span>
+      </label>
+      {directed && (
+        <button
+          type="button"
+          onClick={onSwap}
+          disabled={disabled}
+          aria-label="Swap direction"
+          title="Swap direction"
+          data-testid="connection-swap"
+          className="flex min-h-11 items-center rounded-lg px-2.5 text-base text-slate-700 hover:bg-slate-100 disabled:opacity-40 md:min-h-9"
+        >
+          ⇄
+        </button>
+      )}
       <LineColorControl
         testId="connection-color"
         label="Connection color"
@@ -197,7 +246,7 @@ export function ConnectionToolbar({
         data-testid="remove-connection-button"
         className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium whitespace-nowrap text-red-700 hover:bg-red-50 disabled:opacity-40 md:min-h-9"
       >
-        Remove connection
+        Remove<span className="hidden sm:inline">&nbsp;connection</span>
       </button>
     </LineToolbar>
   );

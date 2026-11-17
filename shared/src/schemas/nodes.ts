@@ -2,12 +2,20 @@
 import { z } from "zod";
 
 import {
+  MAX_GROUPS_PER_TREE,
   MAX_NODES_PER_TREE,
   NODE_BODY_MAX,
   NODE_DETAILS_BATCH_MAX,
+  NODE_FONT_SIZE_MAX,
+  NODE_FONT_SIZE_MIN,
+  NODE_HEIGHT_MAX,
+  NODE_HEIGHT_MIN,
   NODE_TITLE_MAX,
   NODE_URL_MAX,
+  NODE_WIDTH_MAX,
+  NODE_WIDTH_MIN,
 } from "../constants.js";
+import { groupHeightSchema, groupWidthSchema } from "./groups.js";
 
 /** 埋め込みを許可する動画サイトのホスト（サブドメインを含む）。manifests/nodes.md「VIDEO: YouTube or Vimeo」 */
 const VIDEO_HOST_PATTERN = /^(?:[a-z0-9-]+\.)*(?:youtube\.com|youtu\.be|vimeo\.com)$/i;
@@ -31,6 +39,32 @@ export const lineColorSchema = z
   .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #3B82F6")
   .nullable();
 export const cardColorSchema = lineColorSchema;
+
+/** カードの形（manifests/nodes.md §3.5 Card shape and size） */
+export const nodeShapeSchema = z.enum(["ROUNDED", "RECTANGLE", "PILL", "ELLIPSE"]);
+/** カードの幅・高さ（整数）。null は既定の大きさ */
+export const nodeWidthSchema = z
+  .int(`Enter a whole number`)
+  .min(NODE_WIDTH_MIN, `Use ${String(NODE_WIDTH_MIN)}–${String(NODE_WIDTH_MAX)}`)
+  .max(NODE_WIDTH_MAX, `Use ${String(NODE_WIDTH_MIN)}–${String(NODE_WIDTH_MAX)}`)
+  .nullable();
+/** 文字の大きさ（px、整数）。null は既定 */
+export const nodeFontSizeSchema = z
+  .int("Enter a whole number")
+  .min(NODE_FONT_SIZE_MIN, `Use ${String(NODE_FONT_SIZE_MIN)}–${String(NODE_FONT_SIZE_MAX)}`)
+  .max(NODE_FONT_SIZE_MAX, `Use ${String(NODE_FONT_SIZE_MIN)}–${String(NODE_FONT_SIZE_MAX)}`)
+  .nullable();
+/** 文字の色（#RRGGBB）。null は自動（カードの色に対して読みやすい方） */
+export const textColorSchema = lineColorSchema;
+/** アイデアの種類（見た目の強弱）。null は種類なし。中心のアイデアには付けられない（サービスで確認） */
+export const nodeRoleSchema = z
+  .enum(["CORE", "SUPPORTING", "IMPORTANT", "EXAMPLE", "QUESTION"])
+  .nullable();
+export const nodeHeightSchema = z
+  .int(`Enter a whole number`)
+  .min(NODE_HEIGHT_MIN, `Use ${String(NODE_HEIGHT_MIN)}–${String(NODE_HEIGHT_MAX)}`)
+  .max(NODE_HEIGHT_MAX, `Use ${String(NODE_HEIGHT_MIN)}–${String(NODE_HEIGHT_MAX)}`)
+  .nullable();
 
 /** LINK・VIDEO の URL。http/https、2,048文字まで */
 export const nodeUrlSchema = z
@@ -66,6 +100,12 @@ const createCommon = {
   sortOrder: sortOrderSchema.optional(),
   lineColor: lineColorSchema.optional(),
   cardColor: cardColorSchema.optional(),
+  shape: nodeShapeSchema.optional(),
+  width: nodeWidthSchema.optional(),
+  height: nodeHeightSchema.optional(),
+  fontSize: nodeFontSizeSchema.optional(),
+  textColor: textColorSchema.optional(),
+  role: nodeRoleSchema.optional(),
 };
 
 /**
@@ -98,6 +138,12 @@ export const updateNodeSchema = z
     sortOrder: sortOrderSchema.optional(),
     lineColor: lineColorSchema.optional(),
     cardColor: cardColorSchema.optional(),
+    shape: nodeShapeSchema.optional(),
+    width: nodeWidthSchema.optional(),
+    height: nodeHeightSchema.optional(),
+    fontSize: nodeFontSizeSchema.optional(),
+    textColor: textColorSchema.optional(),
+    role: nodeRoleSchema.optional(),
   })
   .superRefine((body, ctx) => {
     if (Object.keys(body).length === 0) {
@@ -142,16 +188,38 @@ const positionItemSchema = z.strictObject({
   sortOrder: sortOrderSchema.optional(),
 });
 
-/** PATCH /api/trees/:id/nodes/positions の body。1〜2,000件（ノード上限と同じ）、同じIDは1回だけ */
-export const positionsSchema = z.strictObject({
-  nodes: z
-    .array(positionItemSchema)
-    .min(1)
-    .max(MAX_NODES_PER_TREE)
-    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
-      message: "Each node ID may appear only once",
-    }),
+const groupPositionSchema = z.strictObject({
+  id: z.string().min(1),
+  positionX: positionSchema,
+  positionY: positionSchema,
+  width: groupWidthSchema.optional(),
+  height: groupHeightSchema.optional(),
 });
+
+/**
+ * PATCH /api/trees/:id/nodes/positions の body。ノード 0〜2,000件とボックス 0〜100件（両方は空にできない）。
+ * 同じIDは1回だけ。ボックスを動かすと中のアイデアも同じリクエストで動かす（manifests/nodes.md §3.5 Boxes）。
+ */
+export const positionsSchema = z
+  .strictObject({
+    nodes: z
+      .array(positionItemSchema)
+      .max(MAX_NODES_PER_TREE)
+      .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+        message: "Each node ID may appear only once",
+      })
+      .default([]),
+    groups: z
+      .array(groupPositionSchema)
+      .max(MAX_GROUPS_PER_TREE)
+      .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+        message: "Each box ID may appear only once",
+      })
+      .default([]),
+  })
+  .refine((body) => body.nodes.length + body.groups.length > 0, {
+    message: "Send at least one node or box",
+  });
 export type PositionsBody = z.infer<typeof positionsSchema>;
 
 /** GET /api/trees/:id/nodes のクエリ。ids はカンマ区切りで、重複を除いてから 1〜100件 */

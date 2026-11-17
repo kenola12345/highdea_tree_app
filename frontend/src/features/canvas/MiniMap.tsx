@@ -37,7 +37,7 @@ export function MiniMap({ layout, viewport, onJump }: MiniMapProps) {
       role="img"
       aria-label="Mini map. Click to move there."
       data-testid="mini-map"
-      className="cursor-pointer rounded-xl border border-slate-200 bg-white/90 shadow-sm"
+      className="bg-surface/90 cursor-pointer rounded-xl border border-slate-200 shadow-sm"
     >
       {layout.nodes.map((n) => {
         const p = toMap(n.x, n.y);

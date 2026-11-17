@@ -37,7 +37,7 @@ Shared rules (owner, `404` instead of `403`, what "public tree" means): see [com
 
 | ID | Screen | URL | Summary | Access |
 |---|---|---|---|---|
-| P-06 | Tree Viewer | `/trees/:id` | Read-only canvas of a tree, with owner name, categories and description. Click an idea to open its details (M-12). Owners see an "Edit" button; admins see "Remove" on public trees | Anyone (public trees); Owner (own private or removed trees) |
+| P-06 | Tree Viewer | `/trees/:id` | Read-only canvas of a tree, with owner name, categories and description. Click an idea to open its details (M-12). Owners switch to the Editor with the "Edit | View" pill in the AppHeader; admins see "Remove" on public trees | Anyone (public trees); Owner (own private or removed trees) |
 | P-07 | Explore | `/explore` | Feed of public trees from all users: search box, popular category chips, paging. Each card links to the Tree Viewer and the owner's profile | Anyone |
 | P-08 | User Profile | `/u/:username` | Avatar, display name, username, join date, and the user's public trees with paging | Anyone |
 

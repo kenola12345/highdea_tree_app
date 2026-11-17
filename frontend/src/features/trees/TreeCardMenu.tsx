@@ -46,7 +46,7 @@ export function TreeCardMenu({ onEdit, onDelete }: TreeCardMenuProps) {
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          className="bg-surface animate-drop-in absolute right-0 z-20 mt-1 w-44 origin-top-right overflow-hidden rounded-lg border border-slate-200 py-1 shadow-lg"
         >
           <button
             type="button"

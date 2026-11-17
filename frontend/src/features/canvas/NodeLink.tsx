@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { memo } from "react";
 
 import { cardSize, type LaidOutNode } from "./layout";
@@ -10,6 +11,8 @@ type NodeLinkProps = {
   selected?: boolean;
   /** エディタでは押して選べる（太い透明の当たり判定を付ける） */
   selectable?: boolean;
+  /** 選択中のアイデアに関係ないので薄くする */
+  dimmed?: boolean;
 };
 
 type Point = { x: number; y: number };
@@ -64,14 +67,14 @@ export function curveMidpoint({ start, end, controls }: ReturnType<typeof linkGe
   };
 }
 
-/** 選択中の線の下に敷く薄い青の縁取り（線の色はそのまま見せる） */
+/** 選択中の線の下に敷く、差し色の黄色の淡い縁取り（線の色はそのまま見せる） */
 export function LineHalo({ d }: { d: string }) {
   return (
     <path
       d={d}
       fill="none"
-      stroke="#3b82f6"
-      strokeOpacity={0.25}
+      stroke="#F6C945"
+      strokeOpacity={0.55}
       strokeWidth={10}
       strokeLinecap="round"
       vectorEffect="non-scaling-stroke"
@@ -82,7 +85,7 @@ export function LineHalo({ d }: { d: string }) {
 }
 
 /**
- * 親ノードから子ノードへの線。破線の S 字曲線（端点の丸は付けない）。
+ * 親ノードから子ノードへの線。落ち着いた実線の S 字曲線（端点の丸は付けない）。
  * 色は子ノードの枝の色（自分か祖先が設定した色）。エディタでは押して選べ、選ぶと色を変えられる（manifests/nodes.md §3.5）。
  */
 export const NodeLink = memo(function NodeLink({
@@ -91,6 +94,7 @@ export const NodeLink = memo(function NodeLink({
   level,
   selected = false,
   selectable = false,
+  dimmed = false,
 }: NodeLinkProps) {
   const { start, end, controls } = linkGeometry(source, target, level);
   const color = target.branchColor;
@@ -103,7 +107,9 @@ export const NodeLink = memo(function NodeLink({
       data-color={color}
       data-branch-id={selectable ? target.id : undefined}
       data-selected={selected || undefined}
-      className={selectable ? "cursor-pointer" : undefined}
+      data-dimmed={dimmed || undefined}
+      className={clsx("transition-opacity duration-200", selectable && "cursor-pointer")}
+      opacity={dimmed ? 0.2 : 1}
     >
       {selectable && (
         // 細い破線は押しにくいので、見えない太い線で当たり判定を広げる（画面上で 16px）
@@ -121,8 +127,9 @@ export const NodeLink = memo(function NodeLink({
         d={d}
         fill="none"
         stroke={color}
-        strokeWidth={selected ? 3 : 2}
-        strokeDasharray="6 5"
+        // 枝（親→子）は落ち着いた実線。点線・破線はアイデア同士のつながりの種類に使う（manifests/nodes.md Line style）
+        strokeWidth={selected ? 3 : 1.75}
+        strokeOpacity={selected ? 1 : 0.85}
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
         pointerEvents="none"

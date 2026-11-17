@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await loginAs(page, "alice@example.com");
   treeId = await treeIdByTitle(page.request, "Startup ideas");
   await page.goto(`/trees/${treeId}/edit`);
-  await page.getByText("Fit").click();
+  await page.getByRole("button", { name: "Fit" }).click();
 });
 
 const card = (page: Page, title: string) =>
@@ -165,12 +165,12 @@ test("E2E-EDITOR-09 connect two ideas from different branches, see it in the Vie
   await expect(page.getByText("These ideas are already connected.")).toBeVisible();
 
   await page.reload();
-  await page.getByText("Fit").click();
+  await page.getByRole("button", { name: "Fit" }).click();
   await expect(page.getByTestId("connection-line")).toHaveCount(1);
   await page.getByRole("link", { name: "View", exact: true }).click();
   await expect(page.getByTestId("connection-line")).toHaveCount(1);
   await page.goBack();
-  await page.getByText("Fit").click();
+  await page.getByRole("button", { name: "Fit" }).click();
 
   const mid = await connectionMidpoint(page);
   await page.mouse.click(mid.x, mid.y);
@@ -200,7 +200,7 @@ test("E2E-EDITOR-11 click a connection to change its color, kept after reload an
   await card(page, "Students").click();
   await page.getByTestId("connect-node-button").click();
   await card(page, "Ideas get lost in Slack").click();
-  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#64748b");
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#7A9283");
 
   const mid = await connectionMidpoint(page);
   await page.mouse.click(mid.x, mid.y);
@@ -213,13 +213,13 @@ test("E2E-EDITOR-11 click a connection to change its color, kept after reload an
   await page.getByRole("link", { name: "View", exact: true }).click();
   await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#EF4444");
   await page.goBack();
-  await page.getByText("Fit").click();
+  await page.getByRole("button", { name: "Fit" }).click();
 
   // Default で灰色に戻す
   const again = await connectionMidpoint(page);
   await page.mouse.click(again.x, again.y);
   await page.getByTestId("connection-color-default").click();
-  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#64748b");
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-color", "#7A9283");
   await expect(page.getByTestId("connection-color-default")).toHaveCount(0);
 });
 
@@ -241,4 +241,485 @@ test("E2E-EDITOR-12 click a branch line to change its color; the lines below it 
 
   await page.reload();
   await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
+});
+
+test("E2E-EDITOR-13 drag a corner handle to resize a card; the size is kept after reload", async ({
+  page,
+}) => {
+  const target = card(page, "Students");
+  await target.click();
+  const before = await target.boundingBox();
+  const handle = page.getByTestId("resize-handle-se");
+  const h = await handle.boundingBox();
+  if (!before || !h) throw new Error("no boxes");
+
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(h.x + h.width / 2 + 80, h.y + h.height / 2 + 60, { steps: 8 });
+  await expect(page.getByTestId("resize-size-label")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  const after = await target.boundingBox();
+  if (!after) throw new Error("no box");
+  expect(after.width).toBeGreaterThan(before.width + 40);
+  expect(after.height).toBeGreaterThan(before.height + 30);
+  // 反対（左上）の角は動かない
+  expect(Math.abs(after.x - before.x)).toBeLessThan(3);
+  expect(Math.abs(after.y - before.y)).toBeLessThan(3);
+
+  const res = await page.request.get(`/api/trees/${treeId}`);
+  const body = (await res.json()) as {
+    data: { nodes: { title: string; width: number | null; height: number | null }[] };
+  };
+  const students = body.data.nodes.find((n) => n.title === "Students");
+  expect(students?.width).toBeGreaterThan(200);
+  expect(students?.height).toBeGreaterThan(84);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect(card(page, "Students")).toBeVisible();
+});
+
+test("E2E-EDITOR-14 pick a Circle shape and a size in M-04; Auto returns to the default size", async ({
+  page,
+}) => {
+  await card(page, "Students").dblclick();
+  const editor = page.getByTestId("node-editor-modal");
+  await editor.getByTestId("shape-ELLIPSE").click();
+  await editor.getByLabel(/^Width/).fill("140");
+  await editor.getByLabel(/^Height/).fill("140");
+  await editor.getByTestId("node-save").click();
+  await expect(editor).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Fit" }).click();
+  await expect(card(page, "Students")).toHaveAttribute("data-shape", "ELLIPSE");
+  const box = await card(page, "Students").boundingBox();
+  if (!box) throw new Error("no box");
+  expect(Math.abs(box.width - box.height)).toBeLessThan(2);
+
+  // 範囲外はエラーで保存しない
+  await card(page, "Students").dblclick();
+  await editor.getByLabel(/^Width/).fill("20");
+  await editor.getByTestId("node-save").click();
+  await expect(editor.getByTestId("node-width-error")).toBeVisible();
+  await editor.getByTestId("node-size-auto").click();
+  await editor.getByTestId("node-save").click();
+  await expect(editor).toHaveCount(0);
+  const nodes = await page.request.get(`/api/trees/${treeId}`);
+  const data = (await nodes.json()) as {
+    data: { nodes: { title: string; shape: string; width: number | null }[] };
+  };
+  expect(data.data.nodes.find((n) => n.title === "Students")).toMatchObject({
+    shape: "ELLIPSE",
+    width: null,
+  });
+});
+
+test("E2E-EDITOR-15 the Canvas panel changes the grid style, color, opacity and background for visitors too", async ({
+  page,
+}) => {
+  const grid = page.getByTestId("grid-background");
+  await expect(grid).toHaveAttribute("data-grid-style", "LINES");
+
+  await page.getByTestId("canvas-button").click();
+  const panel = page.getByTestId("canvas-panel");
+  await panel.getByTestId("grid-style-DOTS").click();
+  await panel.locator("#canvas-grid-color").fill("#334155");
+  await panel.getByTestId("canvas-grid-opacity").fill("40");
+  // 変更はまとめて少し後に保存されるので、保存のリクエストを待つ
+  const saved = page.waitForResponse(
+    (r) => r.url().endsWith(`/api/trees/${treeId}/canvas`) && r.request().method() === "PATCH",
+  );
+  await panel.locator("#canvas-background").fill("#0F172A");
+  await expect(grid).toHaveAttribute("data-grid-style", "DOTS");
+  await expect(grid).toHaveAttribute("fill", "#0F172A");
+  await expect(grid).toHaveAttribute("data-grid-opacity", "40");
+  expect((await saved).request().postDataJSON()).toEqual({
+    gridStyle: "DOTS",
+    gridColor: "#334155",
+    gridOpacity: 40,
+    backgroundColor: "#0F172A",
+  });
+
+  await page.reload();
+  await expect(grid).toHaveAttribute("data-grid-style", "DOTS");
+  await expect(grid).toHaveAttribute("data-grid-color", "#334155");
+  await page.getByRole("link", { name: "View", exact: true }).click();
+  await expect(page.getByTestId("grid-background")).toHaveAttribute("fill", "#0F172A");
+  await page.goBack();
+
+  await page.getByTestId("canvas-button").click();
+  await page.getByTestId("canvas-reset").click();
+  await expect(grid).toHaveAttribute("data-grid-style", "LINES");
+  // 閉じると、待っている変更をすぐ保存する
+  const reset = page.waitForResponse(
+    (r) => r.url().endsWith(`/api/trees/${treeId}/canvas`) && r.request().method() === "PATCH",
+  );
+  await page.getByTestId("canvas-panel-close").click();
+  await expect(page.getByTestId("canvas-panel")).toHaveCount(0);
+  expect((await reset).ok()).toBe(true);
+  await page.reload();
+  await expect(grid).toHaveAttribute("data-grid-style", "LINES");
+});
+
+test("E2E-EDITOR-16 dark mode switches the app but not the canvas, and is kept after reload; Edit | View switches pages", async ({
+  page,
+}) => {
+  const grid = page.getByTestId("grid-background");
+  const before = await grid.getAttribute("fill");
+  const rootCard = page.getByTestId("node-card").filter({ hasText: "Startup ideas" }).first();
+  const rootColor = await rootCard.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  await page.getByTestId("theme-toggle").click();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  // キャンバスの色は所有者が決めるので、テーマでは変わらない
+  await expect(grid).toHaveAttribute("fill", before ?? "");
+  expect(await rootCard.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rootColor);
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+
+  await page.getByTestId("mode-view").click();
+  await expect(page).toHaveURL(new RegExp(`/trees/${treeId}$`));
+  await page.getByTestId("mode-edit").click();
+  await expect(page).toHaveURL(new RegExp(`/trees/${treeId}/edit$`));
+
+  await page.getByTestId("theme-toggle").click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+});
+
+test("E2E-EDITOR-17 set a text size and color in M-04; the card uses them after reload", async ({
+  page,
+}) => {
+  await card(page, "Students").dblclick();
+  const editor = page.getByTestId("node-editor-modal");
+  await editor.getByLabel("Note (optional)").fill("Students lose their notes between classes.");
+  await editor.getByLabel("Text size").fill("18");
+  await expect(editor.getByTestId("node-font-size-value")).toHaveText("18px");
+  await editor.locator("#node-text-color").fill("#B91C1C");
+  await editor.getByTestId("node-save").click();
+  await expect(editor).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Fit" }).click();
+  const students = card(page, "Students");
+  await expect(students).toHaveCSS("color", "rgb(185, 28, 28)");
+  const nodes = await page.request.get(`/api/trees/${treeId}`);
+  const data = (await nodes.json()) as {
+    data: { nodes: { title: string; fontSize: number | null; textColor: string | null }[] };
+  };
+  expect(data.data.nodes.find((n) => n.title === "Students")).toMatchObject({
+    fontSize: 18,
+    textColor: "#B91C1C",
+  });
+});
+
+test("E2E-EDITOR-18 undo and redo a move with the keyboard", async ({ page }) => {
+  const before = (await nodesByTitle(page.request, treeId)).Students;
+  await drag(page, card(page, "Students"), { dx: -150, dy: -60 });
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  const moved = (await nodesByTitle(page.request, treeId)).Students;
+  expect(moved?.positionX).not.toBe(before?.positionX);
+  await expect(page.getByTestId("undo-button")).toHaveAttribute("aria-label", "Undo Move idea");
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect
+    .poll(async () => (await nodesByTitle(page.request, treeId)).Students?.positionX)
+    .toBe(before?.positionX);
+
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect
+    .poll(async () => (await nodesByTitle(page.request, treeId)).Students?.positionX)
+    .toBe(moved?.positionX);
+});
+
+test("E2E-EDITOR-19 undo brings back a deleted branch with its connection; redo deletes it again", async ({
+  page,
+}) => {
+  // 消す枝（Problem）の中のアイデアと、別の枝のアイデアをつないでおく
+  await card(page, "Ideas get lost in Slack").click();
+  await page.getByTestId("connect-node-button").click();
+  await card(page, "Students").click();
+  await expect(page.getByTestId("connection-line")).toHaveCount(1);
+
+  await card(page, "Problem").click();
+  await page.getByTestId("delete-node-button").click();
+  await expect(page.getByTestId("delete-node-modal")).toContainText("You can undo this");
+  await page.getByTestId("confirm-button").click();
+  await expect(card(page, "Problem")).toHaveCount(0);
+  await expect(page.getByTestId("node-counter")).toContainText("16 / 2,000");
+  await expect(page.getByTestId("undo-button")).toHaveAttribute("aria-label", "Undo Delete branch");
+
+  await page.getByTestId("undo-button").click();
+  await expect(card(page, "Problem")).toBeVisible();
+  await expect(card(page, "Ideas get lost in Slack")).toBeVisible();
+  await expect(page.getByTestId("node-counter")).toContainText("20 / 2,000");
+  await expect(page.getByTestId("connection-line")).toHaveCount(1);
+  await page.reload();
+  await expect(page.getByTestId("node-counter")).toContainText("20 / 2,000");
+
+  // 再読み込みで履歴は消える（セッションの間だけ）
+  await expect(page.getByTestId("undo-button")).toBeDisabled();
+});
+
+test("E2E-EDITOR-20 the History list jumps back and forward through edits", async ({ page }) => {
+  const rename = async (from: string, to: string) => {
+    await card(page, from).dblclick();
+    const editor = page.getByTestId("node-editor-modal");
+    await editor.getByLabel("Title").fill(to);
+    await editor.getByTestId("node-save").click();
+    await expect(editor).toHaveCount(0);
+    await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  };
+  await rename("Students", "Learners");
+  await rename("Learners", "Pupils");
+
+  await page.getByTestId("history-button").click();
+  await expect(page.getByTestId("history-step")).toHaveCount(2);
+  await page.getByRole("button", { name: "Opened" }).click();
+  await expect(card(page, "Students")).toBeVisible();
+  await expect(page.getByTestId("redo-button")).toBeEnabled();
+
+  // 一覧は開いたまま（Photoshop の履歴と同じ）。最後の手を押すとそこまでやり直す
+  await page.getByTestId("history-step").last().click();
+  await expect(card(page, "Pupils")).toBeVisible();
+  await expect
+    .poll(async () => Boolean((await nodesByTitle(page.request, treeId)).Pupils))
+    .toBe(true);
+});
+
+test("E2E-EDITOR-21 give an idea a kind and a long sectioned note; it collapses with Show more", async ({
+  page,
+}) => {
+  await card(page, "Students").dblclick();
+  const editor = page.getByTestId("node-editor-modal");
+  await editor.getByTestId("kind-IMPORTANT").click();
+  const lines = Array.from({ length: 12 }, (_, i) => `Detail ${String(i)} about students.`);
+  await editor
+    .getByLabel("Note (optional)")
+    .fill(`What: who we build for\n${lines.join("\n")}\nRemember: keep it simple`);
+  await editor.getByTestId("node-save").click();
+  await expect(editor).toHaveCount(0);
+
+  const students = card(page, "Students");
+  await expect(students).toHaveAttribute("data-role", "IMPORTANT");
+  // カードの中身（印・メモ・Show more）は読める倍率で出るので、カードの上でホイールを回して拡大する
+  const box = await students.boundingBox();
+  if (!box) throw new Error("no box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -200);
+  await expect(students.getByTestId("card-expand")).toBeVisible();
+  await expect(students.getByTestId("card-role")).toHaveText(/Important/);
+  const toggle = students.getByTestId("card-expand");
+  await expect(toggle).toHaveText(/Show more/);
+  const before = await students.boundingBox();
+  await toggle.click();
+  await expect(toggle).toHaveText(/Show less/);
+  const after = await students.boundingBox();
+  expect(after?.height ?? 0).toBeGreaterThan((before?.height ?? 0) + 40);
+  // 広げても選択や編集にはならない
+  await expect(page.getByTestId("node-editor-modal")).toHaveCount(0);
+});
+
+test("E2E-EDITOR-22 change a connection's relationship type and swap its direction", async ({
+  page,
+}) => {
+  await card(page, "Students").click();
+  await page.getByTestId("connect-node-button").click();
+  await card(page, "Ideas get lost in Slack").click();
+  const line = page.getByTestId("connection-line");
+  await expect(line).toHaveAttribute("data-kind", "RELATED");
+
+  const mid = await connectionMidpoint(page);
+  await page.mouse.click(mid.x, mid.y);
+  await page.getByTestId("connection-kind").selectOption("SEQUENCE");
+  await expect(line).toHaveAttribute("data-kind", "SEQUENCE");
+  await expect(line.getByTestId("connection-arrow")).toHaveCount(1);
+  const tipBefore = await line.getByTestId("connection-arrow").getAttribute("d");
+  await page.getByTestId("connection-swap").click();
+  await expect(line.getByTestId("connection-arrow")).not.toHaveAttribute("d", tipBefore ?? "");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  await page.reload();
+  await expect(page.getByTestId("connection-line")).toHaveAttribute("data-kind", "SEQUENCE");
+  await expect(page.getByTestId("connection-arrow")).toHaveAttribute("d", /.+/);
+});
+
+test("E2E-EDITOR-23 a node style preset changes cards but not the canvas; selecting an idea dims the rest", async ({
+  page,
+}) => {
+  const grid = page.getByTestId("grid-background");
+  const canvasFill = await grid.getAttribute("fill");
+  const plain = card(page, "Team plan");
+  const before = await plain.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  await page.getByTestId("canvas-button").click();
+  const saved = page.waitForResponse(
+    (r) => r.url().endsWith(`/api/trees/${treeId}/canvas`) && r.request().method() === "PATCH",
+  );
+  await page.getByTestId("node-style-MIDNIGHT").click();
+  await page.getByTestId("canvas-grid-spacing").fill("40");
+  expect((await saved).request().postDataJSON()).toEqual({
+    nodeStyle: "MIDNIGHT",
+    gridSpacing: 40,
+  });
+  await expect
+    .poll(() => plain.evaluate((el) => getComputedStyle(el).backgroundColor))
+    .not.toBe(before);
+  await expect(grid).toHaveAttribute("fill", canvasFill ?? "");
+
+  // Reset canvas は方眼などだけを戻し、カードのプリセットはそのまま
+  await page.getByTestId("canvas-reset").click();
+  await page.getByTestId("canvas-panel-close").click();
+  await expect
+    .poll(async () => {
+      const res = await page.request.get(`/api/trees/${treeId}`);
+      const body = (await res.json()) as {
+        data: { canvas: { nodeStyle: string; gridSpacing: number } };
+      };
+      return `${body.data.canvas.nodeStyle}/${String(body.data.canvas.gridSpacing)}`;
+    })
+    .toBe("MIDNIGHT/24");
+
+  await card(page, "Problem").click();
+  await expect(card(page, "Problem")).not.toHaveAttribute("data-dimmed", "true");
+  await expect(card(page, "Students")).toHaveAttribute("data-dimmed", "true");
+  await expect(card(page, "Ideas get lost in Slack")).not.toHaveAttribute("data-dimmed", "true");
+});
+
+test("E2E-EDITOR-24 Tidy up removes overlapping cards in one undoable step", async ({ page }) => {
+  // 重なりを作る: 2つのアイデアを同じ場所へ
+  const nodes = await nodesByTitle(page.request, treeId);
+  await page.request.patch(`/api/trees/${treeId}/nodes/positions`, {
+    data: {
+      nodes: [
+        { id: nodes.Students?.id, positionX: 300, positionY: 300 },
+        { id: nodes.Problem?.id, positionX: 310, positionY: 310 },
+      ],
+    },
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Fit" }).click();
+
+  const overlaps = async () =>
+    page.evaluate(() => {
+      const boxes = [...document.querySelectorAll('[data-testid="node-card"]')].map((el) =>
+        el.getBoundingClientRect(),
+      );
+      let count = 0;
+      boxes.forEach((a, i) => {
+        boxes.slice(i + 1).forEach((b) => {
+          if (
+            a.left < b.right - 1 &&
+            b.left < a.right - 1 &&
+            a.top < b.bottom - 1 &&
+            b.top < a.bottom - 1
+          )
+            count += 1;
+        });
+      });
+      return count;
+    });
+  expect(await overlaps()).toBeGreaterThan(0);
+
+  await page.getByTestId("tidy-button").click();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  await expect.poll(overlaps).toBe(0);
+  await expect(page.getByTestId("undo-button")).toHaveAttribute("aria-label", "Undo Tidy up");
+
+  await page.getByTestId("undo-button").click();
+  await expect
+    .poll(async () => (await nodesByTitle(page.request, treeId)).Students?.positionX)
+    .toBe(300);
+});
+
+test("E2E-EDITOR-25 add a box from + Add by drawing it around an idea, rename it, drag it with the idea, delete it and undo", async ({
+  page,
+}) => {
+  const nodesBefore = await nodesByTitle(page.request, treeId);
+  const problem = await card(page, "Problem").boundingBox();
+  if (!problem) throw new Error("no card");
+
+  await page.getByTestId("add-button").click();
+  await page.getByTestId("add-BOX").click();
+  await expect(page.getByTestId("place-banner")).toContainText("drag to draw");
+  // カードを囲むように四角を描く
+  await page.mouse.move(problem.x - 40, problem.y - 60);
+  await page.mouse.down();
+  await page.mouse.move(problem.x + problem.width + 40, problem.y + problem.height + 40, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect(page.getByTestId("place-banner")).toHaveCount(0);
+  await expect(page.getByTestId("group-toolbar")).toBeVisible();
+  await page.getByTestId("group-title-input").fill("Pain points");
+  await page.getByTestId("group-title-input").press("Enter");
+  await expect(page.getByTestId("group-title")).toHaveText("Pain points");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  // 見出しをドラッグすると、中のアイデアも一緒に動く
+  const header = page.locator("[data-group-header]").first();
+  const h = await header.boundingBox();
+  if (!h) throw new Error("no header");
+  await page.mouse.move(h.x + 30, h.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(h.x + 30 - 120, h.y + 15 + 40, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  await expect
+    .poll(async () => (await nodesByTitle(page.request, treeId)).Problem?.positionX)
+    .not.toBe(nodesBefore.Problem?.positionX);
+
+  // 消してもアイデアは残り、元に戻すとボックスが戻る
+  await page.locator("[data-group-header]").first().click();
+  await page.getByTestId("delete-group-button").click();
+  await expect(page.getByTestId("group-box")).toHaveCount(0);
+  await expect(card(page, "Problem")).toBeVisible();
+  await page.getByTestId("undo-button").click();
+  await expect(page.getByTestId("group-title")).toHaveText("Pain points");
+});
+
+test("E2E-EDITOR-26 + Add places an idea, a sticky note and a text label where you click", async ({
+  page,
+}) => {
+  const canvas = page.getByTestId("tree-canvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("no canvas");
+
+  // アイデア: 種類を選んでクリックした場所に、題名を入れて置く
+  await page.getByTestId("add-button").click();
+  await page.getByTestId("add-LINK").click();
+  await page.mouse.click(box.x + 120, box.y + 120);
+  const modal = page.getByTestId("add-branch-modal");
+  await expect(modal.getByTestId("type-LINK")).toHaveAttribute("aria-checked", "true");
+  await page.getByTestId("branch-title-input").fill("Docs");
+  await page.getByTestId("branch-submit").click();
+  await expect(page.getByTestId("node-editor-modal")).toBeVisible();
+  await page.getByTestId("node-editor-modal").getByRole("button", { name: "Cancel" }).click();
+  await expect
+    .poll(async () => Boolean((await nodesByTitle(page.request, treeId)).Docs))
+    .toBe(true);
+
+  // 付箋: 置いて文を書く
+  await page.getByTestId("add-button").click();
+  await page.getByTestId("add-NOTE").click();
+  await page.mouse.click(box.x + box.width - 200, box.y + 160);
+  await page.getByTestId("group-body-input").fill("Ask Bob about pricing");
+  await page.getByTestId("group-body-input").blur();
+  await expect(page.getByTestId("canvas-note")).toContainText("Ask Bob about pricing");
+
+  // 文字: 置いて題名を変える。Esc で選択を外す
+  await page.getByTestId("add-button").click();
+  await page.getByTestId("add-LABEL").click();
+  await page.mouse.click(box.x + box.width / 2, box.y + 90);
+  await page.getByTestId("group-title-input").fill("Phase 1");
+  await page.getByTestId("group-title-input").press("Enter");
+  await expect(page.getByTestId("canvas-label")).toContainText("Phase 1");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  await page.reload();
+  await expect(page.getByTestId("canvas-note")).toContainText("Ask Bob about pricing");
+  await expect(page.getByTestId("canvas-label")).toContainText("Phase 1");
 });

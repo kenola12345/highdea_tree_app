@@ -8,7 +8,10 @@ type DeleteNodeModalProps = {
   onConfirm: (id: string) => void;
 };
 
-/** M-06 ノード削除の確認。枝ごと消え、元に戻せないことと、消える数を示す（manifests/nodes.md M-06） */
+/** 元に戻すキー（Mac は ⌘Z、それ以外は Ctrl+Z） */
+const UNDO_KEYS =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z";
+/** M-06 ノード削除の確認。枝ごと消えることと消える数、⌘Z / Ctrl+Z で元に戻せることを示す（manifests/nodes.md M-06） */
 export function DeleteNodeModal({
   node,
   descendantCount,
@@ -22,8 +25,8 @@ export function DeleteNodeModal({
       title={`Delete “${node?.title ?? ""}”?`}
       message={
         n > 0
-          ? `Delete this idea and ${String(n)} ${n === 1 ? "idea" : "ideas"} under it? This can't be undone.`
-          : "Delete this idea? This can't be undone."
+          ? `Delete this idea and ${String(n)} ${n === 1 ? "idea" : "ideas"} under it? You can undo this with ${UNDO_KEYS}.`
+          : `Delete this idea? You can undo this with ${UNDO_KEYS}.`
       }
       confirmLabel="Delete"
       danger

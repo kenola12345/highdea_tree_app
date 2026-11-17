@@ -4,9 +4,11 @@ import type {
   ListTreesQuery,
   OwnTreeItem,
   Pagination,
+  TreeCanvasStyle,
   TreeDetailResponse,
   TreeSummary,
   UpdateTreeBody,
+  UpdateTreeCanvasBody,
 } from "@highdea/shared";
 import type { Prisma } from "@prisma/client";
 
@@ -16,6 +18,7 @@ import { toPagination, toSkipTake } from "./common/pagination.js";
 import { visibleTreeWhere } from "./common/treeAccess.js";
 import { toOwnTreeItem, treeListSelect } from "./common/treeMapper.js";
 import { connectionSelect } from "./connection.service.js";
+import { groupSelect } from "./group.service.js";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -30,8 +33,24 @@ const nodeSkeletonSelect = {
   sortOrder: true,
   lineColor: true,
   cardColor: true,
+  shape: true,
+  width: true,
+  height: true,
+  fontSize: true,
+  textColor: true,
+  role: true,
   updatedAt: true,
 } satisfies Prisma.NodeSelect;
+
+/** キャンバスの見た目の列（manifests/nodes.md §3.5 Canvas look） */
+const canvasSelect = {
+  gridStyle: true,
+  gridColor: true,
+  gridOpacity: true,
+  gridSpacing: true,
+  backgroundColor: true,
+  nodeStyle: true,
+} satisfies Prisma.TreeSelect;
 
 const rootNodeSelect = {
   id: true,
@@ -138,6 +157,12 @@ export async function create(userId: string, body: CreateTreeBody): Promise<Crea
         type: "TEXT",
         lineColor: null,
         cardColor: null,
+        shape: "ROUNDED",
+        width: null,
+        height: null,
+        fontSize: null,
+        textColor: null,
+        role: null,
         createdAt: root.createdAt.toISOString(),
         updatedAt: root.updatedAt.toISOString(),
       },
@@ -157,6 +182,7 @@ export async function getDetail(
     where: { AND: [{ id: treeId }, visibleTreeWhere(viewerId)] },
     select: {
       ...treeListSelect,
+      ...canvasSelect,
       ownerId: true,
       nodes: {
         select: nodeSkeletonSelect,
@@ -166,6 +192,7 @@ export async function getDetail(
         select: connectionSelect,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       },
+      groups: { select: groupSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
   });
   if (!row) throw new AppError("TREE_NOT_FOUND");
@@ -178,7 +205,16 @@ export async function getDetail(
     owner: row.owner,
     isOwner,
     nodes: row.nodes.map((node) => ({ ...node, updatedAt: node.updatedAt.toISOString() })),
+    canvas: {
+      gridStyle: row.gridStyle,
+      gridColor: row.gridColor,
+      gridOpacity: row.gridOpacity,
+      gridSpacing: row.gridSpacing,
+      backgroundColor: row.backgroundColor,
+      nodeStyle: row.nodeStyle,
+    },
     connections: row.connections,
+    groups: row.groups,
   };
 }
 
@@ -230,6 +266,30 @@ export async function update(
     });
     return loadSummary(tx, treeId);
   });
+}
+
+/**
+ * キャンバスの見た目（方眼の種類・色・不透明度、背景色）を変える（manifests/trees.md PATCH /api/trees/:id/canvas）。
+ * 管理者に非公開化されたツリーも所有者は変えられる。自分のものでない・ゴミ箱内は存在を隠して 404。
+ */
+export async function updateCanvas(
+  userId: string,
+  treeId: string,
+  body: UpdateTreeCanvasBody,
+): Promise<TreeCanvasStyle> {
+  const { count } = await prisma.tree.updateMany({
+    where: { id: treeId, ownerId: userId, deletedAt: null },
+    data: {
+      gridStyle: body.gridStyle,
+      gridColor: body.gridColor,
+      gridOpacity: body.gridOpacity,
+      gridSpacing: body.gridSpacing,
+      backgroundColor: body.backgroundColor,
+      nodeStyle: body.nodeStyle,
+    },
+  });
+  if (count === 0) throw new AppError("TREE_NOT_FOUND");
+  return prisma.tree.findUniqueOrThrow({ where: { id: treeId }, select: canvasSelect });
 }
 
 /**

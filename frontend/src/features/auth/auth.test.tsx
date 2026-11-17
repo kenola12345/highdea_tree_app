@@ -163,7 +163,8 @@ describe("Log out", () => {
     });
     const user = userEvent.setup();
 
-    await user.click(await screen.findByTestId("logout-button"));
+    await user.click(await screen.findByTestId("menu-button"));
+    await user.click(screen.getByTestId("logout-button"));
 
     expect(await screen.findByTestId("landing-signup")).toBeInTheDocument();
     expect(screen.queryByTestId("logout-button")).not.toBeInTheDocument();

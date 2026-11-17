@@ -102,11 +102,18 @@ describe("POST /api/trees/:id/nodes", () => {
       previewDescription: null,
       previewImageUrl: null,
       imageUrl: null,
+      imageUploadId: null,
       positionX: 120.5,
       positionY: -40,
       sortOrder: 0,
       lineColor: null,
       cardColor: null,
+      shape: "ROUNDED",
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -709,10 +716,12 @@ describe("GET /api/trees/:id/nodes", () => {
       previewDescription: null,
       previewImageUrl: null,
       imageUrl: null,
+      imageUploadId: null,
       updatedAt: expect.any(String),
     });
     expect(nodes.find((n) => n.id === image.id)).toMatchObject({
       imageUrl: `/uploads/${upload.storageKey}`,
+      imageUploadId: upload.id,
     });
   });
 
@@ -881,5 +890,171 @@ describe("card colors (manifests/nodes.md §3.5 Card colors)", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.details).toEqual([{ field: "cardColor", message: expect.any(String) }]);
+  });
+});
+
+describe("card shape and size (manifests/nodes.md §3.5 Card shape and size)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("stores a shape and size on create and update, returns them in the skeleton, and clears the size with null", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({
+        type: "TEXT",
+        title: "Round",
+        parentId: tree.rootId,
+        shape: "ELLIPSE",
+        width: 120,
+        height: 120,
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.data.node).toMatchObject({ shape: "ELLIPSE", width: 120, height: 120 });
+
+    const root = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ shape: "PILL", width: 300, height: 60 });
+    expect(root.status).toBe(200);
+    expect(root.body.data.node).toMatchObject({ shape: "PILL", width: 300, height: 60 });
+
+    const cleared = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ width: null, height: null });
+    expect(cleared.body.data.node).toMatchObject({ shape: "PILL", width: null, height: null });
+
+    const detail = await request(app).get(`/api/trees/${tree.id}`).set("Cookie", cookie);
+    const round = (detail.body.data.nodes as { title: string }[]).find((n) => n.title === "Round");
+    expect(round).toMatchObject({ shape: "ELLIPSE", width: 120, height: 120 });
+  });
+
+  it("rejects an unknown shape and sizes outside 60–800 × 40–600 or not whole numbers", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    for (const body of [
+      { shape: "STAR" },
+      { width: 59 },
+      { width: 801 },
+      { height: 39 },
+      { height: 601 },
+      { width: 100.5 },
+    ]) {
+      const res = await request(app)
+        .patch(`/api/nodes/${tree.rootId}`)
+        .set("Cookie", cookie)
+        .send(body);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    }
+    const stored = await prisma.node.findUniqueOrThrow({ where: { id: tree.rootId } });
+    expect(stored).toMatchObject({ shape: "ROUNDED", width: null, height: null });
+  });
+});
+
+describe("text size and color (manifests/nodes.md §3.5 Text size and color)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("stores a text size and color, returns them in the skeleton, and clears them with null", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({
+        type: "TEXT",
+        title: "Big",
+        parentId: tree.rootId,
+        fontSize: 18,
+        textColor: "#B91C1C",
+      });
+    expect(created.body.data.node).toMatchObject({ fontSize: 18, textColor: "#B91C1C" });
+
+    const cleared = await request(app)
+      .patch(`/api/nodes/${created.body.data.node.id as string}`)
+      .set("Cookie", cookie)
+      .send({ fontSize: null, textColor: null });
+    expect(cleared.body.data.node).toMatchObject({ fontSize: null, textColor: null });
+
+    const root = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ fontSize: 24 });
+    expect(root.status).toBe(200);
+    const detail = await request(app).get(`/api/trees/${tree.id}`).set("Cookie", cookie);
+    expect(
+      (detail.body.data.nodes as { id: string; fontSize: number | null }[]).find(
+        (n) => n.id === tree.rootId,
+      )?.fontSize,
+    ).toBe(24);
+  });
+
+  it("rejects a text size outside 10–28 or not whole, and a text color that isn't #RRGGBB", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    for (const body of [
+      { fontSize: 9 },
+      { fontSize: 29 },
+      { fontSize: 12.5 },
+      { textColor: "red" },
+    ]) {
+      const res = await request(app)
+        .patch(`/api/nodes/${tree.rootId}`)
+        .set("Cookie", cookie)
+        .send(body);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    }
+  });
+});
+
+describe("idea kinds (manifests/nodes.md §3.5 Idea kinds)", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("stores a kind on create and update, clears it with null, and refuses a kind on the center idea", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({ type: "TEXT", title: "Controller", parentId: tree.rootId, role: "CORE" });
+    expect(created.body.data.node.role).toBe("CORE");
+    const id = created.body.data.node.id as string;
+
+    const changed = await request(app)
+      .patch(`/api/nodes/${id}`)
+      .set("Cookie", cookie)
+      .send({ role: "QUESTION" });
+    expect(changed.body.data.node.role).toBe("QUESTION");
+    const cleared = await request(app)
+      .patch(`/api/nodes/${id}`)
+      .set("Cookie", cookie)
+      .send({ role: null });
+    expect(cleared.body.data.node.role).toBeNull();
+
+    const root = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ role: "CORE" });
+    expect(root.status).toBe(400);
+    expect(root.body.error.code).toBe("VALIDATION_ERROR");
+    const bad = await request(app)
+      .patch(`/api/nodes/${id}`)
+      .set("Cookie", cookie)
+      .send({ role: "HERO" });
+    expect(bad.status).toBe(400);
   });
 });

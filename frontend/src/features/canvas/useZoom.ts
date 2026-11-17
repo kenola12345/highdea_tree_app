@@ -44,8 +44,10 @@ export function useZoom(
           event.touches.length > 1
         )
           return true;
+        // アイデアとボックスの見出しの上で押し始めたら、パンせずにエディタのドラッグに任せる
         const onNode =
-          event.target instanceof Element && event.target.closest("[data-node-id]") !== null;
+          event.target instanceof Element &&
+          event.target.closest("[data-node-id], [data-group-header]") !== null;
         return !(blockRef.current && onNode);
       })
       .on("zoom", (event: { transform: ViewTransform }) => {

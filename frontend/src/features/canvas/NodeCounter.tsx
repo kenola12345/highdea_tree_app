@@ -8,7 +8,7 @@ export function NodeCounter({ count }: { count: number }) {
     <span
       data-testid="node-counter"
       className={clsx(
-        "rounded-lg border bg-white px-2 py-1 text-xs tabular-nums shadow-sm",
+        "bg-surface rounded-lg border px-2 py-1 text-xs tabular-nums shadow-sm",
         full ? "border-red-300 text-red-700" : "border-slate-200 text-slate-600",
       )}
     >

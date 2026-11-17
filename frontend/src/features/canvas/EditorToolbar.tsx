@@ -1,4 +1,5 @@
 import type { TreeDetailResponse } from "@highdea/shared";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { CategoryChip } from "../categories/CategoryChip";
@@ -9,15 +10,22 @@ type EditorToolbarProps = {
   treeId: string;
   tree: TreeDetailResponse["tree"];
   onOpenSettings: () => void;
+  /** 元に戻す / やり直す / 履歴（エディタが渡す） */
+  historyControls?: ReactNode;
 };
 
 /**
  * エディタ上部のバー: マイツリーへ戻る・題名・公開状態・カテゴリ・保存状態・設定（M-02）・「訪問者として見る」。
  * 管理者に非公開化されたツリーは理由を帯で示す（manifests/nodes.md EditorToolbar）。
  */
-export function EditorToolbar({ treeId, tree, onOpenSettings }: EditorToolbarProps) {
+export function EditorToolbar({
+  treeId,
+  tree,
+  onOpenSettings,
+  historyControls,
+}: EditorToolbarProps) {
   return (
-    <div className="border-b border-slate-200 bg-white">
+    <div className="bg-surface border-b border-slate-200">
       <div className="flex min-h-12 items-center gap-2 px-4 py-2 md:gap-3">
         <Link
           to="/me"
@@ -36,6 +44,7 @@ export function EditorToolbar({ treeId, tree, onOpenSettings }: EditorToolbarPro
           ))}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {historyControls}
           <SaveStatus treeId={treeId} />
           <button
             type="button"
@@ -46,13 +55,6 @@ export function EditorToolbar({ treeId, tree, onOpenSettings }: EditorToolbarPro
           >
             ⚙
           </button>
-          <Link
-            to={`/trees/${treeId}`}
-            title="View as visitor"
-            className="flex h-11 items-center justify-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 md:h-9"
-          >
-            View
-          </Link>
         </div>
       </div>
       {tree.removedAt && (

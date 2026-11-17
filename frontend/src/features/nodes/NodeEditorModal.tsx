@@ -7,11 +7,15 @@ import { useUpdateNode } from "../../api/nodes";
 import { FormField, inputClassName } from "../../components/FormField";
 import { Modal } from "../../components/Modal";
 import { toVideoEmbed } from "../../lib/videoEmbed";
-import { DEFAULT_CARD_COLOR, ROOT_CARD_COLOR } from "../canvas/NodeCard";
+import { CANVAS_DEFAULTS } from "../canvas/canvasTheme";
+import { readableTextColor } from "../categories/CategoryChip";
 import { ImageUploadField } from "./ImageUploadField";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { NodeColorFields } from "./NodeColorFields";
 import { buildUpdateBody, type NodeFormValues, type NodeType } from "./nodeForm";
+import { NodeKindField } from "./NodeKindField";
+import { NodeShapeFields, parseSize, type SizeText } from "./NodeShapeFields";
+import { NodeTextFields } from "./NodeTextFields";
 import { TypeTabs } from "./TypeTabs";
 
 type NodeEditorModalProps = {
@@ -58,11 +62,21 @@ function NodeEditorForm({
     newUploadId: null,
     lineColor: node.lineColor,
     cardColor: node.cardColor,
+    shape: node.shape,
+    width: node.width,
+    height: node.height,
+    fontSize: node.fontSize,
+    textColor: node.textColor,
+    role: node.role,
+  });
+  const [sizeText, setSizeText] = useState<SizeText>({
+    width: node.width === null ? "" : String(node.width),
+    height: node.height === null ? "" : String(node.height),
   });
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<"title" | "body" | "url" | "image", string>>>(
-    {},
-  );
+  const [errors, setErrors] = useState<
+    Partial<Record<"title" | "body" | "url" | "image" | "width" | "height", string>>
+  >({});
   const update = useUpdateNode(treeId);
   const preview = useLinkPreview(values.url, values.type === "LINK");
   const embed = values.type === "VIDEO" ? toVideoEmbed(values.url) : null;
@@ -78,14 +92,27 @@ function NodeEditorForm({
     if (values.type === "VIDEO" && values.url.trim() && !embed)
       nextErrors.url = "Enter a YouTube or Vimeo URL";
     if (preview.status === "notAllowed") nextErrors.url = preview.message;
+    const size = parseSize(sizeText);
+    if (!size.ok) Object.assign(nextErrors, size.errors);
     const built = buildUpdateBody(
       {
         type: node.type,
         url: details?.url ?? null,
         lineColor: node.lineColor,
         cardColor: node.cardColor,
+        shape: node.shape,
+        width: node.width,
+        height: node.height,
+        fontSize: node.fontSize,
+        textColor: node.textColor,
+        role: node.role,
       },
-      { ...values, title: values.title.trim() },
+      {
+        ...values,
+        title: values.title.trim(),
+        width: size.ok ? size.width : node.width,
+        height: size.ok ? size.height : node.height,
+      },
     );
     if (!built.ok) nextErrors[built.field] = built.message;
     setErrors(nextErrors);
@@ -137,6 +164,15 @@ function NodeEditorForm({
         )}
       </FormField>
 
+      {node.parentId !== null && (
+        <NodeKindField
+          value={values.role}
+          onChange={(role) => {
+            set("role", role);
+          }}
+        />
+      )}
+
       {(values.type === "LINK" || values.type === "VIDEO") && (
         <FormField
           id="node-url"
@@ -184,7 +220,12 @@ function NodeEditorForm({
         />
       )}
 
-      <FormField id="node-body" label="Note (optional)" error={errors.body}>
+      <FormField
+        id="node-body"
+        label="Note (optional)"
+        hint="Optional sections: start a line with What:, Why:, Example:, Remember: or Mistakes:. Put code between ``` lines."
+        error={errors.body}
+      >
         {(p) => (
           <div>
             <textarea
@@ -207,13 +248,41 @@ function NodeEditorForm({
         lineColor={values.lineColor}
         cardColor={values.cardColor}
         inheritedLineColor={inheritedLineColor}
-        defaultCardColor={node.parentId === null ? ROOT_CARD_COLOR : DEFAULT_CARD_COLOR}
+        defaultCardColor={node.parentId === null ? CANVAS_DEFAULTS.root : CANVAS_DEFAULTS.card}
         isRoot={node.parentId === null}
         onLineColorChange={(color) => {
           set("lineColor", color);
         }}
         onCardColorChange={(color) => {
           set("cardColor", color);
+        }}
+      />
+
+      <NodeTextFields
+        fontSize={values.fontSize}
+        textColor={values.textColor}
+        autoTextColor={readableTextColor(
+          values.cardColor ??
+            (node.parentId === null ? CANVAS_DEFAULTS.root : CANVAS_DEFAULTS.card),
+        )}
+        onFontSizeChange={(size) => {
+          set("fontSize", size);
+        }}
+        onTextColorChange={(color) => {
+          set("textColor", color);
+        }}
+      />
+
+      <NodeShapeFields
+        shape={values.shape}
+        size={sizeText}
+        errors={{ width: errors.width, height: errors.height }}
+        onShapeChange={(shape) => {
+          set("shape", shape);
+        }}
+        onSizeChange={(next) => {
+          setSizeText(next);
+          setErrors((e) => ({ ...e, width: undefined, height: undefined }));
         }}
       />
 
@@ -229,7 +298,7 @@ function NodeEditorForm({
           type="submit"
           disabled={update.isPending}
           data-testid="node-save"
-          className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium disabled:opacity-60"
         >
           {update.isPending ? "Saving…" : "Save"}
         </button>

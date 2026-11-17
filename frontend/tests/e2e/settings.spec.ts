@@ -14,7 +14,8 @@ test.describe("settings", () => {
     await page.getByTestId("profile-save").click();
 
     await expect(page.getByText("Profile saved")).toBeVisible();
-    await expect(page.getByRole("banner")).toContainText("Alice C.");
+    // ヘッダーのアカウントのアイコン（アバター）の名前に新しい表示名が入る
+    await expect(page.getByRole("banner").getByRole("link", { name: /Alice C\./ })).toBeVisible();
   });
 
   test("E2E-SETTINGS-02 create, rename and delete a category", async ({ page }) => {
@@ -58,6 +59,7 @@ test.describe("settings", () => {
     await page.getByTestId("password-save").click();
     await expect(page.getByText("Password changed")).toBeVisible();
 
+    await page.getByTestId("menu-button").click();
     await page.getByTestId("logout-button").click();
     await expect(page.getByTestId("landing-signup")).toBeVisible();
     await loginAs(page, `${name}@example.com`, "newpassword456");

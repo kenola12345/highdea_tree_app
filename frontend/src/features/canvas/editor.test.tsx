@@ -13,9 +13,11 @@ import { ColorField } from "../../components/ColorField";
 import { OpenLink } from "../../components/OpenLink";
 import { ToastProvider } from "../../components/Toast";
 import { buildUpdateBody } from "../nodes/nodeForm";
+import { parseSize } from "../nodes/NodeShapeFields";
 import { canReparent, findDropTarget } from "./dropTarget";
-import { DEFAULT_LINE_COLOR, layoutTree } from "./layout";
+import { cardSize, DEFAULT_LINE_COLOR, layoutTree } from "./layout";
 import { linkGeometry } from "./NodeLink";
+import { resizeBox } from "./ResizeHandles";
 import { branchIds, countDescendants, newChildPosition } from "./treeOps";
 
 function node(id: string, parentId: string | null, x: number, y: number): NodeSkeleton {
@@ -29,6 +31,12 @@ function node(id: string, parentId: string | null, x: number, y: number): NodeSk
     sortOrder: 0,
     lineColor: null,
     cardColor: null,
+    shape: "ROUNDED",
+    width: null,
+    height: null,
+    fontSize: null,
+    textColor: null,
+    role: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }
@@ -93,12 +101,29 @@ describe("M-04 type switch", () => {
     newUploadId: null,
     lineColor: null,
     cardColor: null,
+    shape: "ROUNDED" as const,
+    width: null,
+    height: null,
+    fontSize: null,
+    textColor: null,
+    role: null,
   };
 
   it("keeps title and note when switching to Link, and requires the URL", () => {
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        {
+          type: "TEXT",
+          url: null,
+          lineColor: null,
+          cardColor: null,
+          shape: "ROUNDED" as const,
+          width: null,
+          height: null,
+          fontSize: null,
+          textColor: null,
+          role: null,
+        },
         { ...values, type: "LINK" },
       ),
     ).toEqual({
@@ -108,7 +133,18 @@ describe("M-04 type switch", () => {
     });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        {
+          type: "TEXT",
+          url: null,
+          lineColor: null,
+          cardColor: null,
+          shape: "ROUNDED" as const,
+          width: null,
+          height: null,
+          fontSize: null,
+          textColor: null,
+          role: null,
+        },
         { ...values, type: "LINK", url: "https://example.com" },
       ),
     ).toEqual({
@@ -119,7 +155,18 @@ describe("M-04 type switch", () => {
 
   it("doesn't send the old type's fields, so the server clears them", () => {
     const result = buildUpdateBody(
-      { type: "LINK", url: "https://example.com", lineColor: null, cardColor: null },
+      {
+        type: "LINK",
+        url: "https://example.com",
+        lineColor: null,
+        cardColor: null,
+        shape: "ROUNDED" as const,
+        width: null,
+        height: null,
+        fontSize: null,
+        textColor: null,
+        role: null,
+      },
       { ...values, type: "TEXT", url: "https://example.com" },
     );
 
@@ -132,13 +179,35 @@ describe("M-04 type switch", () => {
   it("requires an uploaded image when switching to Image", () => {
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        {
+          type: "TEXT",
+          url: null,
+          lineColor: null,
+          cardColor: null,
+          shape: "ROUNDED" as const,
+          width: null,
+          height: null,
+          fontSize: null,
+          textColor: null,
+          role: null,
+        },
         { ...values, type: "IMAGE" },
       ),
     ).toMatchObject({ ok: false, field: "image" });
     expect(
       buildUpdateBody(
-        { type: "TEXT", url: null, lineColor: null, cardColor: null },
+        {
+          type: "TEXT",
+          url: null,
+          lineColor: null,
+          cardColor: null,
+          shape: "ROUNDED" as const,
+          width: null,
+          height: null,
+          fontSize: null,
+          textColor: null,
+          role: null,
+        },
         { ...values, type: "IMAGE", newUploadId: "up1" },
       ),
     ).toMatchObject({
@@ -166,7 +235,16 @@ describe("optimistic add", () => {
       owner: { username: "alice", displayName: "Alice", avatarUrl: null },
       isOwner: true,
       nodes: [node("root", null, 0, 0)],
+      canvas: {
+        gridStyle: "LINES",
+        gridColor: null,
+        gridOpacity: 100,
+        gridSpacing: 24,
+        backgroundColor: null,
+        nodeStyle: "MINIMAL",
+      },
       connections: [],
+      groups: [],
     };
     queryClient.setQueryData(queryKeys.tree("t1"), tree);
     let respond: (r: Response) => void = () => undefined;
@@ -281,7 +359,18 @@ describe("line colors", () => {
   });
 
   it("M-04 sends lineColor only when it changed, and null to inherit again", () => {
-    const original = { type: "TEXT" as const, url: null, lineColor: "#EF4444", cardColor: null };
+    const original = {
+      type: "TEXT" as const,
+      url: null,
+      lineColor: "#EF4444",
+      cardColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
+    };
     const values = {
       type: "TEXT" as const,
       title: "T",
@@ -289,6 +378,12 @@ describe("line colors", () => {
       url: "",
       newUploadId: null,
       cardColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
     };
 
     expect(buildUpdateBody(original, { ...values, lineColor: "#EF4444" })).toEqual({
@@ -332,7 +427,18 @@ describe("open link", () => {
 
 describe("card colors and color picker", () => {
   it("M-04 sends cardColor only when it changed", () => {
-    const original = { type: "TEXT" as const, url: null, lineColor: null, cardColor: null };
+    const original = {
+      type: "TEXT" as const,
+      url: null,
+      lineColor: null,
+      cardColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
+    };
     const values = {
       type: "TEXT" as const,
       title: "T",
@@ -340,15 +446,47 @@ describe("card colors and color picker", () => {
       url: "",
       newUploadId: null,
       lineColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
     };
 
-    expect(buildUpdateBody(original, { ...values, cardColor: null })).toEqual({
+    expect(
+      buildUpdateBody(original, {
+        ...values,
+        cardColor: null,
+        shape: "ROUNDED" as const,
+        width: null,
+        height: null,
+        fontSize: null,
+        textColor: null,
+        role: null,
+      }),
+    ).toEqual({
       ok: true,
       body: { title: "T", body: null },
     });
-    expect(buildUpdateBody(original, { ...values, cardColor: "#FDE68A" })).toEqual({
+    expect(
+      buildUpdateBody(original, {
+        ...values,
+        cardColor: "#FDE68A",
+        shape: "ROUNDED" as const,
+        width: null,
+        height: null,
+        fontSize: null,
+        textColor: null,
+        role: null,
+      }),
+    ).toEqual({
       ok: true,
-      body: { title: "T", body: null, cardColor: "#FDE68A" },
+      body: {
+        title: "T",
+        body: null,
+        cardColor: "#FDE68A",
+      },
     });
   });
 
@@ -374,5 +512,138 @@ describe("card colors and color picker", () => {
 
     await user.click(screen.getByTestId("card-color-default"));
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe("card shape and size", () => {
+  it("cardSize uses the node's own width and height, else the default size", () => {
+    expect(cardSize({ isRoot: false })).toEqual({ width: 200, height: 84 });
+    expect(cardSize({ isRoot: true, width: null, height: null })).toEqual({
+      width: 240,
+      height: 96,
+    });
+    expect(cardSize({ isRoot: false, width: 120, height: null })).toEqual({
+      width: 120,
+      height: 84,
+    });
+  });
+
+  it("lines meet a resized card at the middle of its facing edge", () => {
+    const l = layoutTree([
+      node("root", null, 0, 0),
+      { ...node("a", "root", 400, 0), width: 300, height: 100 },
+    ]);
+    const root = l.byId.get("root");
+    const a = l.byId.get("a");
+    if (!root || !a) throw new Error("layout");
+    expect(linkGeometry(root, a, "card").end).toEqual({ x: 400 - 150, y: 0 });
+  });
+
+  it("resizing from a corner keeps the opposite corner in place", () => {
+    const start = { x: 0, y: 0, width: 200, height: 100 };
+    // 右下を (+40, +20) 動かす → 左上の角 (-100, -50) は動かない
+    const se = resizeBox(start, "se", 40, 20, false);
+    expect(se).toEqual({ x: 20, y: 10, width: 240, height: 120 });
+    expect(se.x - se.width / 2).toBe(-100);
+    expect(se.y - se.height / 2).toBe(-50);
+    // 左上を (-40, -20) 動かす → 右下の角 (100, 50) は動かない
+    const nw = resizeBox(start, "nw", -40, -20, false);
+    expect(nw.x + nw.width / 2).toBe(100);
+    expect(nw.y + nw.height / 2).toBe(50);
+  });
+
+  it("resizing keeps the size within 60–800 × 40–600 and keeps the ratio with Shift", () => {
+    const start = { x: 0, y: 0, width: 200, height: 100 };
+    expect(resizeBox(start, "se", -1000, -1000, false)).toMatchObject({ width: 60, height: 40 });
+    expect(resizeBox(start, "se", 5000, 5000, false)).toMatchObject({ width: 800, height: 600 });
+    expect(resizeBox(start, "se", 100, 0, true)).toMatchObject({ width: 300, height: 150 });
+  });
+
+  it("M-04 size fields: empty is the default size, out-of-range or decimals are errors", () => {
+    expect(parseSize({ width: "", height: " " })).toEqual({ ok: true, width: null, height: null });
+    expect(parseSize({ width: "120", height: "80" })).toEqual({ ok: true, width: 120, height: 80 });
+    expect(parseSize({ width: "59", height: "80.5" })).toEqual({
+      ok: false,
+      errors: {
+        width: "Use a whole number from 60 to 800",
+        height: "Use a whole number from 40 to 600",
+      },
+    });
+  });
+
+  it("M-04 sends shape and size only when they changed, and null for Auto", () => {
+    const original = {
+      type: "TEXT" as const,
+      url: null,
+      lineColor: null,
+      cardColor: null,
+      shape: "ROUNDED" as const,
+      width: 300,
+      height: 120,
+      fontSize: null,
+      textColor: null,
+      role: null,
+    };
+    const values = {
+      type: "TEXT" as const,
+      title: "T",
+      body: "",
+      url: "",
+      newUploadId: null,
+      lineColor: null,
+      cardColor: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
+    };
+
+    expect(
+      buildUpdateBody(original, { ...values, shape: "ROUNDED", width: 300, height: 120 }),
+    ).toEqual({ ok: true, body: { title: "T", body: null } });
+    expect(
+      buildUpdateBody(original, { ...values, shape: "ELLIPSE", width: null, height: null }),
+    ).toEqual({
+      ok: true,
+      body: { title: "T", body: null, shape: "ELLIPSE", width: null, height: null },
+    });
+  });
+});
+
+describe("text size and color", () => {
+  it("M-04 sends fontSize and textColor only when they changed, and null for Default / Auto", () => {
+    const original = {
+      type: "TEXT" as const,
+      url: null,
+      lineColor: null,
+      cardColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      fontSize: 18,
+      textColor: "#B91C1C",
+      role: null,
+    };
+    const values = {
+      type: "TEXT" as const,
+      title: "T",
+      body: "",
+      url: "",
+      newUploadId: null,
+      lineColor: null,
+      cardColor: null,
+      shape: "ROUNDED" as const,
+      width: null,
+      height: null,
+      role: null,
+    };
+
+    expect(buildUpdateBody(original, { ...values, fontSize: 18, textColor: "#B91C1C" })).toEqual({
+      ok: true,
+      body: { title: "T", body: null },
+    });
+    expect(buildUpdateBody(original, { ...values, fontSize: null, textColor: null })).toEqual({
+      ok: true,
+      body: { title: "T", body: null, fontSize: null, textColor: null },
+    });
   });
 });
