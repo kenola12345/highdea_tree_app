@@ -30,7 +30,7 @@ export function TreeCard({ tree, to, owner, menu }: TreeCardProps) {
   return (
     <article
       data-testid="tree-card"
-      className="relative flex w-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
+      className="bg-surface relative flex w-full flex-col rounded-xl border border-slate-200 p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
     >
       <div className="flex items-start gap-2">
         <h3 className="min-w-0 flex-1 text-base font-semibold break-words">

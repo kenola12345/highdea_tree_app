@@ -6,6 +6,19 @@
     <meta name="description" content="Highdea Tree: visualize and organize your ideas as a tree." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Highdea Tree</title>
+    <!-- 最初の描画の前にテーマを決め、ライト→ダークのちらつきを防ぐ（src/lib/theme.ts と同じ判定） -->
+    <script>
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem("theme");
+        } catch (e) {}
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        if (theme === "dark") document.documentElement.classList.add("dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

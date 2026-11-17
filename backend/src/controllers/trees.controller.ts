@@ -2,6 +2,7 @@ import {
   createTreeSchema,
   idParamSchema,
   listTreesQuerySchema,
+  updateTreeCanvasSchema,
   updateTreeSchema,
 } from "@highdea/shared";
 import type { RequestHandler } from "express";
@@ -44,6 +45,17 @@ export const update: RequestHandler = async (req, res) => {
     getValidated(req, "body", updateTreeSchema),
   );
   res.status(200).json({ data: { tree } });
+};
+
+/** PATCH /api/trees/:id/canvas: キャンバスの見た目 */
+export const updateCanvas: RequestHandler = async (req, res) => {
+  const { id } = getValidated(req, "params", idParamSchema);
+  const canvas = await treeService.updateCanvas(
+    currentUser(req).id,
+    id,
+    getValidated(req, "body", updateTreeCanvasSchema),
+  );
+  res.status(200).json({ data: { canvas } });
 };
 
 /** DELETE /api/trees/:id: ゴミ箱に移す */

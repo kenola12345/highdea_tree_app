@@ -15,7 +15,7 @@ Creating, listing, viewing, editing and deleting trees; the Trash and restore; c
 - Edit title, description, visibility and categories (up to **10 categories** per tree, only the user's own).
 - Owners see all their trees on My Trees, filterable by category. Admins don't see other users' trees there.
 - A tree removed by an admin stays with its owner, privately, with the admin's reason shown; it can't be made public again (§3.9).
-- **Pages/modals:** P-04, P-05, P-06, M-01, M-02. **API:** `GET /api/trees`, `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`. **Tables:** `trees`, `nodes` (root), `tree_categories`.
+- **Pages/modals:** P-04, P-05, P-06, M-01, M-02. **API:** `GET /api/trees`, `POST /api/trees`, `GET /api/trees/:id`, `PATCH /api/trees/:id`, `PATCH /api/trees/:id/canvas`. **Tables:** `trees`, `nodes` (root), `tree_categories`.
 
 ### 3.4 Trash
 
@@ -164,7 +164,7 @@ stateDiagram-v2
 - **Success: `201 Created`**
   Follows the common format `{ "data": {...} }`.
   - `data.tree`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `removedAt` (`null`), `removalReason` (`null`), `createdAt`, `updatedAt`.
-  - `data.rootNode`: the new root node, a `TEXT` node with `parentId` `null` at position (0, 0): `id`, `treeId`, `parentId`, `type`, `title`, `body`, `positionX`, `positionY`, `sortOrder`, `lineColor` (`null`), `cardColor` (`null`), `createdAt`, `updatedAt`.
+  - `data.rootNode`: the new root node, a `TEXT` node with `parentId` `null` at position (0, 0): `id`, `treeId`, `parentId`, `type`, `title`, `body`, `positionX`, `positionY`, `sortOrder`, `lineColor` (`null`), `cardColor` (`null`), `shape` (`ROUNDED`), `width` (`null`), `height` (`null`), `fontSize` (`null`), `textColor` (`null`), `role` (`null`), `createdAt`, `updatedAt`.
   The frontend then opens the Tree Editor (`/trees/:id/edit`).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
@@ -199,8 +199,10 @@ stateDiagram-v2
   - `data.tree`: `id`, `title`, `description`, `visibility`, `categories` (`id`, `name`, `color`), `removedAt`, `removalReason`, `createdAt`, `updatedAt`. `removedAt` and `removalReason` are only filled in for the owner; for anyone else they're always `null`.
   - `data.owner`: `username`, `displayName`, `avatarUrl`.
   - `data.isOwner`: `true` when the logged-in user owns the tree. The frontend uses it to decide between the editor and the read-only viewer.
-  - `data.nodes`: the **skeleton** of every node in the tree (up to 2,000), as a flat list (not nested). The frontend builds the hierarchy from `parentId` with `d3-hierarchy`. Each node has only the light fields: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `updatedAt`. Exactly one node has `parentId` `null`: the root. Heavy content (`body`, `url`, link preview, `imageUrl`) isn't included; the canvas lazy-loads it with `GET /api/trees/:id/nodes?ids=` as nodes come into view. `updatedAt` tells the frontend when its cached details for a node are stale.
-  - `data.connections`: every connection between two ideas of the tree (up to 500), each `{ id, nodeAId, nodeBId }`, oldest first. The canvas draws them as dotted lines besides the parent → child lines ([nodes.md](./nodes.md) §3.5, Connections).
+  - `data.nodes`: the **skeleton** of every node in the tree (up to 2,000), as a flat list (not nested). The frontend builds the hierarchy from `parentId` with `d3-hierarchy`. Each node has only the light fields: `id`, `parentId`, `type`, `title`, `positionX`, `positionY`, `sortOrder`, `lineColor`, `cardColor`, `shape`, `width`, `height`, `fontSize`, `textColor`, `role`, `updatedAt`. Exactly one node has `parentId` `null`: the root. Heavy content (`body`, `url`, link preview, `imageUrl`) isn't included; the canvas lazy-loads it with `GET /api/trees/:id/nodes?ids=` as nodes come into view. `updatedAt` tells the frontend when its cached details for a node are stale.
+  - `data.canvas`: the tree's canvas look and node style, `{ gridStyle, gridColor, gridOpacity, gridSpacing, backgroundColor, nodeStyle }` ([nodes.md](./nodes.md) §3.5 Canvas look). `gridColor` and `backgroundColor` are `null` for the default.
+  - `data.groups`: every canvas item of the tree (boxes, sticky notes, text labels; up to 100), each `{ id, kind, title, body, color, positionX, positionY, width, height }`, oldest first ([nodes.md](./nodes.md) §3.5 Add menu and canvas items).
+  - `data.connections`: every connection between two ideas of the tree (up to 500), each `{ id, nodeAId, nodeBId, color, kind, arrow }` (`color` null = default gray), oldest first. The canvas draws them as dotted lines besides the parent → child lines ([nodes.md](./nodes.md) §3.5, Connections).
 - **Error Responses**
   Follows the common format `{ "error": { "code", "message" } }`.
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or the caller isn't allowed to see it (see Authorization).
@@ -242,6 +244,48 @@ stateDiagram-v2
   - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is deleted, or isn't owned by the caller.
   - `404` `CATEGORY_NOT_FOUND` — One of `categoryIds` doesn't exist or belongs to another user. Nothing is changed.
   - `409` `TREE_REMOVED` — The request sets `visibility` to `PUBLIC` but an admin removed this tree (removal already set it to `PRIVATE`). The owner can still edit it and keep it private.
+  - `500` `INTERNAL_ERROR` — Unexpected server error.
+---
+
+---
+##### **PATCH /api/trees/:id/canvas**
+
+- **Summary（機能概要）:** Changes the tree's canvas look: grid style, grid color, grid opacity and background color ([nodes.md](./nodes.md) §3.5 Canvas look).
+- **Authorization（認可）:** The tree's owner only (`USER` or `ADMIN` who owns it), also in a tree an admin removed. Anyone else gets `404`. Not allowed while the tree is in the Trash.
+
+**Request（リクエスト）**
+
+- **Path Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `String` | Tree ID (cuid) |
+
+- **Body**
+  Send only the fields to change; at least one is required. Any other field is rejected.
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `gridStyle` | `"LINES" \| "DOTS" \| "NONE"` | | Grid style |
+| `gridColor` | `String \| null` | | `#RRGGBB`, or `null` for the default (`#D3E0D5`) |
+| `gridOpacity` | `Int` | | 0–100 (percent) |
+| `gridSpacing` | `Int` | | 12–64 canvas units between grid lines or dots |
+| `nodeStyle` | `"MINIMAL" \| "MIDNIGHT" \| "ORGANIC" \| "EDITORIAL"` | | Node style preset for the tree's cards (independent of the canvas fields) |
+| `backgroundColor` | `String \| null` | | `#RRGGBB`, or `null` for the default (`#F6F9F5`) |
+
+**Processing（処理）**
+
+- The columns are updated and the tree's `updatedAt` is bumped in one update.
+
+**Response（レスポンス）**
+
+- **Success: `200 OK`**
+  Follows the common format `{ "data": {...} }`. `data.canvas`: `{ gridStyle, gridColor, gridOpacity, gridSpacing, backgroundColor, nodeStyle }` after the change.
+- **Error Responses**
+  Follows the common format `{ "error": { "code", "message" } }`.
+  - `400` `VALIDATION_ERROR` — The body is empty, has a field that isn't allowed, or a value breaks a rule above.
+  - `401` `UNAUTHENTICATED` — No valid auth cookie, or the user is deactivated (`deletedAt` set).
+  - `404` `TREE_NOT_FOUND` — The tree doesn't exist, is in the Trash, or isn't owned by the caller.
   - `500` `INTERNAL_ERROR` — Unexpected server error.
 ---
 
@@ -509,10 +553,17 @@ Full Prisma schema, ER diagram and deletion policy: [common.md — Data Modeling
 | removed_by_id | TEXT | NULL, FK→users.id | The admin who removed it |
 | removal_reason | VARCHAR(500) | NULL | Removal reason, shown to the owner |
 | created_at | TIMESTAMPTZ(3) | NOT NULL, DEFAULT now() | Created at |
+| grid_style | GridStyle | NOT NULL, DEFAULT 'LINES' | Canvas grid: `LINES` / `DOTS` / `NONE` |
+| grid_color | VARCHAR(7) | NULL | Grid color `#RRGGBB`; `NULL` is the default (`#D3E0D5`) |
+| grid_opacity | INTEGER | NOT NULL, DEFAULT 100 | Grid opacity, 0–100 (percent) |
+| grid_spacing | INTEGER | NOT NULL, DEFAULT 24 | Grid spacing, 12–64 canvas units |
+| node_style | NodeStylePreset | NOT NULL, DEFAULT 'MINIMAL' | Card style preset: `MINIMAL` / `MIDNIGHT` / `ORGANIC` / `EDITORIAL` |
+| background_color | VARCHAR(7) | NULL | Canvas background `#RRGGBB`; `NULL` is the default (`#F6F9F5`) |
 | updated_at | TIMESTAMPTZ(3) | NOT NULL | Updated at. Explore sorts by this |
 | deleted_at | TIMESTAMPTZ(3) | NULL | Set when the owner deletes the tree |
 
 **Business rules and constraints**
+- `grid_spacing` is 12–64. `grid_opacity` is 0–100 and `grid_color` / `background_color` are `#RRGGBB` or `NULL`. Enforced in the **app layer** (Zod).
 - Only the owner can edit or delete a tree, or change its nodes and categories. Enforced in the **app layer** (TreeService checks `owner_id = current user`).
 - A `PRIVATE` tree can only be seen by its owner, and admins can't see it either. Enforced in the **app layer**: TreeService returns 404 (not 403) to anyone else, so the tree's existence isn't revealed.
 - Explore and public profiles show only trees where `visibility = 'PUBLIC'`, `removed_at` and `deleted_at` are NULL, and the owner isn't deactivated. Enforced in the **app layer** (ExploreService and UserService).

@@ -1,4 +1,4 @@
-import { createConnectionSchema, idParamSchema } from "@highdea/shared";
+import { createConnectionSchema, idParamSchema, updateConnectionSchema } from "@highdea/shared";
 import { Router } from "express";
 
 import * as connections from "../controllers/connections.controller.js";
@@ -13,6 +13,12 @@ connectionsRouter.post(
   requireAuth,
   validate({ params: idParamSchema, body: createConnectionSchema }),
   connections.create,
+);
+connectionsRouter.patch(
+  "/connections/:id",
+  requireAuth,
+  validate({ params: idParamSchema, body: updateConnectionSchema }),
+  connections.update,
 );
 connectionsRouter.delete(
   "/connections/:id",

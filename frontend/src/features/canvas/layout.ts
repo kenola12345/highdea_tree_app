@@ -10,8 +10,8 @@ export const ROOT_HEIGHT = 96;
 const DEPTH_SPACING = 300;
 const SIBLING_SPACING = 120;
 
-/** 線の色が誰にも設定されていないときの色（slate-400） */
-export const DEFAULT_LINE_COLOR = "#94a3b8";
+/** 線の色が誰にも設定されていないときの色（インクを薄くした緑がかった灰色） */
+export const DEFAULT_LINE_COLOR = "#A3B5A7";
 
 export type LaidOutNode = NodeSkeleton & {
   /** このノードへ入る線の色。自分の lineColor、なければ最も近い祖先の色、なければ既定の色（manifests/nodes.md §3.5） */
@@ -21,7 +21,13 @@ export type LaidOutNode = NodeSkeleton & {
   y: number;
   depth: number;
   isRoot: boolean;
+  /** 大きさが未設定のときの、中身に合わせた大きさ（cardContent.ts autoCardSize） */
+  autoWidth?: number;
+  autoHeight?: number;
 };
+
+/** ノードごとの中身に合わせた大きさ（大きさが未設定のノードだけ） */
+export type AutoSizes = ReadonlyMap<string, { width: number; height: number }>;
 
 export type Link = { id: string; source: LaidOutNode; target: LaidOutNode };
 
@@ -45,7 +51,7 @@ function hasSavedPosition(node: NodeSkeleton): boolean {
  * フラットな骨格（parentId 付き）から木構造を作り、各ノードの表示位置を決める純粋関数。
  * 兄弟は sortOrder 順に並べ、自動配置（左→右のツリー、ルートが原点）より保存済みの位置を優先する（manifests/nodes.md TreeCanvas）。
  */
-export function layoutTree(skeleton: NodeSkeleton[]): Layout {
+export function layoutTree(skeleton: NodeSkeleton[], autoSizes?: AutoSizes): Layout {
   const empty: Layout = {
     nodes: [],
     byId: new Map(),
@@ -63,7 +69,15 @@ export function layoutTree(skeleton: NodeSkeleton[]): Layout {
   root.sort(
     (a, b) => a.data.sortOrder - b.data.sortOrder || a.data.title.localeCompare(b.data.title),
   );
-  d3tree<NodeSkeleton>().nodeSize([SIBLING_SPACING, DEPTH_SPACING])(root);
+  // 兄弟の間隔はカードの高さに合わせる（中身に合わせて高くなったカードが重ならないように）。既定の高さなら従来どおり
+  const heightOf = (n: NodeSkeleton) =>
+    n.height ?? autoSizes?.get(n.id)?.height ?? defaultCardSize(n.parentId === null).height;
+  d3tree<NodeSkeleton>()
+    .nodeSize([SIBLING_SPACING, DEPTH_SPACING])
+    .separation((a, b) => {
+      const gap = (heightOf(a.data) + heightOf(b.data)) / 2 + 36;
+      return Math.max(a.parent === b.parent ? 1 : 1.25, gap / SIBLING_SPACING);
+    })(root);
 
   const nodes: LaidOutNode[] = [];
   const byId = new Map<string, LaidOutNode>();
@@ -79,6 +93,8 @@ export function layoutTree(skeleton: NodeSkeleton[]): Layout {
       depth: d.depth,
       isRoot: d.parent === null,
       branchColor: d.data.lineColor ?? parentColor ?? DEFAULT_LINE_COLOR,
+      autoWidth: autoSizes?.get(d.data.id)?.width,
+      autoHeight: autoSizes?.get(d.data.id)?.height,
     };
     nodes.push(node);
     byId.set(node.id, node);
@@ -93,15 +109,44 @@ export function layoutTree(skeleton: NodeSkeleton[]): Layout {
   return { nodes, byId, links, bounds: boundsOf(nodes) };
 }
 
-/** カードの大きさ（ルートは大きい） */
-export function cardSize(node: { isRoot: boolean }): { width: number; height: number } {
-  return node.isRoot
+/** 大きさが未設定のときの既定のカードの大きさ（ルートは大きい） */
+export function defaultCardSize(isRoot: boolean): { width: number; height: number } {
+  return isRoot
     ? { width: ROOT_WIDTH, height: ROOT_HEIGHT }
     : { width: CARD_WIDTH, height: CARD_HEIGHT };
 }
 
+/**
+ * カードの大きさ。ノードに幅・高さがあればそれ、なければ中身に合わせた大きさ、それもなければ既定の大きさ
+ * （manifests/nodes.md §3.5 Card shape and size）。
+ * 線の端点・表示範囲・ドロップ先の判定・全体の範囲はすべてここを通すので、大きさを変えると全部に反映される。
+ */
+export function cardSize(node: {
+  isRoot: boolean;
+  width?: number | null;
+  height?: number | null;
+  autoWidth?: number;
+  autoHeight?: number;
+}): { width: number; height: number } {
+  const fallback = defaultCardSize(node.isRoot);
+  return {
+    width: node.width ?? node.autoWidth ?? fallback.width,
+    height: node.height ?? node.autoHeight ?? fallback.height,
+  };
+}
+
 /** ノード群を囲む範囲 */
-export function boundsOf(nodes: { x: number; y: number; isRoot: boolean }[]): Layout["bounds"] {
+export function boundsOf(
+  nodes: {
+    x: number;
+    y: number;
+    isRoot: boolean;
+    width?: number | null;
+    height?: number | null;
+    autoWidth?: number;
+    autoHeight?: number;
+  }[],
+): Layout["bounds"] {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;

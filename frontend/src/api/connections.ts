@@ -3,11 +3,13 @@ import {
   MAX_CONNECTIONS_PER_TREE,
   type NodeConnection,
   type TreeDetailResponse,
+  type UpdateConnectionBody,
 } from "@highdea/shared";
 import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useToast } from "../components/Toast";
 import { saveStatus } from "../features/canvas/saveStatusStore";
+import { type HistoryStep, recordStep } from "../features/history/historyStore";
 import { ApiError, apiFetch, jsonBody } from "./client";
 import { queryKeys } from "./queryKeys";
 
@@ -62,13 +64,35 @@ export function useCreateConnection(treeId: string) {
       const ctx = await snapshot(queryClient, treeId);
       const tempId = `${TEMP_CONNECTION_PREFIX}${String(++tempSeq)}`;
       const [nodeAId, nodeBId] = sortPair(body.nodeAId, body.nodeBId);
-      setConnections(queryClient, treeId, (list) => [...list, { id: tempId, nodeAId, nodeBId }]);
+      setConnections(queryClient, treeId, (list) => [
+        ...list,
+        {
+          id: tempId,
+          nodeAId,
+          nodeBId,
+          color: null,
+          kind: body.kind ?? "RELATED",
+          // サーバーと同じく、向きのある種類はつなぎ始めたアイデアから相手へ向ける
+          arrow:
+            body.kind === "SEQUENCE" || body.kind === "DEPENDENCY"
+              ? body.nodeAId === nodeAId
+                ? "A_TO_B"
+                : "B_TO_A"
+              : null,
+        },
+      ]);
       return { ...ctx, tempId };
     },
     onSuccess: ({ connection }, _body, ctx) => {
       setConnections(queryClient, treeId, (list) =>
         list.map((c) => (c.id === ctx.tempId ? connection : c)),
       );
+      // 履歴: 元に戻す = つながりを消す、やり直す = もう一度つなぐ
+      recordStep(treeId, {
+        label: "Connect ideas",
+        undo: [{ kind: "deleteConnection", id: connection.id }],
+        redo: [{ kind: "createConnection", connection }],
+      });
     },
     onSettled: () => {
       saveStatus.succeed(treeId);
@@ -88,6 +112,66 @@ export function useCreateConnection(treeId: string) {
   });
 }
 
+/**
+ * つながりの色・種類・向きを変える（manifests/nodes.md PATCH /api/connections/:id）。先に線を変え、失敗したら戻す。
+ * 同じつながりへの変更は scope で順番に送り、古い色があとから保存されないようにする。
+ */
+export function useUpdateConnection(treeId: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    scope: { id: `connection-color-${treeId}` },
+    mutationFn: ({ id, body }: { id: string; body: UpdateConnectionBody }) =>
+      apiFetch<{ connection: NodeConnection }>(`/connections/${id}`, {
+        method: "PATCH",
+        ...jsonBody(body),
+      }),
+    onMutate: async ({ id, body }) => {
+      saveStatus.start(treeId);
+      const ctx = await snapshot(queryClient, treeId);
+      const before = ctx.previous?.connections.find((c) => c.id === id);
+      setConnections(queryClient, treeId, (list) =>
+        list.map((c) => (c.id === id ? { ...c, ...body } : c)),
+      );
+      // 履歴: 元に戻す = 変えた項目を前の値に
+      const undoBody: UpdateConnectionBody = {};
+      if (before) {
+        if (body.color !== undefined) undoBody.color = before.color;
+        if (body.kind !== undefined) undoBody.kind = before.kind;
+        if (body.arrow !== undefined) undoBody.arrow = before.arrow;
+      }
+      const historyStep: HistoryStep | null = before
+        ? {
+            label:
+              body.kind !== undefined
+                ? "Change relationship type"
+                : body.arrow !== undefined
+                  ? "Swap direction"
+                  : "Change connection color",
+            undo: [{ kind: "connectionUpdate", id, body: undoBody }],
+            redo: [{ kind: "connectionUpdate", id, body }],
+          }
+        : null;
+      return { ...ctx, historyStep };
+    },
+    onSuccess: (_data, _vars, ctx) => {
+      if (ctx.historyStep) recordStep(treeId, ctx.historyStep);
+    },
+    onSettled: () => {
+      saveStatus.succeed(treeId);
+    },
+    onError: (err, _vars, ctx) => {
+      if (err instanceof ApiError && err.code === "CONNECTION_NOT_FOUND") {
+        // ノードと一緒に消えていた。最新の状態を取り直す
+        void queryClient.invalidateQueries({ queryKey: queryKeys.tree(treeId) });
+        return;
+      }
+      rollback(queryClient, treeId, ctx);
+      toast("Couldn't change the connection.", "error");
+    },
+  });
+}
+
 /** つながりを消す。先に線を消し、失敗したら戻す */
 export function useDeleteConnection(treeId: string) {
   const queryClient = useQueryClient();
@@ -97,8 +181,19 @@ export function useDeleteConnection(treeId: string) {
     onMutate: async (id) => {
       saveStatus.start(treeId);
       const ctx = await snapshot(queryClient, treeId);
+      const before = ctx.previous?.connections.find((c) => c.id === id);
       setConnections(queryClient, treeId, (list) => list.filter((c) => c.id !== id));
-      return ctx;
+      const historyStep: HistoryStep | null = before
+        ? {
+            label: "Remove connection",
+            undo: [{ kind: "createConnection", connection: before }],
+            redo: [{ kind: "deleteConnection", id }],
+          }
+        : null;
+      return { ...ctx, historyStep };
+    },
+    onSuccess: (_data, _id, ctx) => {
+      if (ctx.historyStep) recordStep(treeId, ctx.historyStep);
     },
     onSettled: () => {
       saveStatus.succeed(treeId);

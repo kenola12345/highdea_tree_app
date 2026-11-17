@@ -1,4 +1,4 @@
-import { createConnectionSchema, idParamSchema } from "@highdea/shared";
+import { createConnectionSchema, idParamSchema, updateConnectionSchema } from "@highdea/shared";
 import type { RequestHandler } from "express";
 
 import { currentUser } from "../middleware/auth.js";
@@ -14,6 +14,17 @@ export const create: RequestHandler = async (req, res) => {
     getValidated(req, "body", createConnectionSchema),
   );
   res.status(201).json({ data: { connection } });
+};
+
+/** PATCH /api/connections/:id */
+export const update: RequestHandler = async (req, res) => {
+  const { id } = getValidated(req, "params", idParamSchema);
+  const connection = await connectionService.update(
+    currentUser(req).id,
+    id,
+    getValidated(req, "body", updateConnectionSchema),
+  );
+  res.status(200).json({ data: { connection } });
 };
 
 /** DELETE /api/connections/:id */

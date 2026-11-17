@@ -51,7 +51,7 @@ export function CategoryPicker({ selectedIds, onChange }: CategoryPickerProps) {
                   "inline-flex min-h-9 items-center gap-1 rounded-full border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40",
                   selected
                     ? "border-transparent"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+                    : "bg-surface border-slate-300 text-slate-700 hover:bg-slate-50",
                 )}
                 style={
                   selected

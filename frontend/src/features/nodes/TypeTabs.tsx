@@ -36,7 +36,7 @@ export function TypeTabs({
           className={clsx(
             "flex min-h-11 items-center justify-center gap-1 rounded-lg text-sm font-medium md:min-h-9",
             value === t.type
-              ? "bg-white text-slate-900 shadow-sm"
+              ? "bg-surface text-slate-900 shadow-sm"
               : "text-slate-600 hover:text-slate-900",
           )}
         >

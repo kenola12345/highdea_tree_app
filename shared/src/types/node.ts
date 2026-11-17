@@ -10,6 +10,8 @@ export type NodeDetails = {
   previewDescription: string | null;
   previewImageUrl: string | null;
   imageUrl: string | null;
+  /** IMAGE のアップロード画像の ID（それ以外は null）。エディタの「元に戻す」で消したノードを作り直すのに使う */
+  imageUploadId: string | null;
   updatedAt: string;
 };
 

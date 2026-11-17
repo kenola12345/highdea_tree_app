@@ -34,7 +34,7 @@ export function CategoryChips({ selected, onSelect }: CategoryChipsProps) {
         className={clsx(
           chip,
           !selected
-            ? "border-slate-900 bg-slate-900 text-white"
+            ? "text-surface border-slate-900 bg-slate-900"
             : "border-slate-300 text-slate-700 hover:bg-slate-50",
         )}
       >
@@ -53,12 +53,12 @@ export function CategoryChips({ selected, onSelect }: CategoryChipsProps) {
             className={clsx(
               chip,
               active
-                ? "border-brand-700 bg-brand-700 text-white"
+                ? "border-brand-700 bg-brand-700 text-surface"
                 : "border-slate-300 text-slate-700 hover:bg-slate-50",
             )}
           >
             {c.name}
-            <span className={clsx("text-xs", active ? "text-white/90" : "text-slate-500")}>
+            <span className={clsx("text-xs", active ? "text-surface/90" : "text-slate-500")}>
               {c.treeCount}
             </span>
           </button>

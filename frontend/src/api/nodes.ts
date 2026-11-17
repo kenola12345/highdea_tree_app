@@ -14,8 +14,19 @@ import { useEffect } from "react";
 import { useToast } from "../components/Toast";
 import { saveStatus } from "../features/canvas/saveStatusStore";
 import { branchIds } from "../features/canvas/treeOps";
+import {
+  type GroupRect,
+  type HistoryStep,
+  labelForUpdate,
+  recordStep,
+  type RestorableNode,
+  toRestorable,
+  undoBodyFor,
+} from "../features/history/historyStore";
 import { ApiError, apiFetch, jsonBody } from "./client";
 import { setConnections, sortPair } from "./connections";
+import { setGroups } from "./groups";
+import { fetchNodeDetails } from "./nodeDetails";
 import { queryKeys } from "./queryKeys";
 
 const neverIgnore = () => false;
@@ -62,6 +73,12 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     sortOrder: node.sortOrder,
     lineColor: node.lineColor,
     cardColor: node.cardColor,
+    shape: node.shape,
+    width: node.width,
+    height: node.height,
+    fontSize: node.fontSize,
+    textColor: node.textColor,
+    role: node.role,
     updatedAt: node.updatedAt,
   };
   const details: NodeDetails = {
@@ -72,6 +89,7 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     previewDescription: node.previewDescription,
     previewImageUrl: node.previewImageUrl,
     imageUrl: node.imageUrl,
+    imageUploadId: node.imageUploadId,
     updatedAt: node.updatedAt,
   };
   queryClient.setQueryData(queryKeys.nodeDetails(treeId, node.id), details);
@@ -134,17 +152,36 @@ export function useCreateNode(treeId: string) {
           sortOrder: body.sortOrder ?? Number.MAX_SAFE_INTEGER,
           lineColor: body.lineColor ?? null,
           cardColor: body.cardColor ?? null,
+          shape: body.shape ?? "ROUNDED",
+          width: body.width ?? null,
+          height: body.height ?? null,
+          fontSize: body.fontSize ?? null,
+          textColor: body.textColor ?? null,
+          role: body.role ?? null,
           updatedAt: new Date().toISOString(),
         },
       ]);
       return { ...ctx, tempId };
     },
-    onSuccess: ({ node }, _body, ctx) => {
+    onSuccess: ({ node }, body, ctx) => {
       const skeleton = cacheNode(queryClient, treeId, node);
       setNodes(queryClient, treeId, (nodes) =>
         nodes.map((n) => (n.id === ctx.tempId ? skeleton : n)),
       );
       invalidateLists(queryClient);
+      // 履歴: 元に戻す = 消す、やり直す = 同じ内容でもう一度作る（manifests/nodes.md §3.5 Undo and redo）
+      const restorable: RestorableNode = {
+        ...skeleton,
+        parentId: body.parentId,
+        body: node.body,
+        url: node.url,
+        imageUploadId: body.type === "IMAGE" ? body.imageUploadId : null,
+      };
+      recordStep(treeId, {
+        label: "Add idea",
+        undo: [{ kind: "deleteNode", id: node.id }],
+        redo: [{ kind: "createNodes", nodes: [restorable], connections: [] }],
+      });
     },
     onSettled: () => {
       saveStatus.succeed(treeId);
@@ -172,6 +209,7 @@ export function useUpdateNode(treeId: string) {
     onMutate: async ({ id, body }) => {
       saveStatus.start(treeId);
       const ctx = await snapshot(queryClient, treeId);
+      const historyStep = updateStep(queryClient, treeId, ctx.previous, id, body);
       setNodes(queryClient, treeId, (nodes) =>
         nodes.map((n) =>
           n.id === id
@@ -184,6 +222,12 @@ export function useUpdateNode(treeId: string) {
                 ...(body.positionY !== undefined && { positionY: body.positionY }),
                 ...(body.lineColor !== undefined && { lineColor: body.lineColor }),
                 ...(body.cardColor !== undefined && { cardColor: body.cardColor }),
+                ...(body.shape !== undefined && { shape: body.shape }),
+                ...(body.width !== undefined && { width: body.width }),
+                ...(body.height !== undefined && { height: body.height }),
+                ...(body.fontSize !== undefined && { fontSize: body.fontSize }),
+                ...(body.textColor !== undefined && { textColor: body.textColor }),
+                ...(body.role !== undefined && { role: body.role }),
               }
             : n,
         ),
@@ -196,12 +240,13 @@ export function useUpdateNode(treeId: string) {
           list.filter((c) => c.nodeAId !== nodeAId || c.nodeBId !== nodeBId),
         );
       }
-      return ctx;
+      return { ...ctx, historyStep };
     },
-    onSuccess: ({ node }) => {
+    onSuccess: ({ node }, _vars, ctx) => {
       const skeleton = cacheNode(queryClient, treeId, node);
       setNodes(queryClient, treeId, (nodes) => nodes.map((n) => (n.id === node.id ? skeleton : n)));
       invalidateLists(queryClient);
+      if (ctx.historyStep) recordStep(treeId, ctx.historyStep);
     },
     onSettled: () => {
       saveStatus.succeed(treeId);
@@ -235,9 +280,12 @@ export function useDeleteNode(treeId: string) {
       setConnections(queryClient, treeId, (list) =>
         list.filter((c) => !removed.has(c.nodeAId) && !removed.has(c.nodeBId)),
       );
-      return ctx;
+      // 履歴: 元に戻すときに枝ごと作り直せるよう、消す前に中身（メモ・URL・画像）をそろえておく
+      const historyStep = await deleteStep(queryClient, treeId, ctx.previous, id, removed);
+      return { ...ctx, historyStep };
     },
-    onSuccess: ({ deletedNodeIds }) => {
+    onSuccess: ({ deletedNodeIds }, _id, ctx) => {
+      if (ctx.historyStep) recordStep(treeId, ctx.historyStep);
       deletedNodeIds.forEach((id) => {
         queryClient.removeQueries({ queryKey: queryKeys.nodeDetails(treeId, id) });
       });
@@ -271,16 +319,26 @@ export type PositionUpdate = {
  * ドラッグ移動の位置を1回のリクエストでまとめて保存する（ドロップした時だけ）。
  * 失敗したら元の位置に戻し「Couldn't save the move」と知らせる（manifests/nodes.md SPA points）。
  */
+/** 位置の一括保存の入力: ノードだけの配列か、ノードとボックス（manifests/nodes.md §3.5 Boxes） */
+export type LayoutUpdate = { nodes: PositionUpdate[]; groups?: GroupRect[] };
+
+function asLayout(input: PositionUpdate[] | LayoutUpdate): Required<LayoutUpdate> {
+  return Array.isArray(input)
+    ? { nodes: input, groups: [] }
+    : { nodes: input.nodes, groups: input.groups ?? [] };
+}
+
 export function useSavePositions(treeId: string) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const mutation = useMutation({
-    mutationFn: (nodes: PositionUpdate[]) =>
+    mutationFn: (input: PositionUpdate[] | LayoutUpdate) =>
       apiFetch<{ nodes: NodePositionResponse[] }>(`/trees/${treeId}/nodes/positions`, {
         method: "PATCH",
-        ...jsonBody({ nodes }),
+        ...jsonBody(asLayout(input)),
       }),
-    onMutate: async (updates) => {
+    onMutate: async (input) => {
+      const { nodes: updates, groups } = asLayout(input);
       saveStatus.start(treeId);
       const ctx = await snapshot(queryClient, treeId);
       const byId = new Map(updates.map((u) => [u.id, u]));
@@ -297,9 +355,59 @@ export function useSavePositions(treeId: string) {
             : n;
         }),
       );
-      return ctx;
+      const groupById = new Map(groups.map((g) => [g.id, g]));
+      if (groups.length > 0) {
+        setGroups(queryClient, treeId, (list) =>
+          list.map((g) => {
+            const u = groupById.get(g.id);
+            return u ? { ...g, ...u } : g;
+          }),
+        );
+      }
+      // 履歴: 元に戻す = 前の位置（ボックスは前の位置と大きさ）に戻す
+      const before = new Map((ctx.previous?.nodes ?? []).map((n) => [n.id, n]));
+      const undoItems = updates.flatMap((u) => {
+        const prev = before.get(u.id);
+        return prev
+          ? [
+              {
+                id: u.id,
+                positionX: prev.positionX,
+                positionY: prev.positionY,
+                sortOrder: prev.sortOrder,
+              },
+            ]
+          : [];
+      });
+      const groupsBefore = new Map((ctx.previous?.groups ?? []).map((g) => [g.id, g]));
+      const undoGroups = groups.flatMap((g) => {
+        const prev = groupsBefore.get(g.id);
+        return prev
+          ? [
+              {
+                id: g.id,
+                positionX: prev.positionX,
+                positionY: prev.positionY,
+                width: prev.width,
+                height: prev.height,
+              },
+            ]
+          : [];
+      });
+      const historyStep: HistoryStep | null =
+        undoItems.length + undoGroups.length > 0
+          ? {
+              label:
+                groups.length > 0 ? "Move box" : updates.length === 1 ? "Move idea" : "Move ideas",
+              undo: [{ kind: "positions", items: undoItems, groups: undoGroups }],
+              redo: [{ kind: "positions", items: updates, groups }],
+            }
+          : null;
+      return { ...ctx, historyStep };
     },
-    onSuccess: () => {},
+    onSuccess: (_data, _updates, ctx) => {
+      if (ctx.historyStep) recordStep(treeId, ctx.historyStep);
+    },
     onSettled: () => {
       saveStatus.succeed(treeId);
     },
@@ -310,4 +418,84 @@ export function useSavePositions(treeId: string) {
   });
   useReportFailure(treeId, mutation, "Couldn't save the move");
   return mutation;
+}
+
+/**
+ * ノードの編集の履歴の1手（元に戻す = 変えた項目を前の値に、やり直す = 同じ編集をもう一度）。
+ * 付け替えで新しい親とのつながりが消えるときは、元に戻すときに作り直す。前の値が分からなければ記録しない。
+ */
+function updateStep(
+  queryClient: QueryClient,
+  treeId: string,
+  previous: TreeDetailResponse | undefined,
+  id: string,
+  body: UpdateNodeBody,
+): HistoryStep | null {
+  const before = previous?.nodes.find((n) => n.id === id);
+  if (!before) return null;
+  const details = queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(treeId, id));
+  const undoBody = undoBodyFor(before, details, body);
+  if (!undoBody) return null;
+  const step: HistoryStep = {
+    label: labelForUpdate(body),
+    undo: [{ kind: "updateNode", id, body: undoBody }],
+    redo: [{ kind: "updateNode", id, body }],
+  };
+  if (body.parentId !== undefined) {
+    const [nodeAId, nodeBId] = sortPair(id, body.parentId);
+    const lost = previous?.connections.find((c) => c.nodeAId === nodeAId && c.nodeBId === nodeBId);
+    if (lost) step.undo.push({ kind: "createConnection", connection: lost });
+  }
+  return step;
+}
+
+/**
+ * 枝を消す履歴の1手。元に戻すときに親から順に作り直せるよう、消える全ノードの中身（キャッシュになければ取得）と、
+ * 枝に触れるつながりを集める。中身がそろわなければ記録しない（消すこと自体は続ける）。
+ */
+async function deleteStep(
+  queryClient: QueryClient,
+  treeId: string,
+  previous: TreeDetailResponse | undefined,
+  id: string,
+  removed: Set<string>,
+): Promise<HistoryStep | null> {
+  if (!previous) return null;
+  const byId = new Map(previous.nodes.map((n) => [n.id, n]));
+  const details = new Map<string, NodeDetails>();
+  const missing: string[] = [];
+  for (const nodeId of removed) {
+    const cached = queryClient.getQueryData<NodeDetails>(queryKeys.nodeDetails(treeId, nodeId));
+    if (cached) details.set(nodeId, cached);
+    else missing.push(nodeId);
+  }
+  try {
+    for (let i = 0; i < missing.length; i += 100) {
+      for (const d of await fetchNodeDetails(treeId, missing.slice(i, i + 100))) {
+        details.set(d.id, d);
+      }
+    }
+  } catch {
+    return null;
+  }
+  // 親が先に来る順（作り直すときに親の新しい ID が分かっているように）
+  const ordered: RestorableNode[] = [];
+  const queue = [id];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    const node = byId.get(current);
+    if (!node) continue;
+    const restorable = toRestorable(node, details.get(current));
+    if (!restorable) return null;
+    ordered.push(restorable);
+    for (const child of previous.nodes) if (child.parentId === current) queue.push(child.id);
+  }
+  const connections = previous.connections.filter(
+    (c) => removed.has(c.nodeAId) || removed.has(c.nodeBId),
+  );
+  return {
+    label: removed.size > 1 ? "Delete branch" : "Delete idea",
+    undo: [{ kind: "createNodes", nodes: ordered, connections }],
+    redo: [{ kind: "deleteNode", id }],
+  };
 }

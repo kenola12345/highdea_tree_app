@@ -51,6 +51,12 @@ export type RootNodeItem = {
   sortOrder: number;
   lineColor: null;
   cardColor: null;
+  shape: "ROUNDED";
+  width: null;
+  height: null;
+  fontSize: null;
+  textColor: null;
+  role: null;
   createdAt: string;
   updatedAt: string;
 };
@@ -74,14 +80,74 @@ export type NodeSkeleton = {
   lineColor: string | null;
   /** カードの色（#RRGGBB）。null は既定（白、中心のアイデアはブランドの緑）。受け継がない */
   cardColor: string | null;
+  /** カードの形 */
+  shape: NodeShape;
+  /** カードの幅・高さ（キャンバス座標）。null は既定の大きさ */
+  width: number | null;
+  height: number | null;
+  /** メモの文字の大きさ（px）。null は既定（13） */
+  fontSize: number | null;
+  /** 文字の色（#RRGGBB）。null は自動（カードの色に対して読みやすい方） */
+  textColor: string | null;
+  /** アイデアの種類（見た目の強弱）。null は種類なし */
+  role: NodeRole | null;
   updatedAt: string;
+};
+
+export type NodeRole = "CORE" | "SUPPORTING" | "IMPORTANT" | "EXAMPLE" | "QUESTION";
+export type NodeStylePreset = "MINIMAL" | "MIDNIGHT" | "ORGANIC" | "EDITORIAL";
+export type GroupKind = "BOX" | "NOTE" | "LABEL";
+export type ConnectionKind = "RELATED" | "SEQUENCE" | "DEPENDENCY" | "CONTRAST";
+
+export type NodeShape = "ROUNDED" | "RECTANGLE" | "PILL" | "ELLIPSE";
+export type GridStyle = "LINES" | "DOTS" | "NONE";
+
+/** ツリーのキャンバスの見た目（GET /api/trees/:id の data.canvas、PATCH /api/trees/:id/canvas の data.canvas） */
+export type TreeCanvasStyle = {
+  gridStyle: GridStyle;
+  /** 方眼の色（#RRGGBB）。null は既定 */
+  gridColor: string | null;
+  /** 方眼の不透明度（0〜100） */
+  gridOpacity: number;
+  /** 方眼の間隔（12〜64） */
+  gridSpacing: number;
+  /** カードの見た目のプリセット（キャンバスとは別） */
+  nodeStyle: NodeStylePreset;
+  /** 背景色（#RRGGBB）。null は既定 */
+  backgroundColor: string | null;
 };
 
 /**
  * アイデア同士のつながり（親子の枝とは別の線）。向きはなく、nodeAId < nodeBId の順で保存・返却する
  * （manifests/nodes.md §3.5 Connections）。
  */
-export type NodeConnection = { id: string; nodeAId: string; nodeBId: string };
+export type NodeConnection = {
+  id: string;
+  nodeAId: string;
+  nodeBId: string;
+  /** 線の色（#RRGGBB）。null は既定の灰色 */
+  color: string | null;
+  /** つながりの種類 */
+  kind: ConnectionKind;
+  /** 矢印の向き（SEQUENCE・DEPENDENCY のとき）。null は向きなし */
+  arrow: "A_TO_B" | "B_TO_A" | null;
+};
+
+/** ボックス（アイデアをまとめる枠）。位置は左上の角（manifests/nodes.md §3.5 Boxes） */
+export type NodeGroup = {
+  id: string;
+  /** ボックス・付箋・文字 */
+  kind: GroupKind;
+  title: string;
+  /** 付箋の文（NOTE のみ） */
+  body: string | null;
+  /** 色（#RRGGBB）。null はプリセットの文字色 */
+  color: string | null;
+  positionX: number;
+  positionY: number;
+  width: number;
+  height: number;
+};
 
 /** GET /api/trees/:id の data。tree.removedAt / removalReason は所有者以外には常に null */
 export type TreeDetailResponse = {
@@ -89,8 +155,12 @@ export type TreeDetailResponse = {
   owner: TreeOwnerRef;
   isOwner: boolean;
   nodes: NodeSkeleton[];
+  /** キャンバスの見た目（方眼・背景） */
+  canvas: TreeCanvasStyle;
   /** ツリー内のすべてのつながり（最大500件） */
   connections: NodeConnection[];
+  /** ツリー内のすべてのボックス（最大100件） */
+  groups: NodeGroup[];
 };
 
 /** ゴミ箱（GET /api/trash）の1件。purgeAt は完全削除される予定日時（deletedAt + 10日） */

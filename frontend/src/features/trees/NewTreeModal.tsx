@@ -127,7 +127,7 @@ function NewTreeForm({ onClose }: { onClose: () => void }) {
           type="submit"
           disabled={create.isPending}
           data-testid="create-tree-submit"
-          className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium disabled:opacity-60"
         >
           {create.isPending ? "Creating…" : "Create and open"}
         </button>

@@ -43,7 +43,16 @@ describe("POST /api/trees/:id/connections", () => {
     expect(res.status).toBe(201);
     const [nodeAId, nodeBId] = sorted(b.id, c.id);
     expect(res.body).toEqual({
-      data: { connection: { id: expect.any(String), nodeAId, nodeBId } },
+      data: {
+        connection: {
+          id: expect.any(String),
+          nodeAId,
+          nodeBId,
+          color: null,
+          kind: "RELATED",
+          arrow: null,
+        },
+      },
     });
     const after = await prisma.tree.findUniqueOrThrow({ where: { id: tree.id } });
     expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
@@ -186,6 +195,97 @@ describe("POST /api/trees/:id/connections", () => {
   });
 });
 
+describe("PATCH /api/connections/:id", () => {
+  async function connected() {
+    const ctx = await setup();
+    const res = await request(app)
+      .post(`/api/trees/${ctx.tree.id}/connections`)
+      .set("Cookie", ctx.cookie)
+      .send({ nodeAId: ctx.b.id, nodeBId: ctx.c.id });
+    return { ...ctx, connectionId: res.body.data.connection.id as string };
+  }
+
+  it("sets the color, shows it in GET /api/trees/:id and bumps the tree's updatedAt (200)", async () => {
+    const { cookie, connectionId, tree } = await connected();
+    const before = await prisma.tree.findUniqueOrThrow({ where: { id: tree.id } });
+
+    const res = await request(app)
+      .patch(`/api/connections/${connectionId}`)
+      .set("Cookie", cookie)
+      .send({ color: "#EF4444" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.connection).toMatchObject({ id: connectionId, color: "#EF4444" });
+    const detail = await request(app).get(`/api/trees/${tree.id}`).set("Cookie", cookie);
+    expect(detail.body.data.connections[0].color).toBe("#EF4444");
+    const after = await prisma.tree.findUniqueOrThrow({ where: { id: tree.id } });
+    expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
+  });
+
+  it("resets the color to the default with null", async () => {
+    const { cookie, connectionId } = await connected();
+    await prisma.nodeConnection.update({ where: { id: connectionId }, data: { color: "#EF4444" } });
+
+    const res = await request(app)
+      .patch(`/api/connections/${connectionId}`)
+      .set("Cookie", cookie)
+      .send({ color: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.connection.color).toBeNull();
+  });
+
+  it("returns 400 VALIDATION_ERROR for a bad color, a missing color or an extra field", async () => {
+    const { cookie, connectionId } = await connected();
+
+    for (const body of [{ color: "red" }, {}, { color: "#EF4444", nodeAId: "x" }]) {
+      const res = await request(app)
+        .patch(`/api/connections/${connectionId}`)
+        .set("Cookie", cookie)
+        .send(body);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    }
+  });
+
+  it("returns 404 CONNECTION_NOT_FOUND for another user's connection (also an admin), a missing one or a tree in the Trash", async () => {
+    const { cookie, connectionId, tree } = await connected();
+    const { cookie: otherCookie } = await createLoggedInUser();
+    const { cookie: adminCookie } = await createAdmin();
+
+    for (const c of [otherCookie, adminCookie]) {
+      const res = await request(app)
+        .patch(`/api/connections/${connectionId}`)
+        .set("Cookie", c)
+        .send({ color: "#EF4444" });
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("CONNECTION_NOT_FOUND");
+    }
+    const missing = await request(app)
+      .patch("/api/connections/nope")
+      .set("Cookie", cookie)
+      .send({ color: "#EF4444" });
+    expect(missing.status).toBe(404);
+    await prisma.tree.update({ where: { id: tree.id }, data: { deletedAt: new Date() } });
+    const trashed = await request(app)
+      .patch(`/api/connections/${connectionId}`)
+      .set("Cookie", cookie)
+      .send({ color: "#EF4444" });
+    expect(trashed.status).toBe(404);
+    expect(
+      (await prisma.nodeConnection.findUniqueOrThrow({ where: { id: connectionId } })).color,
+    ).toBeNull();
+  });
+
+  it("returns 401 UNAUTHENTICATED for a guest", async () => {
+    const { connectionId } = await connected();
+
+    const res = await request(app).patch(`/api/connections/${connectionId}`).send({ color: null });
+
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("DELETE /api/connections/:id", () => {
   async function connected() {
     const ctx = await setup();
@@ -272,5 +372,61 @@ describe("connections and node changes", () => {
 
     expect(res.status).toBe(200);
     expect(await prisma.nodeConnection.count()).toBe(0);
+  });
+});
+
+describe("relationship types (manifests/nodes.md §3.5 Connections)", () => {
+  it("creates a directed connection pointing from the first idea sent, in either stored order", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const [first] = sorted(b.id, c.id);
+
+    const forward = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({
+        nodeAId: first === b.id ? b.id : c.id,
+        nodeBId: first === b.id ? c.id : b.id,
+        kind: "SEQUENCE",
+      });
+
+    expect(forward.status).toBe(201);
+    expect(forward.body.data.connection).toMatchObject({ kind: "SEQUENCE", arrow: "A_TO_B" });
+  });
+
+  it("points B_TO_A when the first idea sent is stored second", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const [, second] = sorted(b.id, c.id);
+    const other = second === b.id ? c.id : b.id;
+
+    const res = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({ nodeAId: second, nodeBId: other, kind: "DEPENDENCY" });
+
+    expect(res.body.data.connection).toMatchObject({ kind: "DEPENDENCY", arrow: "B_TO_A" });
+  });
+
+  it("changes the kind and direction with PATCH, and rejects an empty body or unknown kind", async () => {
+    const { cookie, tree, b, c } = await setup();
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/connections`)
+      .set("Cookie", cookie)
+      .send({ nodeAId: b.id, nodeBId: c.id });
+    const id = created.body.data.connection.id as string;
+
+    const res = await request(app)
+      .patch(`/api/connections/${id}`)
+      .set("Cookie", cookie)
+      .send({ kind: "CONTRAST", arrow: null });
+    expect(res.status).toBe(200);
+    expect(res.body.data.connection).toMatchObject({ kind: "CONTRAST", arrow: null, color: null });
+
+    for (const body of [{}, { kind: "OPPOSITE" }, { arrow: "UP" }]) {
+      const bad = await request(app)
+        .patch(`/api/connections/${id}`)
+        .set("Cookie", cookie)
+        .send(body);
+      expect(bad.status).toBe(400);
+    }
   });
 });

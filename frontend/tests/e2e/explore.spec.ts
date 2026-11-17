@@ -27,7 +27,7 @@ test.describe("Explore, viewer and profiles (guest)", () => {
     await page.getByRole("link", { name: "Startup ideas" }).click();
     await expect(page.getByTestId("viewer-title")).toHaveText("Startup ideas");
     await expect(page.getByTestId("node-card").first()).toBeVisible();
-    await expect(page.getByTestId("viewer-edit")).toHaveCount(0);
+    await expect(page.getByTestId("mode-edit")).toHaveCount(0);
 
     await page.getByRole("link", { name: "Alice Chen" }).click();
     await expect(page).toHaveURL(/\/u\/alice$/);

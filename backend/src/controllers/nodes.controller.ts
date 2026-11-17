@@ -44,8 +44,8 @@ export const update: RequestHandler = async (req, res) => {
 /** PATCH /api/trees/:id/nodes/positions */
 export const savePositions: RequestHandler = async (req, res) => {
   const { id } = getValidated(req, "params", idParamSchema);
-  const { nodes } = getValidated(req, "body", positionsSchema);
-  const data = await nodeService.savePositions(currentUser(req).id, id, nodes);
+  const { nodes, groups } = getValidated(req, "body", positionsSchema);
+  const data = await nodeService.savePositions(currentUser(req).id, id, nodes, groups);
   res.status(200).json({ data });
 };
 

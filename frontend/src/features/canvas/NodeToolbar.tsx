@@ -45,7 +45,7 @@ export function NodeToolbar({
       role="toolbar"
       aria-label="Idea actions"
       data-testid="node-toolbar"
-      className="absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+      className="bg-surface animate-pop-in absolute z-10 flex origin-bottom -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-xl border border-slate-200 p-1 shadow-lg"
       style={{ left: rect.x + rect.width / 2, top: Math.max(rect.y - 8, 56) }}
     >
       <button

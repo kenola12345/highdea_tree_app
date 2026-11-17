@@ -169,7 +169,7 @@ function TreeSettingsForm({
             type="submit"
             disabled={update.isPending}
             data-testid="tree-settings-save"
-            className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium disabled:opacity-60"
           >
             {update.isPending ? "Saving…" : "Save"}
           </button>

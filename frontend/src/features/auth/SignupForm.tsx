@@ -104,7 +104,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
         type="submit"
         disabled={signup.isPending}
         data-testid="signup-submit"
-        className="bg-brand-700 hover:bg-brand-800 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="bg-brand-700 hover:bg-brand-800 text-surface w-full rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
       >
         {signup.isPending ? "Creating account…" : "Create account"}
       </button>

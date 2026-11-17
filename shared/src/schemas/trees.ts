@@ -70,3 +70,25 @@ export const updateTreeSchema = z
     message: "Send at least one field to update",
   });
 export type UpdateTreeBody = z.infer<typeof updateTreeSchema>;
+
+/** キャンバスの方眼の種類（manifests/nodes.md §3.5 Canvas look） */
+export const gridStyleSchema = z.enum(["LINES", "DOTS", "NONE"]);
+const hexColorOrNullSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #3B82F6")
+  .nullable();
+
+/** PATCH /api/trees/:id/canvas の本文。変更する項目だけを送り、最低1つは必要 */
+export const updateTreeCanvasSchema = z
+  .strictObject({
+    gridStyle: gridStyleSchema.optional(),
+    gridColor: hexColorOrNullSchema.optional(),
+    gridOpacity: z.int().min(0).max(100).optional(),
+    gridSpacing: z.int().min(12).max(64).optional(),
+    nodeStyle: z.enum(["MINIMAL", "MIDNIGHT", "ORGANIC", "EDITORIAL"]).optional(),
+    backgroundColor: hexColorOrNullSchema.optional(),
+  })
+  .refine((body) => Object.keys(body).length > 0, {
+    message: "Send at least one field to update",
+  });
+export type UpdateTreeCanvasBody = z.infer<typeof updateTreeCanvasSchema>;

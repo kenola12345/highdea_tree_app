@@ -11,7 +11,7 @@ const button =
 /** 拡大・縮小・全体表示のボタンと現在の倍率 */
 export function ZoomControls({ scale, onZoomIn, onZoomOut, onFit }: ZoomControlsProps) {
   return (
-    <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="bg-surface flex items-center overflow-hidden rounded-xl border border-slate-200 shadow-sm">
       <button type="button" aria-label="Zoom out" onClick={onZoomOut} className={button}>
         −
       </button>

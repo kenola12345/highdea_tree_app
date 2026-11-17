@@ -5,6 +5,7 @@ import {
   isVideoProviderUrl,
   MAX_NODES_PER_TREE,
   type NodeDetails,
+  type NodeGroup,
   type NodePositionResponse,
   type NodeResponse,
   type PositionsBody,
@@ -16,6 +17,7 @@ import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
 import { sortPair } from "./common/connectionPair.js";
 import { visibleTreeWhere } from "./common/treeAccess.js";
+import { savePositionsInTx } from "./group.service.js";
 import { type NodePreviewFields, tryGetPreview } from "./linkPreview.service.js";
 import { uploadUrl } from "./upload.service.js";
 
@@ -37,8 +39,15 @@ const nodeResponseSelect = {
   sortOrder: true,
   lineColor: true,
   cardColor: true,
+  shape: true,
+  width: true,
+  height: true,
+  fontSize: true,
+  textColor: true,
+  role: true,
   createdAt: true,
   updatedAt: true,
+  imageUploadId: true,
   imageUpload: { select: { storageKey: true } },
 } satisfies Prisma.NodeSelect;
 
@@ -51,6 +60,7 @@ const nodeDetailsSelect = {
   previewDescription: true,
   previewImageUrl: true,
   updatedAt: true,
+  imageUploadId: true,
   imageUpload: { select: { storageKey: true } },
 } satisfies Prisma.NodeSelect;
 
@@ -75,6 +85,7 @@ function toNodeDetails(row: NodeDetailsRow): NodeDetails {
     previewDescription: row.previewDescription,
     previewImageUrl: row.previewImageUrl,
     imageUrl: row.imageUpload ? uploadUrl(row.imageUpload.storageKey) : null,
+    imageUploadId: row.imageUploadId,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -92,11 +103,18 @@ export function toNodeResponse(row: NodeResponseRow): NodeResponse {
     previewDescription: row.previewDescription,
     previewImageUrl: row.previewImageUrl,
     imageUrl: row.imageUpload ? uploadUrl(row.imageUpload.storageKey) : null,
+    imageUploadId: row.imageUploadId,
     positionX: row.positionX,
     positionY: row.positionY,
     sortOrder: row.sortOrder,
     lineColor: row.lineColor,
     cardColor: row.cardColor,
+    shape: row.shape,
+    width: row.width,
+    height: row.height,
+    fontSize: row.fontSize,
+    textColor: row.textColor,
+    role: row.role,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -214,6 +232,12 @@ export async function create(
         sortOrder: body.sortOrder ?? (await nextSortOrder(tx, body.parentId)),
         lineColor: body.lineColor ?? null,
         cardColor: body.cardColor ?? null,
+        shape: body.shape,
+        width: body.width ?? null,
+        height: body.height ?? null,
+        fontSize: body.fontSize ?? null,
+        textColor: body.textColor ?? null,
+        role: body.role ?? null,
       },
       select: nodeResponseSelect,
     });
@@ -300,7 +324,17 @@ export async function update(
       body: body.body,
       lineColor: body.lineColor,
       cardColor: body.cardColor,
+      shape: body.shape,
+      width: body.width,
+      height: body.height,
+      fontSize: body.fontSize,
+      textColor: body.textColor,
+      role: body.role,
     };
+    // 中心のアイデアには種類を付けない（いつも一番目立つ見た目のため: manifests/nodes.md nodes）
+    if (body.role && current.parentId === null) {
+      throw fieldError("role", "The center idea can't have a kind");
+    }
     if (nextType !== current.type) {
       // 型が変わったら古い型の項目を消す（画像ファイル自体は未使用画像の掃除ジョブが消す）
       Object.assign(data, { type: nextType, url: null, imageUploadId: null, ...EMPTY_PREVIEW });
@@ -352,9 +386,16 @@ export async function savePositions(
   userId: string,
   treeId: string,
   items: PositionsBody["nodes"],
-): Promise<{ nodes: NodePositionResponse[] }> {
+  groups: PositionsBody["groups"] = [],
+): Promise<{ nodes: NodePositionResponse[]; groups: NodeGroup[] }> {
   return prisma.$transaction(async (tx) => {
     await lockOwnedActiveTree(tx, userId, treeId);
+    // ボックスを動かすときは、中のアイデアと同じトランザクションで保存する（manifests/nodes.md §3.5 Boxes）
+    const savedGroups = await savePositionsInTx(tx, treeId, groups);
+    if (items.length === 0) {
+      await touchTree(tx, treeId);
+      return { nodes: [], groups: savedGroups };
+    }
     // 最大2,000件を1件ずつ更新すると遅いため、配列を unnest して1回の UPDATE にする。
     // ノードの updated_at は「内容の変更」を表すため位置だけの保存では変えない
     // （変えるとキャンバスがドラッグしただけのノードの詳細を取り直してしまう: manifests/nodes.md）
@@ -374,7 +415,10 @@ export async function savePositions(
         n.sort_order AS "sortOrder", n.updated_at AS "updatedAt"`;
     if (rows.length !== items.length) throw new AppError("NODE_NOT_FOUND");
     await touchTree(tx, treeId);
-    return { nodes: rows.map((row) => ({ ...row, updatedAt: row.updatedAt.toISOString() })) };
+    return {
+      nodes: rows.map((row) => ({ ...row, updatedAt: row.updatedAt.toISOString() })),
+      groups: savedGroups,
+    };
   });
 }
 

@@ -44,12 +44,14 @@ test.describe("My Trees and Trash", () => {
     await page.getByTestId("confirm-button").click();
     await expect(card).toHaveCount(0);
 
+    await page.getByTestId("menu-button").click();
     await page.getByRole("link", { name: "Trash" }).first().click();
     const item = page.getByTestId("trash-item").filter({ hasText: "Learning TypeScript" });
     await expect(item.getByTestId("days-left")).toHaveText("10 days left");
     await item.getByTestId("restore-button").click();
     await expect(item).toHaveCount(0);
 
+    await page.getByTestId("menu-button").click();
     await page.getByRole("link", { name: "My Trees" }).first().click();
     await expect(
       page.getByTestId("tree-card").filter({ hasText: "Learning TypeScript" }),

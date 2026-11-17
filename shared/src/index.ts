@@ -7,6 +7,7 @@ export * from "./schemas/categories.js";
 export * from "./schemas/common.js";
 export * from "./schemas/connections.js";
 export * from "./schemas/explore.js";
+export * from "./schemas/groups.js";
 export * from "./schemas/linkPreview.js";
 export * from "./schemas/nodes.js";
 export * from "./schemas/trees.js";

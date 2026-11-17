@@ -4,6 +4,16 @@
 export const MAX_NODES_PER_TREE = 2000;
 /** 1ツリーあたりのアイデア同士のつながりの上限（manifests/nodes.md §3.5 Connections） */
 export const MAX_CONNECTIONS_PER_TREE = 500;
+/** 1ツリーあたりのボックスの上限と、ボックスの大きさの範囲（manifests/nodes.md §3.5 Boxes） */
+export const MAX_GROUPS_PER_TREE = 100;
+/** 付箋・文字の最小の大きさ（ボックスは BOX_* が最小） */
+export const GROUP_WIDTH_MIN = 120;
+export const GROUP_HEIGHT_MIN = 48;
+export const BOX_WIDTH_MIN = 160;
+export const BOX_HEIGHT_MIN = 100;
+export const NOTE_BODY_MAX = 2000;
+export const GROUP_SIZE_MAX = 6000;
+export const GROUP_TITLE_MAX = 100;
 /** 1ユーザーあたりのカテゴリ上限（manifests/trees.md §3.7） */
 export const MAX_CATEGORIES_PER_USER = 100;
 /** 1ツリーに付けられるカテゴリ数の上限（manifests/trees.md §3.3） */
@@ -26,6 +36,16 @@ export const USERNAME_MAX = 30;
 /** bcrypt は72バイトまでしか使わないため、それ以上の入力は受け付けない */
 export const PASSWORD_MAX = 72;
 export const PASSWORD_MIN = 8;
+
+/** カードの大きさの範囲（キャンバス座標、manifests/nodes.md §3.5 Card shape and size） */
+export const NODE_WIDTH_MIN = 60;
+export const NODE_WIDTH_MAX = 800;
+export const NODE_HEIGHT_MIN = 40;
+export const NODE_HEIGHT_MAX = 600;
+/** カードの文字の大きさ（メモの px。題名はこれより少し大きい） */
+export const NODE_FONT_SIZE_MIN = 10;
+export const NODE_FONT_SIZE_MAX = 28;
+export const NODE_FONT_SIZE_DEFAULT = 13;
 
 /** ノード詳細の一括取得で指定できるIDの最大数（GET /api/trees/:id/nodes?ids=） */
 export const NODE_DETAILS_BATCH_MAX = 100;

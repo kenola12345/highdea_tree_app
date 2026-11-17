@@ -188,6 +188,12 @@ describe("POST /api/trees", () => {
       sortOrder: 0,
       lineColor: null,
       cardColor: null,
+      shape: "ROUNDED",
+      width: null,
+      height: null,
+      fontSize: null,
+      textColor: null,
+      role: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -308,17 +314,31 @@ describe("GET /api/trees/:id", () => {
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
+    expect(res.body.data.canvas).toEqual({
+      gridStyle: "LINES",
+      gridColor: null,
+      gridOpacity: 100,
+      gridSpacing: 24,
+      backgroundColor: null,
+      nodeStyle: "MINIMAL",
+    });
     expect(res.body.data.nodes).toHaveLength(3);
     for (const node of res.body.data.nodes) {
       expect(Object.keys(node).sort()).toEqual(
         [
           "cardColor",
+          "fontSize",
+          "height",
           "id",
           "lineColor",
+          "shape",
+          "width",
           "parentId",
           "positionX",
+          "role",
           "positionY",
           "sortOrder",
+          "textColor",
           "title",
           "type",
           "updatedAt",

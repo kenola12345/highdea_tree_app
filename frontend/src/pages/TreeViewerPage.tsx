@@ -34,7 +34,7 @@ export default function TreeViewerPage() {
   const selectedNode = selectedId ? (data.nodes.find((n) => n.id === selectedId) ?? null) : null;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] w-full flex-col">
+    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col">
       <ViewerHeader
         data={data}
         isAdmin={isAdmin}
@@ -47,6 +47,8 @@ export default function TreeViewerPage() {
           treeId={id}
           nodes={data.nodes}
           connections={data.connections}
+          canvas={data.canvas}
+          groups={data.groups}
           apiRef={apiRef}
           selectedId={selectedId}
           onNodeSelect={setSelectedId}

@@ -18,6 +18,12 @@ function skeleton(type: NodeSkeleton["type"], title: string): NodeSkeleton {
     sortOrder: 0,
     lineColor: null,
     cardColor: null,
+    shape: "ROUNDED",
+    width: null,
+    height: null,
+    fontSize: null,
+    textColor: null,
+    role: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }

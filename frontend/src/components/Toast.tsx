@@ -51,10 +51,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role={t.kind === "error" ? "alert" : "status"}
             data-testid="toast"
             className={clsx(
-              "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-lg",
-              t.kind === "error" && "bg-red-700 text-white",
-              t.kind === "success" && "bg-slate-900 text-white",
-              t.kind === "info" && "bg-slate-800 text-white",
+              "animate-toast-in pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-lg",
+              t.kind === "error" && "bg-red-600 text-white",
+              t.kind === "success" && "text-surface bg-slate-900",
+              t.kind === "info" && "text-surface bg-slate-800",
             )}
           >
             <span className="flex-1">{t.message}</span>

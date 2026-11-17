@@ -80,7 +80,7 @@ export function ColorField({
           className={clsx(
             "flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium md:min-h-9",
             value === null
-              ? "border-slate-900 bg-slate-900 text-white"
+              ? "text-surface border-slate-900 bg-slate-900"
               : "border-slate-300 hover:bg-slate-50",
           )}
         >

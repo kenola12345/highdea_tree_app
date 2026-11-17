@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -80,7 +81,46 @@ describe("route guards", () => {
   it("shows the logged-in navigation in the header", async () => {
     renderAt("/", alice);
 
-    expect(await screen.findAllByRole("link", { name: "My Trees" })).not.toHaveLength(0);
+    // ページへのリンクとログアウトは、ヘッダー中央の「Menu」を開いた中にある
+    await userEvent.setup().click(await screen.findByTestId("menu-button"));
+    expect(screen.getAllByRole("link", { name: "My Trees" })).not.toHaveLength(0);
     expect(screen.getByTestId("logout-button")).toBeInTheDocument();
+  });
+});
+
+describe("light and dark mode", () => {
+  afterEach(() => {
+    localStorage.clear();
+    document.documentElement.classList.remove("dark");
+  });
+
+  it("switches the theme from the header, remembers it in this browser and switches back", async () => {
+    renderAt("/", null);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Switch to dark mode" }));
+    expect(document.documentElement).toHaveClass("dark");
+    expect(localStorage.getItem("theme")).toBe("dark");
+
+    await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(localStorage.getItem("theme")).toBe("light");
+  });
+
+  it("opens the menu (hidden but kept for its animation while closed) and closes it with Esc", async () => {
+    renderAt("/", null);
+    const user = userEvent.setup();
+
+    // メニューは閉じるときも動かせるよう置いたままで、閉じている間は隠れて操作できない（aria-hidden / inert）
+    const menu = screen.getByTestId("main-menu");
+    expect(menu).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("link", { name: "Explore" })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByTestId("menu-button"));
+    expect(menu).toHaveAttribute("data-open", "true");
+    expect(screen.getByRole("link", { name: "Explore" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(menu).toHaveAttribute("data-open", "false");
+    expect(menu).toHaveAttribute("inert");
   });
 });

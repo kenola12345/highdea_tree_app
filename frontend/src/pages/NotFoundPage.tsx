@@ -18,7 +18,7 @@ export function NotFound() {
       <div className="mt-6 flex justify-center gap-3">
         <Link
           to="/explore"
-          className="bg-brand-700 hover:bg-brand-800 rounded-lg px-4 py-2 text-sm font-medium text-white"
+          className="bg-brand-700 hover:bg-brand-800 text-surface rounded-full px-4 py-2 text-sm font-medium"
         >
           Go to Explore
         </Link>

@@ -47,7 +47,7 @@ export function TrashList({ trees, total }: TrashListProps) {
             setDeleteTarget({ kind: "all", count: total });
           }}
           data-testid="empty-trash-button"
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
         >
           Empty Trash
         </button>
