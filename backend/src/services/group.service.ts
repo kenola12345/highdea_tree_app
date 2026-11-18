@@ -62,13 +62,15 @@ export async function create(
     if (count >= MAX_GROUPS_PER_TREE) throw new AppError("GROUP_LIMIT_REACHED");
     const kind = body.kind ?? "BOX";
     assertFits(kind, body);
-    if (body.body !== undefined && body.body !== null && kind !== "NOTE") throw fieldError("body", "Only notes have text");
+    // 文を持てるのは付箋（本文）とボックス（ラベル）だけ。文字の項目は題名が文そのもの
+    if (body.body !== undefined && body.body !== null && kind === "LABEL")
+      throw fieldError("body", "Text labels use the title");
     const group = await tx.nodeGroup.create({
       data: {
         treeId,
         kind,
         title: body.title ?? DEFAULT_TITLE[kind],
-        body: kind === "NOTE" ? (body.body ?? null) : null,
+        body: kind === "LABEL" ? null : (body.body ?? null),
         color: body.color ?? null,
         positionX: body.positionX,
         positionY: body.positionY,
@@ -111,8 +113,8 @@ export async function update(
     });
     if (!current) throw new AppError("GROUP_NOT_FOUND");
     assertFits(current.kind, body);
-    if (body.body !== undefined && body.body !== null && current.kind !== "NOTE")
-      throw fieldError("body", "Only notes have text");
+    if (body.body !== undefined && body.body !== null && current.kind === "LABEL")
+      throw fieldError("body", "Text labels use the title");
     const { count } = await tx.nodeGroup.updateMany({ where: { id: groupId }, data: body });
     // ロック待ちの間に、別のリクエストが消していた
     if (count === 0) throw new AppError("GROUP_NOT_FOUND");

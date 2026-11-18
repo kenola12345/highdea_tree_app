@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { memo } from "react";
 
+import { readableTextColor } from "../categories/CategoryChip";
 import { cardSize, type LaidOutNode } from "./layout";
 import type { DetailLevel } from "./viewport";
 
@@ -134,6 +135,46 @@ export const NodeLink = memo(function NodeLink({
         vectorEffect="non-scaling-stroke"
         pointerEvents="none"
       />
+      {/* 線のラベル（manifests/nodes.md Line labels）。線の色の札を線の中点に置く。点表示では出さない */}
+      {target.lineLabel && level !== "dot" && (
+        <LineLabel
+          text={target.lineLabel}
+          color={color}
+          at={curveMidpoint({ start, end, controls })}
+          selectable={selectable}
+        />
+      )}
     </g>
   );
 });
+
+/** 線の中点の札。線の色で塗り、文字は読みやすい色。押すと線を選ぶ（親の g の data-branch-id） */
+function LineLabel({
+  text,
+  color,
+  at,
+  selectable,
+}: {
+  text: string;
+  color: string;
+  at: Point;
+  selectable: boolean;
+}) {
+  // 太字 12px のおおよその字幅で札の幅を見積もる
+  const width = text.length * 7 + 18;
+  return (
+    <g data-testid="line-label" pointerEvents={selectable ? "all" : "none"}>
+      <rect x={at.x - width / 2} y={at.y - 11} width={width} height={22} rx={11} fill={color} />
+      <text
+        x={at.x}
+        y={at.y + 4}
+        textAnchor="middle"
+        fontSize={12}
+        fontWeight={700}
+        fill={readableTextColor(color)}
+      >
+        {text}
+      </text>
+    </g>
+  );
+}

@@ -194,6 +194,7 @@ describe("POST /api/trees", () => {
       fontSize: null,
       textColor: null,
       role: null,
+      lineLabel: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -331,6 +332,7 @@ describe("GET /api/trees/:id", () => {
           "height",
           "id",
           "lineColor",
+          "lineLabel",
           "shape",
           "width",
           "parentId",

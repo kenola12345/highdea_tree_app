@@ -28,6 +28,8 @@ export const TREE_DESCRIPTION_MAX = 500;
 export const NODE_TITLE_MAX = 200;
 export const NODE_BODY_MAX = 10_000;
 export const NODE_URL_MAX = 2048;
+/** 枝の線のラベルの最大文字数 */
+export const LINE_LABEL_MAX = 50;
 export const CATEGORY_NAME_MAX = 50;
 export const REMOVAL_REASON_MAX = 500;
 export const DISPLAY_NAME_MAX = 50;

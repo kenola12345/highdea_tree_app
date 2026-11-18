@@ -142,19 +142,37 @@ export function cardAppearance(input: {
 
   let border = `1px solid ${t.border}`;
   let shadow: string | undefined;
-  if (!input.isRoot && accent) {
-    if (input.role === "CORE") border = `2px solid ${accent}`;
+  // 外側の半透明の輪（halo）。強さは 中心 > Core > Important > Supporting の順で、大事なものほど目に入る。
+  // 中心は自分の色を文字色の方へ寄せた太めの枠と輪（カードの色を変えても、その色から作るので合う）
+  let halo: { color: string; width: number } | undefined;
+  if (input.isRoot) {
+    border = `2.5px solid color-mix(in srgb, ${background} 55%, ${text})`;
+    halo = { color: `color-mix(in srgb, ${background} 35%, transparent)`, width: 7 };
+  } else if (accent) {
+    if (input.role === "CORE") {
+      border = `2px solid ${accent}`;
+      halo = { color: `color-mix(in srgb, ${accent} 30%, transparent)`, width: 5 };
+    }
     if (input.role === "EXAMPLE") border = `1.5px dashed ${accent}`;
     if (input.role === "QUESTION")
       border = `1.5px solid color-mix(in srgb, ${accent} 55%, transparent)`;
-    // 「Important」は左に太い差し色の帯
-    if (input.role === "IMPORTANT") shadow = `inset 4px 0 0 ${accent}`;
+    if (input.role === "IMPORTANT") {
+      // 左に太い差し色の帯（NodeCard）に加えて、差し色の枠と輪
+      border = `1.5px solid color-mix(in srgb, ${accent} 70%, transparent)`;
+      halo = { color: `color-mix(in srgb, ${accent} 25%, transparent)`, width: 4 };
+      shadow = `inset 4px 0 0 ${accent}`;
+    }
+    if (input.role === "SUPPORTING") {
+      border = `1.5px solid color-mix(in srgb, ${accent} 45%, transparent)`;
+      halo = { color: `color-mix(in srgb, ${accent} 16%, transparent)`, width: 3 };
+    }
   }
   return {
     background,
     text,
     border,
     shadow,
+    halo,
     accent,
     titleFont: t.titleFont,
     // 題名の強さ: Core と中心は太く、枝を持つアイデアはやや太く、Supporting は軽く

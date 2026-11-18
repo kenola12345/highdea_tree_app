@@ -114,6 +114,7 @@ describe("POST /api/trees/:id/nodes", () => {
       fontSize: null,
       textColor: null,
       role: null,
+      lineLabel: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -1056,5 +1057,37 @@ describe("idea kinds (manifests/nodes.md §3.5 Idea kinds)", () => {
       .set("Cookie", cookie)
       .send({ role: "HERO" });
     expect(bad.status).toBe(400);
+  });
+
+  it("stores a trimmed line label on create and update, clears it with null, and refuses one on the center idea", async () => {
+    const { user, cookie } = await createLoggedInUser();
+    const tree = await createTree(user.id);
+
+    const created = await request(app)
+      .post(`/api/trees/${tree.id}/nodes`)
+      .set("Cookie", cookie)
+      .send({ type: "TEXT", title: "Service", parentId: tree.rootId, lineLabel: "  calls " });
+    expect(created.body.data.node.lineLabel).toBe("calls");
+    const id = created.body.data.node.id as string;
+
+    const cleared = await request(app)
+      .patch(`/api/nodes/${id}`)
+      .set("Cookie", cookie)
+      .send({ lineLabel: null });
+    expect(cleared.body.data.node.lineLabel).toBeNull();
+
+    for (const lineLabel of ["   ", "x".repeat(51)]) {
+      const bad = await request(app)
+        .patch(`/api/nodes/${id}`)
+        .set("Cookie", cookie)
+        .send({ lineLabel });
+      expect(bad.status).toBe(400);
+    }
+    const root = await request(app)
+      .patch(`/api/nodes/${tree.rootId}`)
+      .set("Cookie", cookie)
+      .send({ lineLabel: "start" });
+    expect(root.status).toBe(400);
+    expect(root.body.error.code).toBe("VALIDATION_ERROR");
   });
 });

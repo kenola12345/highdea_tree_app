@@ -154,6 +154,11 @@ export const NodeCard = memo(function NodeCard({
           background: look.background,
           color: look.text,
           border: look.border,
+          // 中心と種類（Core / Important / Supporting）の外側の輪。選択の輪（box-shadow の ring）とぶつからないよう outline で描く
+          ...(look.halo && {
+            outline: `${String(look.halo.width)}px solid ${look.halo.color}`,
+            outlineOffset: 0,
+          }),
           // 形に合わせた余白（ピル・円は大きさに応じて、丸い部分に文字がかからない値）
           paddingInline: padding.x,
           paddingBlock: padding.y,

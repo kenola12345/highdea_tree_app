@@ -1,4 +1,4 @@
-import type { ConnectionKind, NodeConnection } from "@highdea/shared";
+import { type ConnectionKind, LINE_LABEL_MAX, type NodeConnection } from "@highdea/shared";
 import clsx from "clsx";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
@@ -260,10 +260,16 @@ export function BranchToolbar({
   point,
   color,
   inheritedColor,
+  lineLabel,
   disabled,
   onColorChange,
+  onLabelChange,
 }: {
   point: { x: number; y: number };
+  /** 線のラベル（子ノードの lineLabel）。null はなし */
+  lineLabel: string | null;
+  /** ラベルを変える。null で消す */
+  onLabelChange: (label: string | null) => void;
   /** 子ノードの lineColor（null は親の色を受け継ぐ） */
   color: string | null;
   inheritedColor: string;
@@ -273,6 +279,7 @@ export function BranchToolbar({
 }) {
   return (
     <LineToolbar point={point} label="Branch line actions" testId="branch-toolbar">
+      <BranchLabelField value={lineLabel} disabled={disabled} onChange={onLabelChange} />
       <LineColorControl
         testId="branch-color"
         label="Line color (also used for the lines below it)"
@@ -283,5 +290,47 @@ export function BranchToolbar({
         onChange={onColorChange}
       />
     </LineToolbar>
+  );
+}
+
+/** 線のラベルの欄。入力を終えたとき（Enter・フォーカスが外れた）に保存し、空なら消す。Esc で元に戻す */
+function BranchLabelField({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onChange: (label: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  const commit = () => {
+    const next = draft.trim().slice(0, LINE_LABEL_MAX);
+    if (next !== (value ?? "")) onChange(next === "" ? null : next);
+    else setDraft(value ?? "");
+  };
+  return (
+    <label className="flex items-center">
+      <span className="sr-only">Line label</span>
+      <input
+        value={draft}
+        disabled={disabled}
+        maxLength={LINE_LABEL_MAX}
+        placeholder="Add a label"
+        onChange={(e) => {
+          setDraft(e.target.value);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            setDraft(value ?? "");
+            e.currentTarget.blur();
+          }
+        }}
+        data-testid="branch-label-input"
+        className="focus:border-brand-600 min-h-11 w-36 rounded-lg border border-transparent bg-transparent px-2 text-sm font-bold hover:border-slate-200 focus:outline-none md:min-h-9"
+      />
+    </label>
   );
 }

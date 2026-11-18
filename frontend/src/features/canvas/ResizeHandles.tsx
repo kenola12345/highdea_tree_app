@@ -1,6 +1,9 @@
 import { NODE_HEIGHT_MAX, NODE_HEIGHT_MIN, NODE_WIDTH_MAX, NODE_WIDTH_MIN } from "@highdea/shared";
 import clsx from "clsx";
-import { type PointerEvent, useRef, useState } from "react";
+import { type PointerEvent, type RefObject, useRef, useState } from "react";
+
+import type { CanvasApi } from "./TreeCanvas";
+import { useAutoScroll } from "./useAutoScroll";
 
 /** 大きさを変えた結果（ワールド座標。x, y はカードの中心） */
 export type ResizeBox = { x: number; y: number; width: number; height: number };
@@ -72,6 +75,11 @@ type ResizeHandlesProps = {
   onResizing: (box: ResizeBox | null) => void;
   /** 離したとき。大きさか位置が変わっていれば呼ばれる */
   onCommit: (box: ResizeBox) => void;
+  /**
+   * 渡すと、画面の端の近くまで引っぱったときにキャンバスを自動でスクロールする（manifests/nodes.md Resize handles）。
+   * 動いた量はワールド座標で測るので、スクロールした分も大きさに入る。
+   */
+  canvas?: { apiRef: RefObject<CanvasApi | null>; getRect: () => DOMRect | undefined };
 };
 
 /**
@@ -84,6 +92,7 @@ export function ResizeHandles({
   rect,
   onResizing,
   onCommit,
+  canvas,
 }: ResizeHandlesProps) {
   const drag = useRef<{
     corner: Corner;
@@ -92,10 +101,33 @@ export function ResizeHandles({
     startY: number;
     /** 画面 1px あたりのワールド座標 */
     perPixel: number;
+    /** 押し始めた点のワールド座標（canvas があるとき） */
+    startWorld: { x: number; y: number } | null;
+    shift: boolean;
     start: ResizeBox;
     last: ResizeBox;
   } | null>(null);
   const [active, setActive] = useState<ResizeBox | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+
+  /** いまのポインターの位置から大きさを計算し直す（動かしたとき・自動スクロールのたび） */
+  const recompute = () => {
+    const d = drag.current;
+    const p = pointer.current;
+    if (!d || !p) return;
+    const world = d.startWorld ? canvas?.apiRef.current?.screenToWorld(p.x, p.y) : undefined;
+    const dx = world && d.startWorld ? world.x - d.startWorld.x : (p.x - d.startX) * d.perPixel;
+    const dy = world && d.startWorld ? world.y - d.startWorld.y : (p.y - d.startY) * d.perPixel;
+    const next = resizeBox(d.start, d.corner, dx, dy, d.shift, limits);
+    d.last = next;
+    setActive(next);
+    onResizing(next);
+  };
+
+  const panBy = (dx: number, dy: number) => canvas?.apiRef.current?.panBy(dx, dy);
+  const getRect = () => canvas?.getRect();
+  useAutoScroll(dragging && canvas !== undefined, pointer, getRect, panBy, recompute);
 
   function onPointerDown(corner: Corner, e: PointerEvent<HTMLDivElement>) {
     if (e.button !== 0) return;
@@ -109,31 +141,29 @@ export function ResizeHandles({
       startX: e.clientX,
       startY: e.clientY,
       perPixel: box.width / rect.width,
+      startWorld: canvas?.apiRef.current?.screenToWorld(e.clientX, e.clientY) ?? null,
+      shift: e.shiftKey,
       start,
       last: start,
     };
+    pointer.current = { x: e.clientX, y: e.clientY };
+    setDragging(true);
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     const d = drag.current;
     if (!d || d.pointerId !== e.pointerId) return;
-    const box = resizeBox(
-      d.start,
-      d.corner,
-      (e.clientX - d.startX) * d.perPixel,
-      (e.clientY - d.startY) * d.perPixel,
-      e.shiftKey,
-      limits,
-    );
-    d.last = box;
-    setActive(box);
-    onResizing(box);
+    d.shift = e.shiftKey;
+    pointer.current = { x: e.clientX, y: e.clientY };
+    recompute();
   }
 
   function finish(e: PointerEvent<HTMLDivElement>, commit: boolean) {
     const d = drag.current;
     if (!d || d.pointerId !== e.pointerId) return;
     drag.current = null;
+    pointer.current = null;
+    setDragging(false);
     setActive(null);
     const { start, last } = d;
     const changed =

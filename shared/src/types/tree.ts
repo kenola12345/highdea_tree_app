@@ -57,6 +57,7 @@ export type RootNodeItem = {
   fontSize: null;
   textColor: null;
   role: null;
+  lineLabel: null;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +92,8 @@ export type NodeSkeleton = {
   textColor: string | null;
   /** アイデアの種類（見た目の強弱）。null は種類なし */
   role: NodeRole | null;
+  /** 親からこのアイデアへの線に付ける短いラベル。null はラベルなし */
+  lineLabel: string | null;
   updatedAt: string;
 };
 
