@@ -227,6 +227,8 @@ model Node {
   fontSize           Int?      @map("font_size")
   textColor          String?   @map("text_color") @db.VarChar(7)
   role               NodeRole?
+  // Label on the line from the parent to this idea; NULL = no label
+  lineLabel          String?   @map("line_label") @db.VarChar(50)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 

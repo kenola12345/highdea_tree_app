@@ -79,6 +79,7 @@ function cacheNode(queryClient: QueryClient, treeId: string, node: NodeResponse)
     fontSize: node.fontSize,
     textColor: node.textColor,
     role: node.role,
+    lineLabel: node.lineLabel,
     updatedAt: node.updatedAt,
   };
   const details: NodeDetails = {
@@ -158,6 +159,7 @@ export function useCreateNode(treeId: string) {
           fontSize: body.fontSize ?? null,
           textColor: body.textColor ?? null,
           role: body.role ?? null,
+          lineLabel: body.lineLabel ?? null,
           updatedAt: new Date().toISOString(),
         },
       ]);
@@ -228,6 +230,7 @@ export function useUpdateNode(treeId: string) {
                 ...(body.fontSize !== undefined && { fontSize: body.fontSize }),
                 ...(body.textColor !== undefined && { textColor: body.textColor }),
                 ...(body.role !== undefined && { role: body.role }),
+                ...(body.lineLabel !== undefined && { lineLabel: body.lineLabel }),
               }
             : n,
         ),

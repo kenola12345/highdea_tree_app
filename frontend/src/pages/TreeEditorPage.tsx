@@ -217,6 +217,12 @@ function Editor({
     [layout, savePositions, toast, treeId, updateNode],
   );
 
+  // 大きさを変えている間、画面の端でキャンバスを自動スクロールするための参照（ResizeHandles の canvas）
+  const resizeCanvas = useMemo(
+    () => ({ apiRef, getRect: () => canvasBoxRef.current?.getBoundingClientRect() }),
+    [],
+  );
+
   const drag = useNodeDrag({
     nodes,
     layout,
@@ -670,6 +676,7 @@ function Editor({
                   }}
                   limits={group.kind === "BOX" ? GROUP_LIMITS : ITEM_LIMITS}
                   rect={rect}
+                  canvas={resizeCanvas}
                   onResizing={(box) => {
                     setGroupResizing(
                       box
@@ -785,9 +792,13 @@ function Editor({
                 point={point}
                 color={nodes.find((n) => n.id === node.id)?.lineColor ?? null}
                 inheritedColor={inheritedColorFor(node.id)}
+                lineLabel={nodes.find((n) => n.id === node.id)?.lineLabel ?? null}
                 disabled={node.id.startsWith(TEMP_ID_PREFIX)}
                 onColorChange={(color) => {
                   updateNode.mutate({ id: node.id, body: { lineColor: color } });
+                }}
+                onLabelChange={(lineLabel) => {
+                  updateNode.mutate({ id: node.id, body: { lineLabel } });
                 }}
               />
             )
@@ -802,6 +813,7 @@ function Editor({
                     key={node.id}
                     box={{ x: node.x, y: node.y, ...cardSize(node) }}
                     rect={rect}
+                    canvas={resizeCanvas}
                     onResizing={(box) => {
                       setResizing(box ? { id: node.id, box } : null);
                     }}

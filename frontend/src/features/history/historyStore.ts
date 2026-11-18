@@ -33,6 +33,7 @@ export type RestorableNode = {
   fontSize: number | null;
   textColor: string | null;
   role: NodeSkeleton["role"];
+  lineLabel: string | null;
 };
 
 /** 履歴の1つの操作。ID は記録したときのもので、再生するときに今の ID へ読み替える */
@@ -270,6 +271,7 @@ export function toRestorable(
     fontSize: node.fontSize,
     textColor: node.textColor,
     role: node.role,
+    lineLabel: node.lineLabel,
   };
 }
 
@@ -319,6 +321,7 @@ export function undoBodyFor(
     "fontSize",
     "textColor",
     "role",
+    "lineLabel",
   ] as const) {
     if (body[key] !== undefined) Object.assign(undo, { [key]: before[key] });
   }
@@ -332,5 +335,6 @@ export function labelForUpdate(body: UpdateNodeBody): string {
   if (keys.every((k) => k === "lineColor")) return "Change line color";
   if (keys.every((k) => k === "width" || k === "height")) return "Resize idea";
   if (keys.every((k) => k === "role")) return "Change kind";
+  if (keys.every((k) => k === "lineLabel")) return "Label line";
   return "Edit idea";
 }

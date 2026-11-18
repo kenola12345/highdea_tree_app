@@ -38,6 +38,7 @@ function node(
     fontSize: null,
     textColor: null,
     role: null,
+    lineLabel: null,
     updatedAt: "2026-11-13T00:00:00Z",
     ...extra,
   };
@@ -309,6 +310,22 @@ describe("node style presets and idea kinds", () => {
     });
   });
 
+  it("gives the center idea a border and halo made from its own card color", () => {
+    const root = cardAppearance({ ...base, isRoot: true, cardColor: "#A3D9B8" });
+    expect(root.border).toBe(`2.5px solid color-mix(in srgb, #A3D9B8 55%, ${root.text})`);
+    expect(root.halo).toEqual({ color: "color-mix(in srgb, #A3D9B8 35%, transparent)", width: 7 });
+    expect(cardAppearance(base).halo).toBeUndefined();
+  });
+
+  it("gives Core, Important and Supporting a halo, strongest for Core", () => {
+    const width = (role: "CORE" | "IMPORTANT" | "SUPPORTING" | "EXAMPLE") =>
+      cardAppearance({ ...base, role }).halo?.width ?? 0;
+    expect(width("CORE")).toBeGreaterThan(width("IMPORTANT"));
+    expect(width("IMPORTANT")).toBeGreaterThan(width("SUPPORTING"));
+    expect(width("SUPPORTING")).toBeGreaterThan(0);
+    expect(width("EXAMPLE")).toBe(0);
+  });
+
   it("gives each kind its own treatment, and the owner's colors win over the preset", () => {
     expect(cardAppearance({ ...base, role: "CORE" })).toMatchObject({
       titleWeight: 800,
@@ -435,15 +452,15 @@ describe("boxes", () => {
     expect(groupIds).toEqual(["inner"]);
   });
 
-  it("draws a box around cards with padding and room for the header, never smaller than 160 × 100", () => {
+  it("draws a box around cards with padding, never smaller than 160 × 100", () => {
     const rect = rectAround([
       { x: 0, y: 0, width: 200, height: 84 },
       { x: 300, y: 120, width: 200, height: 84 },
     ]);
-    expect(rect).toEqual({ positionX: -124, positionY: -110, width: 548, height: 296 });
+    expect(rect).toEqual({ positionX: -124, positionY: -66, width: 548, height: 252 });
     expect(rectAround([{ x: 0, y: 0, width: 60, height: 40 }])).toMatchObject({
       width: 160,
-      height: 132,
+      height: 100,
     });
     expect(rectAround([])).toBeNull();
   });

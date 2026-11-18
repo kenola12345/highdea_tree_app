@@ -7,7 +7,7 @@ import { LineColorControl } from "./ConnectOverlays";
 
 /**
  * 選択中のキャンバスの項目の上に出すツールバー（manifests/nodes.md §3.5 Add menu and canvas items）:
- * 文（ボックス・文字は題名、付箋は文）、色、Delete（アイデアは変わらない）。文は入力を終えたとき（Enter・フォーカスが外れた）に保存する。
+ * 文（ボックスはラベル、文字は題名、付箋は文）、色、Delete（アイデアは変わらない）。文は入力を終えたとき（Enter・フォーカスが外れた）に保存する。
  */
 export function GroupToolbar({
   rect,
@@ -25,14 +25,14 @@ export function GroupToolbar({
   rect: { x: number; y: number; width: number; height: number };
   kind: GroupKind;
   title: string;
-  /** 付箋の文 */
+  /** 付箋の文、またはボックスのラベル */
   body: string | null;
   color: string | null;
   defaultColor: string;
   /** 保存中（一時ID）のボックスはまだ変えられない */
   disabled: boolean;
   onRename: (title: string) => void;
-  /** 付箋の文を変える */
+  /** 付箋の文・ボックスのラベルを変える */
   onBodyChange: (body: string | null) => void;
   onColorChange: (color: string | null) => void;
   onDelete: () => void;
@@ -47,6 +47,12 @@ export function GroupToolbar({
   const commitNote = () => {
     const next = noteDraft.slice(0, 2000);
     if (next !== (body ?? "")) onBodyChange(next.trim() === "" ? null : next);
+  };
+  /** ボックスのラベル: 前後の空白を除き、空なら消す（null） */
+  const commitLabel = () => {
+    const next = noteDraft.trim().slice(0, 100);
+    if (next !== (body ?? "")) onBodyChange(next === "" ? null : next);
+    else setNoteDraft(body ?? "");
   };
   return (
     <div
@@ -73,9 +79,32 @@ export function GroupToolbar({
             className="focus:border-brand-600 w-52 resize-none rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-sm focus:outline-none"
           />
         </label>
+      ) : kind === "BOX" ? (
+        <label className="flex items-center">
+          <span className="sr-only">Box label</span>
+          <input
+            value={noteDraft}
+            disabled={disabled}
+            maxLength={100}
+            placeholder="Add a label"
+            onChange={(e) => {
+              setNoteDraft(e.target.value);
+            }}
+            onBlur={commitLabel}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setNoteDraft(body ?? "");
+                e.currentTarget.blur();
+              }
+            }}
+            data-testid="group-label-input"
+            className="focus:border-brand-600 min-h-11 w-40 rounded-lg border border-transparent bg-transparent px-2 text-sm font-bold hover:border-slate-200 focus:outline-none md:min-h-9"
+          />
+        </label>
       ) : (
         <label className="flex items-center">
-          <span className="sr-only">Box title</span>
+          <span className="sr-only">Text</span>
           <input
             value={draft}
             disabled={disabled}

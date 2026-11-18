@@ -45,6 +45,7 @@ const nodeResponseSelect = {
   fontSize: true,
   textColor: true,
   role: true,
+  lineLabel: true,
   createdAt: true,
   updatedAt: true,
   imageUploadId: true,
@@ -115,6 +116,7 @@ export function toNodeResponse(row: NodeResponseRow): NodeResponse {
     fontSize: row.fontSize,
     textColor: row.textColor,
     role: row.role,
+    lineLabel: row.lineLabel,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -238,6 +240,7 @@ export async function create(
         fontSize: body.fontSize ?? null,
         textColor: body.textColor ?? null,
         role: body.role ?? null,
+        lineLabel: body.lineLabel ?? null,
       },
       select: nodeResponseSelect,
     });
@@ -330,8 +333,13 @@ export async function update(
       fontSize: body.fontSize,
       textColor: body.textColor,
       role: body.role,
+      lineLabel: body.lineLabel,
     };
     // 中心のアイデアには種類を付けない（いつも一番目立つ見た目のため: manifests/nodes.md nodes）
+    // 中心のアイデアには入ってくる線がないので、線のラベルも付けない
+    if (body.lineLabel && current.parentId === null) {
+      throw fieldError("lineLabel", "The center idea has no line to label");
+    }
     if (body.role && current.parentId === null) {
       throw fieldError("role", "The center idea can't have a kind");
     }

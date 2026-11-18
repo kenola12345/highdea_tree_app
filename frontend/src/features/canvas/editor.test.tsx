@@ -37,6 +37,7 @@ function node(id: string, parentId: string | null, x: number, y: number): NodeSk
     fontSize: null,
     textColor: null,
     role: null,
+    lineLabel: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }

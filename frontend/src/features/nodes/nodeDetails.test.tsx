@@ -24,6 +24,7 @@ function skeleton(type: NodeSkeleton["type"], title: string): NodeSkeleton {
     fontSize: null,
     textColor: null,
     role: null,
+    lineLabel: null,
     updatedAt: "2026-11-13T00:00:00Z",
   };
 }

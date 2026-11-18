@@ -39,7 +39,16 @@ export async function nodesByTitle(
   request: APIRequestContext,
   treeId: string,
 ): Promise<
-  Record<string, { id: string; parentId: string | null; positionX: number; positionY: number }>
+  Record<
+    string,
+    {
+      id: string;
+      parentId: string | null;
+      positionX: number;
+      positionY: number;
+      lineLabel: string | null;
+    }
+  >
 > {
   const res = await request.get(`/api/trees/${treeId}`);
   const body = (await res.json()) as {
@@ -50,6 +59,7 @@ export async function nodesByTitle(
         parentId: string | null;
         positionX: number;
         positionY: number;
+        lineLabel: string | null;
       }[];
     };
   };

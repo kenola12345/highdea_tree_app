@@ -4,33 +4,28 @@ import { memo } from "react";
 
 import { readableTextColor } from "../categories/CategoryChip";
 import { NODE_STYLES } from "./nodeStyles";
-import type { DetailLevel } from "./viewport";
 
-/** 見出しの帯の高さ（ワールド座標）。中身に合わせてボックスを作るときも、この分を上にあける */
-export const GROUP_HEADER = 44;
 /** ボックスの中身のまわりの余白 */
 export const GROUP_PADDING = 24;
 
 type GroupBoxProps = {
   group: NodeGroup;
   preset: NodeStylePreset;
-  level: DetailLevel;
   selected: boolean;
-  /** エディタでは見出しを押して選べる・動かせる */
+  /** エディタではボックスのどこを押しても選べる・動かせる */
   interactive: boolean;
   /** 選択中のアイデアのまわりを見せるとき、関係ないボックスを薄くする */
   dimmed?: boolean;
 };
 
 /**
- * ボックス（manifests/nodes.md §3.5 Boxes）。角の丸い枠と、見出しの帯（印と題名）。
+ * ボックス（manifests/nodes.md §3.5 Boxes）。角の丸い枠と、ラベル（body）があれば左上の小さな札。題名は描かない。
  * 色はボックスの色（なければプリセットの文字色）を薄く混ぜた半透明の面と枠で、どんなキャンバスの上でも枠が分かる。
- * 本体はポインターを通す（パンや中のアイデアの操作をじゃましない）。見出しだけが押せる。
+ * エディタでは面全体が押せる（選ぶ・ドラッグで中身ごと動かす）。中のアイデアと線は上に描くので、そちらが先に押される。
  */
 export const GroupBox = memo(function GroupBox({
   group,
   preset,
-  level,
   selected,
   interactive,
   dimmed = false,
@@ -38,6 +33,11 @@ export const GroupBox = memo(function GroupBox({
   const t = NODE_STYLES[preset];
   const tint = group.color ?? t.text;
   const { positionX: x, positionY: y, width, height } = group;
+  // ラベルは枠の幅に収まるように縮める（太字 13px のおおよその字幅で見積もる）
+  const maxChars = Math.max(3, Math.floor((width - 48) / 8));
+  const text = group.body?.trim() ?? "";
+  const label = text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
+  const labelWidth = Math.min(width - 24, label.length * 8 + 24);
   return (
     <g
       data-testid="group-box"
@@ -46,64 +46,46 @@ export const GroupBox = memo(function GroupBox({
       className="transition-opacity duration-200"
       opacity={dimmed ? 0.35 : 1}
     >
+      {/* data-group-header は「押すとボックスを選ぶ・動かす（パンしない）」印。面全体に付ける */}
       <rect
         x={x}
         y={y}
         width={width}
         height={height}
         rx={18}
+        data-group-header={interactive ? group.id : undefined}
+        className={clsx(interactive && "cursor-grab active:cursor-grabbing")}
         style={{ fill: `color-mix(in srgb, ${tint} 7%, ${t.card})` }}
         fillOpacity={0.5}
         stroke={selected ? "#F6C945" : tint}
         strokeOpacity={selected ? 1 : 0.35}
         strokeWidth={selected ? 3 : 1.5}
         vectorEffect="non-scaling-stroke"
-        pointerEvents="none"
-      />
-      {/* 見出しの帯: 押して選ぶ・ドラッグで中身ごと動かす（data-group-header はパンしない印） */}
-      <g
-        data-group-header={group.id}
-        className={clsx(interactive && "cursor-grab active:cursor-grabbing")}
         pointerEvents={interactive ? "all" : "none"}
-      >
-        <rect x={x} y={y} width={width} height={GROUP_HEADER} rx={18} fill="transparent" />
-        {level !== "dot" && (
-          <>
-            <rect
-              x={x + 14}
-              y={y + 11}
-              width={22}
-              height={22}
-              rx={6}
-              style={{ fill: `color-mix(in srgb, ${tint} 18%, ${t.card})` }}
-            />
-            <text
-              x={x + 25}
-              y={y + 26.5}
-              textAnchor="middle"
-              fontSize={13}
-              fontWeight={800}
-              fill={tint}
-              aria-hidden="true"
-            >
-              ▦
-            </text>
-            <text
-              x={x + 46}
-              y={y + 28}
-              fontSize={16}
-              fontWeight={800}
-              fill={tint}
-              data-testid="group-title"
-              style={{ fontFamily: t.titleFont }}
-            >
-              {group.title.length > Math.max(4, Math.floor((width - 64) / 9))
-                ? `${group.title.slice(0, Math.max(3, Math.floor((width - 64) / 9) - 1))}…`
-                : group.title}
-            </text>
-          </>
-        )}
-      </g>
+      />
+      {label && (
+        // 札は押せない（押すと下の枠に届き、ボックスを選ぶ・動かす）
+        <g pointerEvents="none" data-testid="group-label">
+          <rect
+            x={x + 12}
+            y={y + 12}
+            width={labelWidth}
+            height={26}
+            rx={13}
+            style={{ fill: `color-mix(in srgb, ${tint} 22%, ${t.card})` }}
+          />
+          <text
+            x={x + 24}
+            y={y + 29.5}
+            fontSize={13}
+            fontWeight={800}
+            fill={tint}
+            style={{ fontFamily: t.titleFont }}
+          >
+            {label}
+          </text>
+        </g>
+      )}
     </g>
   );
 });
@@ -208,14 +190,14 @@ export function contentsOf(
   };
 }
 
-/** カードの四角（中心と大きさ）を囲むボックスの位置と大きさ（見出しと余白の分を足す） */
+/** カードの四角（中心と大きさ）を囲むボックスの位置と大きさ（余白の分を足す） */
 export function rectAround(
   boxes: { x: number; y: number; width: number; height: number }[],
 ): { positionX: number; positionY: number; width: number; height: number } | null {
   if (boxes.length === 0) return null;
   const minX = Math.min(...boxes.map((b) => b.x - b.width / 2)) - GROUP_PADDING;
   const maxX = Math.max(...boxes.map((b) => b.x + b.width / 2)) + GROUP_PADDING;
-  const minY = Math.min(...boxes.map((b) => b.y - b.height / 2)) - GROUP_PADDING - GROUP_HEADER;
+  const minY = Math.min(...boxes.map((b) => b.y - b.height / 2)) - GROUP_PADDING;
   const maxY = Math.max(...boxes.map((b) => b.y + b.height / 2)) + GROUP_PADDING;
   return {
     positionX: Math.round(minX),

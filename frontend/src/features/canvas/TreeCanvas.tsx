@@ -410,7 +410,6 @@ export function TreeCanvas({
                   key={g.id}
                   group={g}
                   preset={canvas?.nodeStyle ?? "MINIMAL"}
-                  level={level}
                   selected={g.id === selectedGroupId}
                   interactive={Boolean(onGroupSelect)}
                 />

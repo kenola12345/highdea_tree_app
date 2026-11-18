@@ -257,13 +257,23 @@ describe("sticky notes and text labels", () => {
     expect(edited.body.data.group.body).toBe("Asked.");
   });
 
-  it("rejects text on a box or label, and a box smaller than 160 × 100", async () => {
+  it("keeps a box's label in body and clears it with null", async () => {
     const { cookie, tree } = await setup();
-    const textOnBox = await request(app)
+    const created = await request(app)
       .post(`/api/trees/${tree.id}/groups`)
       .set("Cookie", cookie)
-      .send({ ...box, body: "x" });
-    expect(textOnBox.status).toBe(400);
+      .send({ ...box, body: "Backend flow" });
+    expect(created.status).toBe(201);
+    expect(created.body.data.group).toMatchObject({ kind: "BOX", body: "Backend flow" });
+    const cleared = await request(app)
+      .patch(`/api/groups/${created.body.data.group.id as string}`)
+      .set("Cookie", cookie)
+      .send({ body: null });
+    expect(cleared.body.data.group.body).toBeNull();
+  });
+
+  it("rejects text on a text label, and a box smaller than 160 × 100", async () => {
+    const { cookie, tree } = await setup();
     const small = await request(app)
       .post(`/api/trees/${tree.id}/groups`)
       .set("Cookie", cookie)

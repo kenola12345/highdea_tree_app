@@ -69,6 +69,7 @@ export function useHistoryActions(treeId: string) {
         fontSize: node.fontSize,
         textColor: node.textColor,
         role: node.role,
+        lineLabel: node.lineLabel,
       };
       const text: CreateNodeBody = { ...common, type: "TEXT" };
       let body: CreateNodeBody = text;

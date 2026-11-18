@@ -2,6 +2,7 @@
 import { z } from "zod";
 
 import {
+  LINE_LABEL_MAX,
   MAX_GROUPS_PER_TREE,
   MAX_NODES_PER_TREE,
   NODE_BODY_MAX,
@@ -57,6 +58,14 @@ export const nodeFontSizeSchema = z
 /** 文字の色（#RRGGBB）。null は自動（カードの色に対して読みやすい方） */
 export const textColorSchema = lineColorSchema;
 /** アイデアの種類（見た目の強弱）。null は種類なし。中心のアイデアには付けられない（サービスで確認） */
+/** 枝の線のラベル（親からこのアイデアへの線）。null で消す */
+export const lineLabelSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a label, or remove it")
+  .max(LINE_LABEL_MAX, `Use ${String(LINE_LABEL_MAX)} characters or fewer`)
+  .nullable();
+
 export const nodeRoleSchema = z
   .enum(["CORE", "SUPPORTING", "IMPORTANT", "EXAMPLE", "QUESTION"])
   .nullable();
@@ -106,6 +115,7 @@ const createCommon = {
   fontSize: nodeFontSizeSchema.optional(),
   textColor: textColorSchema.optional(),
   role: nodeRoleSchema.optional(),
+  lineLabel: lineLabelSchema.optional(),
 };
 
 /**
@@ -144,6 +154,7 @@ export const updateNodeSchema = z
     fontSize: nodeFontSizeSchema.optional(),
     textColor: textColorSchema.optional(),
     role: nodeRoleSchema.optional(),
+    lineLabel: lineLabelSchema.optional(),
   })
   .superRefine((body, ctx) => {
     if (Object.keys(body).length === 0) {

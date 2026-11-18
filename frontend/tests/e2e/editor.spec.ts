@@ -243,6 +243,39 @@ test("E2E-EDITOR-12 click a branch line to change its color; the lines below it 
   await expect(page.locator('[data-testid=node-link][data-color="#EF4444"]')).toHaveCount(4);
 });
 
+test("E2E-EDITOR-27 click a branch line to label it; the label stays after reload, can be undone and cleared", async ({
+  page,
+}) => {
+  const problemId = (await nodesByTitle(page.request, treeId)).Problem?.id ?? "";
+  const branch = page.locator(`[data-testid=node-link][data-branch-id="${problemId}"]`);
+  const mid = await lineMidpoint(branch);
+  await page.mouse.click(mid.x, mid.y);
+  await page.getByTestId("branch-label-input").fill("  because ");
+  await page.getByTestId("branch-label-input").press("Enter");
+  await expect(branch.getByTestId("line-label")).toHaveText("because");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+  await expect
+    .poll(async () => (await nodesByTitle(page.request, treeId)).Problem?.lineLabel)
+    .toBe("because");
+
+  // 元に戻すと消え、やり直すと戻る
+  await page.getByTestId("undo-button").click();
+  await expect(branch.getByTestId("line-label")).toHaveCount(0);
+  await page.getByTestId("redo-button").click();
+  await expect(branch.getByTestId("line-label")).toHaveText("because");
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  await page.reload();
+  await expect(branch.getByTestId("line-label")).toHaveText("because");
+
+  // 札を押しても線が選べ、欄を空にすると消える
+  await branch.getByTestId("line-label").click();
+  await page.getByTestId("branch-label-input").fill("");
+  await page.getByTestId("branch-label-input").press("Enter");
+  await expect(branch.getByTestId("line-label")).toHaveCount(0);
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+});
+
 test("E2E-EDITOR-13 drag a corner handle to resize a card; the size is kept after reload", async ({
   page,
 }) => {
@@ -635,7 +668,7 @@ test("E2E-EDITOR-24 Tidy up removes overlapping cards in one undoable step", asy
     .toBe(300);
 });
 
-test("E2E-EDITOR-25 add a box from + Add by drawing it around an idea, rename it, drag it with the idea, delete it and undo", async ({
+test("E2E-EDITOR-25 add a box from + Add by drawing it around an idea, label it, resize it with edge auto-scroll, drag it anywhere with the idea, delete it and undo", async ({
   page,
 }) => {
   const nodesBefore = await nodesByTitle(page.request, treeId);
@@ -654,18 +687,39 @@ test("E2E-EDITOR-25 add a box from + Add by drawing it around an idea, rename it
   await page.mouse.up();
   await expect(page.getByTestId("place-banner")).toHaveCount(0);
   await expect(page.getByTestId("group-toolbar")).toBeVisible();
-  await page.getByTestId("group-title-input").fill("Pain points");
-  await page.getByTestId("group-title-input").press("Enter");
-  await expect(page.getByTestId("group-title")).toHaveText("Pain points");
+  // ボックスには題名を出さない（ツールバーにも題名の欄がない）
+  await expect(page.getByTestId("group-title")).toHaveCount(0);
+  await expect(page.getByTestId("group-title-input")).toHaveCount(0);
+  await expect(page.getByTestId("group-label")).toHaveCount(0);
+  // ラベルを付けると左上に札が出る
+  await page.getByTestId("group-label-input").fill("Pain points");
+  await page.getByTestId("group-label-input").press("Enter");
+  await expect(page.getByTestId("group-label")).toHaveText("Pain points");
   await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
 
-  // 見出しをドラッグすると、中のアイデアも一緒に動く
-  const header = page.locator("[data-group-header]").first();
-  const h = await header.boundingBox();
-  if (!h) throw new Error("no header");
-  await page.mouse.move(h.x + 30, h.y + 15);
+  // 下の角を画面の下端まで引っぱって止めると、キャンバスが自動でスクロールし、そのぶん大きくなる
+  const canvasBox = await page.getByTestId("tree-canvas").boundingBox();
+  const handle = await page.getByTestId("resize-handle-se").boundingBox();
+  const before = await card(page, "Problem").boundingBox();
+  if (!canvasBox || !handle || !before) throw new Error("no canvas");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
   await page.mouse.down();
-  await page.mouse.move(h.x + 30 - 120, h.y + 15 + 40, { steps: 10 });
+  await page.mouse.move(handle.x + handle.width / 2, canvasBox.y + canvasBox.height - 4, {
+    steps: 8,
+  });
+  await expect
+    .poll(async () => (await card(page, "Problem").boundingBox())?.y ?? before.y)
+    .toBeLessThan(before.y - 60);
+  await page.mouse.up();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
+
+  // ボックスのどこ（中のアイデア以外）を押してもドラッグでき、中のアイデアも一緒に動く
+  const body = page.locator("[data-group-header]").first();
+  const h = await body.boundingBox();
+  if (!h) throw new Error("no box");
+  await page.mouse.move(h.x + 15, h.y + h.height - 15);
+  await page.mouse.down();
+  await page.mouse.move(h.x + 15 - 120, h.y + h.height - 15 + 40, { steps: 10 });
   await page.mouse.up();
   await expect(page.getByTestId("save-status")).toHaveText("Saved ✓");
   await expect
@@ -673,12 +727,17 @@ test("E2E-EDITOR-25 add a box from + Add by drawing it around an idea, rename it
     .not.toBe(nodesBefore.Problem?.positionX);
 
   // 消してもアイデアは残り、元に戻すとボックスが戻る
-  await page.locator("[data-group-header]").first().click();
+  await page.keyboard.press("Escape");
+  await page
+    .locator("[data-group-header]")
+    .first()
+    .click({ position: { x: 15, y: 15 } });
   await page.getByTestId("delete-group-button").click();
   await expect(page.getByTestId("group-box")).toHaveCount(0);
   await expect(card(page, "Problem")).toBeVisible();
   await page.getByTestId("undo-button").click();
-  await expect(page.getByTestId("group-title")).toHaveText("Pain points");
+  await expect(page.getByTestId("group-box")).toHaveCount(1);
+  await expect(page.getByTestId("group-label")).toHaveText("Pain points");
 });
 
 test("E2E-EDITOR-26 + Add places an idea, a sticky note and a text label where you click", async ({

@@ -39,6 +39,7 @@ const nodeSkeletonSelect = {
   fontSize: true,
   textColor: true,
   role: true,
+  lineLabel: true,
   updatedAt: true,
 } satisfies Prisma.NodeSelect;
 
@@ -163,6 +164,7 @@ export async function create(userId: string, body: CreateTreeBody): Promise<Crea
         fontSize: null,
         textColor: null,
         role: null,
+        lineLabel: null,
         createdAt: root.createdAt.toISOString(),
         updatedAt: root.updatedAt.toISOString(),
       },

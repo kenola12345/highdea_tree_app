@@ -55,7 +55,8 @@ export function groupBody(group: NodeGroup): CreateGroupBody {
   return {
     kind: group.kind,
     title: group.title,
-    body: group.kind === "NOTE" ? group.body : undefined,
+    // 付箋の文とボックスのラベル（文字の項目は文を持たない）
+    body: group.kind === "LABEL" ? undefined : group.body,
     color: group.color,
     positionX: group.positionX,
     positionY: group.positionY,
